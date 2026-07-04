@@ -37,18 +37,21 @@ app.add_middleware(
 
 @app.get("/health")
 async def health(session: SessionDep) -> dict[str, str]:
+    """Check API and database connectivity."""
     await session.execute(text("SELECT 1"))
     return {"status": "ok"}
 
 
 @app.get("/users", response_model=list[UserRead])
 async def list_users(session: SessionDep) -> list[User]:
+    """List all users."""
     result = await session.execute(select(User).order_by(User.id))
     return list(result.scalars())
 
 
 @app.get("/users/{user_id}", response_model=UserRead)
 async def get_user(user_id: uuid.UUID, session: SessionDep) -> User:
+    """Fetch a single user."""
     return await _require_user(session, user_id)
 
 
@@ -59,7 +62,7 @@ async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
     return user
 
 
-async def _linked_account(session: AsyncSession, user_id: uuid.UUID) -> LastfmAccount | None:
+async def _linked_lastfm_account(session: AsyncSession, user_id: uuid.UUID) -> LastfmAccount | None:
     result = await session.execute(
         select(LastfmAccount)
         .join(LastfmConnection, LastfmConnection.lastfm_account_id == LastfmAccount.id)
@@ -89,8 +92,9 @@ async def _fetch_user_info(lastfm: LastfmClient, username: str) -> LastfmUserInf
 
 @app.get("/users/{user_id}/lastfm", response_model=LastfmAccountRead)
 async def get_linked_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> LastfmAccount:
+    """Return the user's linked Last.fm account; 404 if none is linked."""
     await _require_user(session, user_id)
-    account = await _linked_account(session, user_id)
+    account = await _linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
     return account
@@ -103,6 +107,7 @@ async def link_lastfm_account(
     session: SessionDep,
     lastfm: LastfmClientDep,
 ) -> LastfmAccount:
+    """Link the user to a Last.fm account by username, replacing any existing link."""
     await _require_user(session, user_id)
     info = await _fetch_user_info(lastfm, payload.username)
 
@@ -135,8 +140,9 @@ async def refresh_lastfm_account(
     session: SessionDep,
     lastfm: LastfmClientDep,
 ) -> LastfmAccount:
+    """Re-fetch the linked Last.fm account's details and update them."""
     await _require_user(session, user_id)
-    account = await _linked_account(session, user_id)
+    account = await _linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
