@@ -44,12 +44,15 @@ Endpoints:
 - `GET /health` - API + database health check
 - `GET /users` - list users
 - `GET /users/{id}` - fetch one user
-- <http://localhost:3000/users> - web page listing all users
+- `GET /users/{id}/lastfm` - view the user's linked Last.fm account
+- `PUT /users/{id}/lastfm` - link a Last.fm account (replaces any existing link)
+- `POST /users/{id}/lastfm/refresh` - re-fetch the linked account's details from Last.fm
+- <http://localhost:3000/users> - web page listing all users, with per-user profiles for linking Last.fm
 - <http://localhost:8000/docs> - interactive API docs (Swagger UI)
 
 ### Configuration and secrets
 
-Compose reads an optional `.env` at the repo root (see `.env.example`); defaults cover everything, and secrets should be referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup.
+Compose reads a `.env` at the repo root (`cp .env.example .env`); defaults cover everything except secrets, which are referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup. `LASTFM_API_KEY` needs a [Last.fm API account](https://www.last.fm/api/account/create).
 
 ### Managing the stack
 

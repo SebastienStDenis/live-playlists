@@ -62,6 +62,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `db.py` - async engine + `async_sessionmaker`; `get_session` is the FastAPI dependency that yields an `AsyncSession`.
 - `models.py` - SQLAlchemy 2.0 ORM models (`DeclarativeBase`, typed `Mapped`/`mapped_column`). Alembic autogenerate diffs against `Base.metadata`.
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
+- `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`), injected via the `get_lastfm_client` dependency in `main.py`.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).
 
@@ -75,4 +76,4 @@ Important: `frontend/AGENTS.md` warns that this Next.js version has breaking cha
 
 ### Configuration
 
-Compose reads an optional root `.env` (see `.env.example`); defaults cover everything. Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup. Running the backend outside Docker uses `backend/.env` (copy from `backend/.env.example`).
+Compose reads a root `.env` (see `.env.example`); defaults cover everything except secrets (currently `LASTFM_API_KEY`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup. Running the backend outside Docker uses `backend/.env` (copy from `backend/.env.example`).

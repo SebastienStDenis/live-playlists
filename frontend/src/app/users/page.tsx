@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type User = {
   id: string;
   name: string;
@@ -17,11 +19,13 @@ export default async function UsersPage() {
       <h1 className="mb-4 text-2xl font-semibold">Users</h1>
       <ul className="space-y-2">
         {users.map((user) => (
-          <li
-            key={user.id}
-            className="rounded border border-gray-300 px-4 py-2 dark:border-gray-700"
-          >
-            <span className="text-gray-500">#{user.id}</span> {user.name}
+          <li key={user.id}>
+            <Link
+              href={`/users/${user.id}`}
+              className="block rounded border border-gray-300 px-4 py-2 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+            >
+              <span className="text-gray-500">#{user.id}</span> {user.name}
+            </Link>
           </li>
         ))}
       </ul>
