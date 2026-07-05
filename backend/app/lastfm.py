@@ -16,6 +16,12 @@ class LastfmPrivateDataError(Exception):
     pass
 
 
+class LastfmApiError(Exception):
+    def __init__(self, code: int, message: str | None) -> None:
+        super().__init__(f"Last.fm error {code}: {message}")
+        self.code = code
+
+
 class LastfmUserInfo(BaseModel):
     username: str
     real_name: str | None
@@ -50,6 +56,10 @@ class LastfmLovedTracksPage(BaseModel):
 class LastfmClient:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
+        self._http = httpx.AsyncClient()
+
+    async def aclose(self) -> None:
+        await self._http.aclose()
 
     async def get_user_info(self, username: str) -> LastfmUserInfo:
         payload = await self._get({"method": "user.getinfo", "user": username})
@@ -83,13 +93,15 @@ class LastfmClient:
 
     async def _get(self, params: dict) -> dict:
         params = {**params, "api_key": self._api_key, "format": "json"}
-        async with httpx.AsyncClient() as client:
-            response = await client.get(API_URL, params=params)
+        response = await self._http.get(API_URL, params=params)
         payload = response.json()
-        if payload.get("error") == USER_NOT_FOUND_ERROR_CODE:
+        error = payload.get("error")
+        if error == USER_NOT_FOUND_ERROR_CODE:
             raise LastfmUserNotFoundError(params.get("user"))
-        if payload.get("error") == PRIVATE_DATA_ERROR_CODE:
+        if error == PRIVATE_DATA_ERROR_CODE:
             raise LastfmPrivateDataError(params.get("user"))
+        if error is not None:
+            raise LastfmApiError(error, payload.get("message"))
         response.raise_for_status()
         return payload
 

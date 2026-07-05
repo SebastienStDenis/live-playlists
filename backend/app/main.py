@@ -1,9 +1,11 @@
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +13,7 @@ from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
 from app.config import get_settings
 from app.db import get_session
 from app.lastfm import (
+    LastfmApiError,
     LastfmClient,
     LastfmPrivateDataError,
     LastfmUserInfo,
@@ -31,11 +34,15 @@ from app.schemas import (
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-def get_lastfm_client() -> LastfmClient:
+async def get_lastfm_client() -> AsyncIterator[LastfmClient]:
     api_key = get_settings().lastfm_api_key
     if not api_key:
         raise HTTPException(status_code=503, detail="LASTFM_API_KEY is not configured")
-    return LastfmClient(api_key)
+    client = LastfmClient(api_key)
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 LastfmClientDep = Annotated[LastfmClient, Depends(get_lastfm_client)]
@@ -48,6 +55,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(LastfmUserNotFoundError)
+async def lastfm_user_not_found(request: Request, exc: LastfmUserNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "Last.fm user not found"})
+
+
+@app.exception_handler(LastfmPrivateDataError)
+async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> JSONResponse:
+    return JSONResponse(
+        status_code=403, content={"detail": "This Last.fm account's listening data is private"}
+    )
+
+
+@app.exception_handler(LastfmApiError)
+async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
 @app.get("/health")
@@ -115,13 +139,6 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
     account.last_synced_at = synced_at
 
 
-async def _fetch_user_info(lastfm: LastfmClient, username: str) -> LastfmUserInfo:
-    try:
-        return await lastfm.get_user_info(username)
-    except LastfmUserNotFoundError:
-        raise HTTPException(status_code=404, detail="Last.fm user not found") from None
-
-
 @app.get("/users/{user_id}/lastfm", response_model=LastfmAccountRead)
 async def get_linked_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> LastfmAccount:
     """Return the user's linked Last.fm account; 404 if none is linked."""
@@ -141,7 +158,7 @@ async def link_lastfm_account(
 ) -> LastfmAccount:
     """Link the user to a Last.fm account by username, replacing any existing link."""
     await _require_user(session, user_id)
-    info = await _fetch_user_info(lastfm, payload.username)
+    info = await lastfm.get_user_info(payload.username)
 
     result = await session.execute(
         select(LastfmAccount).where(func.lower(LastfmAccount.username) == info.username.lower())
@@ -178,7 +195,7 @@ async def refresh_lastfm_account(
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    info = await _fetch_user_info(lastfm, account.username)
+    info = await lastfm.get_user_info(account.username)
     _apply_user_info(account, info, datetime.now(UTC))
     await session.commit()
     return account
@@ -196,14 +213,7 @@ async def sync_lastfm_artists_for_user(
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    try:
-        results = await sync_lastfm_artists(session, lastfm, user_id, account.username, SYNC_KINDS)
-    except LastfmUserNotFoundError:
-        raise HTTPException(status_code=404, detail="Last.fm user not found") from None
-    except LastfmPrivateDataError:
-        raise HTTPException(
-            status_code=403, detail="This Last.fm account's listening data is private"
-        ) from None
+    results = await sync_lastfm_artists(session, lastfm, user_id, account.username, SYNC_KINDS)
     await session.commit()
     return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
 

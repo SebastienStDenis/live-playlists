@@ -2,11 +2,9 @@ import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from httpx import ASGITransport, AsyncClient, Response
-
 from app.artist_sync import loved_track_signals, top_artist_signals
-from app.db import get_session
 from app.lastfm import (
+    LastfmApiError,
     LastfmClient,
     LastfmLovedTrack,
     LastfmLovedTracksPage,
@@ -14,8 +12,8 @@ from app.lastfm import (
     LastfmTopArtist,
     LastfmUserNotFoundError,
 )
-from app.main import app, get_lastfm_client
 from app.models import Artist, LastfmAccount, LastfmArtist, UserArtistInterest
+from tests.helpers import make_session, request, result_returning
 
 USER_ID = uuid.uuid7()
 SYNC_URL = f"/users/{USER_ID}/lastfm/artists/sync"
@@ -39,26 +37,6 @@ def make_account() -> LastfmAccount:
     return LastfmAccount(id=uuid.uuid7(), username="rj")
 
 
-def make_session() -> AsyncMock:
-    session = AsyncMock()
-    session.add = MagicMock()
-
-    async def flush() -> None:
-        for call in session.add.call_args_list:
-            obj = call.args[0]
-            if obj.id is None:
-                obj.id = uuid.uuid7()
-
-    session.flush = flush
-    return session
-
-
-def result_returning(value: object) -> MagicMock:
-    result = MagicMock()
-    result.scalar_one_or_none.return_value = value
-    return result
-
-
 def result_with_scalars(rows: list) -> MagicMock:
     result = MagicMock()
     result.scalars.return_value = rows
@@ -73,23 +51,6 @@ def result_with_rows(rows: list) -> MagicMock:
 
 def added_objects(session: AsyncMock, kind: type) -> list:
     return [call.args[0] for call in session.add.call_args_list if isinstance(call.args[0], kind)]
-
-
-async def request(
-    method: str,
-    url: str,
-    session: AsyncMock,
-    lastfm: LastfmClient | None = None,
-    json: dict | None = None,
-) -> Response:
-    app.dependency_overrides[get_session] = lambda: session
-    if lastfm is not None:
-        app.dependency_overrides[get_lastfm_client] = lambda: lastfm
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            return await client.request(method, url, json=json)
-    finally:
-        app.dependency_overrides.clear()
 
 
 def test_top_artist_signals_builds_rank_evidence() -> None:
@@ -144,8 +105,10 @@ async def test_sync_creates_artists_and_interests() -> None:
     session.execute.side_effect = [
         result_returning(make_account()),
         result_with_scalars([]),
+        result_with_rows([]),
         result_with_scalars([]),
         result_with_scalars([]),
+        result_with_rows([]),
         result_with_scalars([]),
     ]
     lastfm = AsyncMock(spec=LastfmClient)
@@ -179,7 +142,6 @@ async def test_sync_creates_artists_and_interests() -> None:
     ]
     lastfm.get_top_artists.assert_awaited_once_with("rj", period="12month", limit=200)
     assert len(added_objects(session, Artist)) == 3
-    assert len(added_objects(session, LastfmArtist)) == 3
     interests = added_objects(session, UserArtistInterest)
     assert [interest.evidence for interest in interests] == [
         {"rank": 1, "playcount": 321, "period": "12month"},
@@ -193,7 +155,9 @@ async def test_sync_creates_artists_and_interests() -> None:
 
 async def test_resync_updates_and_prunes_interests() -> None:
     autechre_id = uuid.uuid7()
-    existing_row = LastfmArtist(id=uuid.uuid7(), artist_id=autechre_id, name="autechre")
+    existing_row = LastfmArtist(
+        id=uuid.uuid7(), artist_id=autechre_id, name="autechre", name_key="autechre"
+    )
     kept = UserArtistInterest(
         user_id=USER_ID,
         artist_id=autechre_id,
@@ -243,6 +207,7 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
         result_with_scalars([]),
         result_with_scalars([]),
         result_with_scalars([]),
+        result_with_rows([]),
         result_with_scalars([]),
     ]
     lastfm = AsyncMock(spec=LastfmClient)
@@ -303,6 +268,51 @@ async def test_sync_unknown_lastfm_user() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Last.fm user not found"
+    session.commit.assert_not_awaited()
+
+
+async def test_sync_skips_pruning_when_loved_tracks_are_truncated() -> None:
+    old_interest = UserArtistInterest(
+        user_id=USER_ID,
+        artist_id=uuid.uuid7(),
+        kind="lastfm_loved_tracks",
+        source="lastfm",
+        evidence={"track_count": 1},
+    )
+    session = make_session()
+    session.execute.side_effect = [
+        result_returning(make_account()),
+        result_with_scalars([]),
+        result_with_scalars([]),
+        result_with_scalars([]),
+        result_with_rows([]),
+        result_with_scalars([old_interest]),
+    ]
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_top_artists.return_value = []
+    lastfm.get_loved_tracks.side_effect = [
+        LastfmLovedTracksPage(tracks=[loved_track(f"Track {page}", "Aphex Twin")], total_pages=12)
+        for page in range(1, 11)
+    ]
+
+    response = await request("POST", SYNC_URL, session, lastfm)
+
+    assert response.status_code == 200
+    assert response.json()["results"][1]["interests_removed"] == 0
+    assert len(lastfm.get_loved_tracks.await_args_list) == 10
+    session.delete.assert_not_awaited()
+
+
+async def test_sync_maps_unknown_lastfm_error_to_502() -> None:
+    session = make_session()
+    session.execute.return_value = result_returning(make_account())
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_top_artists.side_effect = LastfmApiError(29, "Rate limit exceeded")
+
+    response = await request("POST", SYNC_URL, session, lastfm)
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Last.fm error 29: Rate limit exceeded"
     session.commit.assert_not_awaited()
 
 

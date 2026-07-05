@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -84,19 +84,17 @@ class LastfmArtist(Base):
         ForeignKey("artists.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str]
+    name_key: Mapped[str] = mapped_column(unique=True)
     url: Mapped[str | None]
     mbid: Mapped[str | None]
-    listeners: Mapped[int | None]
-    playcount: Mapped[int | None]
+    listeners: Mapped[int | None] = mapped_column(BigInteger)
+    playcount: Mapped[int | None] = mapped_column(BigInteger)
     tags: Mapped[list | None] = mapped_column(JSONB)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-
-
-Index("ix_lastfm_artists_name_lower", func.lower(LastfmArtist.name), unique=True)
 
 
 class UserArtistInterest(Base):

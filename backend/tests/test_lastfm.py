@@ -4,10 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
-from httpx import ASGITransport, AsyncClient, Response
 
-from app.db import get_session
 from app.lastfm import (
+    LastfmApiError,
     LastfmClient,
     LastfmLovedTrack,
     LastfmPrivateDataError,
@@ -18,8 +17,8 @@ from app.lastfm import (
     _parse_top_artist,
     _parse_user_info,
 )
-from app.main import app, get_lastfm_client
 from app.models import LastfmAccount
+from tests.helpers import make_session, request, result_returning
 
 USER_ID = uuid.uuid7()
 
@@ -48,43 +47,6 @@ def make_account() -> LastfmAccount:
         artist_count=10,
         last_synced_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
-
-
-def make_session() -> AsyncMock:
-    session = AsyncMock()
-    session.add = MagicMock()
-
-    async def flush() -> None:
-        for call in session.add.call_args_list:
-            obj = call.args[0]
-            if obj.id is None:
-                obj.id = uuid.uuid7()
-
-    session.flush = flush
-    return session
-
-
-def result_returning(value: object) -> MagicMock:
-    result = MagicMock()
-    result.scalar_one_or_none.return_value = value
-    return result
-
-
-async def request(
-    method: str,
-    url: str,
-    session: AsyncMock,
-    lastfm: LastfmClient | None = None,
-    json: dict | None = None,
-) -> Response:
-    app.dependency_overrides[get_session] = lambda: session
-    if lastfm is not None:
-        app.dependency_overrides[get_lastfm_client] = lambda: lastfm
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            return await client.request(method, url, json=json)
-    finally:
-        app.dependency_overrides.clear()
 
 
 async def test_get_linked_account() -> None:
@@ -306,6 +268,13 @@ async def test_get_top_artists_raises_on_private_data(monkeypatch: pytest.Monkey
     stub_lastfm_api(monkeypatch, {"error": 17, "message": "Login: User required to be logged in"})
 
     with pytest.raises(LastfmPrivateDataError):
+        await LastfmClient("key").get_top_artists("rj")
+
+
+async def test_get_top_artists_raises_on_unmapped_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(monkeypatch, {"error": 29, "message": "Rate limit exceeded"})
+
+    with pytest.raises(LastfmApiError):
         await LastfmClient("key").get_top_artists("rj")
 
 

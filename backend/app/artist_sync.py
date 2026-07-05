@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.lastfm import LastfmClient, LastfmLovedTrack, LastfmTopArtist
@@ -30,6 +31,12 @@ class ArtistSignal(BaseModel):
     evidence: dict
 
 
+def name_key(name: str) -> str:
+    """Canonical dedup key for artist names; the single case-folding authority
+    (lastfm_artists.name_key is unique, so Postgres must never fold names itself)."""
+    return name.casefold()
+
+
 async def sync_lastfm_artists(
     session: AsyncSession,
     lastfm: LastfmClient,
@@ -39,38 +46,46 @@ async def sync_lastfm_artists(
 ) -> list[ArtistSyncKindResult]:
     """Fetch taste signals from Last.fm and upsert artists and interests.
 
-    Each kind is synced as a full replacement of that (user, kind) scope:
-    interests for artists no longer present in the fetched data are deleted.
+    Each kind is synced as a replacement of that (user, kind) scope: interests
+    for artists no longer present in the fetched data are deleted, but only
+    when the fetch was complete (a truncated fetch says nothing about what the
+    user stopped liking).
     """
     results = []
     for kind in kinds:
-        signals = await _fetch_signals(lastfm, username, kind)
+        signals, complete = await _fetch_signals(lastfm, username, kind)
         artist_ids = await _upsert_lastfm_artists(session, signals)
         evidence_by_artist = {
-            artist_ids[signal.name.lower()]: signal.evidence for signal in signals
+            artist_ids[name_key(signal.name)]: signal.evidence for signal in signals
         }
-        results.append(await _sync_interests(session, user_id, kind, evidence_by_artist))
+        results.append(
+            await _sync_interests(session, user_id, kind, evidence_by_artist, prune=complete)
+        )
     return results
 
 
-async def _fetch_signals(lastfm: LastfmClient, username: str, kind: str) -> list[ArtistSignal]:
+async def _fetch_signals(
+    lastfm: LastfmClient, username: str, kind: str
+) -> tuple[list[ArtistSignal], bool]:
     if kind == TOP_ARTIST_KIND:
         top_artists = await lastfm.get_top_artists(
             username, period=TOP_ARTISTS_PERIOD, limit=TOP_ARTISTS_LIMIT
         )
-        return top_artist_signals(top_artists)
+        return top_artist_signals(top_artists), True
     if kind == LOVED_TRACKS_KIND:
         tracks: list[LastfmLovedTrack] = []
         page = 1
+        complete = True
         while page <= LOVED_TRACKS_MAX_PAGES:
             result = await lastfm.get_loved_tracks(
                 username, limit=LOVED_TRACKS_PAGE_SIZE, page=page
             )
             tracks.extend(result.tracks)
+            complete = result.total_pages <= LOVED_TRACKS_MAX_PAGES
             if page >= result.total_pages:
                 break
             page += 1
-        return loved_track_signals(tracks)
+        return loved_track_signals(tracks), complete
     raise ValueError(f"Unknown sync kind: {kind}")
 
 
@@ -78,7 +93,7 @@ def top_artist_signals(top_artists: list[LastfmTopArtist]) -> list[ArtistSignal]
     signals: dict[str, ArtistSignal] = {}
     for artist in top_artists:
         signals.setdefault(
-            artist.name.lower(),
+            name_key(artist.name),
             ArtistSignal(
                 name=artist.name,
                 url=artist.url,
@@ -97,7 +112,7 @@ def loved_track_signals(tracks: list[LastfmLovedTrack]) -> list[ArtistSignal]:
     signals: dict[str, ArtistSignal] = {}
     for track in tracks:
         signal = signals.setdefault(
-            track.artist_name.lower(),
+            name_key(track.artist_name),
             ArtistSignal(
                 name=track.artist_name,
                 url=track.artist_url,
@@ -112,30 +127,68 @@ def loved_track_signals(tracks: list[LastfmLovedTrack]) -> list[ArtistSignal]:
 async def _upsert_lastfm_artists(
     session: AsyncSession, signals: list[ArtistSignal]
 ) -> dict[str, uuid.UUID]:
-    """Upsert Last.fm artist rows (keyed by lowercased name) and their canonical
-    artists, returning a lowercased-name -> canonical artist id mapping."""
-    keys = [signal.name.lower() for signal in signals]
+    """Upsert Last.fm artist rows and their canonical artists, returning a
+    name-key -> canonical artist id mapping."""
     result = await session.execute(
-        select(LastfmArtist).where(func.lower(LastfmArtist.name).in_(keys))
+        select(LastfmArtist).where(
+            LastfmArtist.name_key.in_([name_key(signal.name) for signal in signals])
+        )
     )
-    by_key = {row.name.lower(): row for row in result.scalars()}
+    by_key = {row.name_key: row for row in result.scalars()}
 
     now = datetime.now(UTC)
+    artist_ids: dict[str, uuid.UUID] = {}
+    new_artists: dict[str, Artist] = {}
+    new_signals: dict[str, ArtistSignal] = {}
     for signal in signals:
-        row = by_key.get(signal.name.lower())
+        key = name_key(signal.name)
+        row = by_key.get(key)
         if row is None:
             artist = Artist(id=uuid.uuid7(), name=signal.name)
             session.add(artist)
-            row = LastfmArtist(artist_id=artist.id, name=signal.name)
-            session.add(row)
-            by_key[signal.name.lower()] = row
-        if signal.url:
-            row.url = signal.url
-        if signal.mbid:
-            row.mbid = signal.mbid
-        row.last_synced_at = now
-    await session.flush()
-    return {key: row.artist_id for key, row in by_key.items()}
+            new_artists[key] = artist
+            new_signals[key] = signal
+            artist_ids[key] = artist.id
+        else:
+            if signal.url:
+                row.url = signal.url
+            if signal.mbid:
+                row.mbid = signal.mbid
+            row.last_synced_at = now
+            artist_ids[key] = row.artist_id
+
+    if new_artists:
+        await session.flush()
+        stmt = pg_insert(LastfmArtist).values(
+            [
+                {
+                    "artist_id": new_artists[key].id,
+                    "name": signal.name,
+                    "name_key": key,
+                    "url": signal.url,
+                    "mbid": signal.mbid,
+                    "last_synced_at": now,
+                }
+                for key, signal in new_signals.items()
+            ]
+        )
+        # A concurrent sync may have inserted the same artist between our select
+        # and this insert; on conflict, defer to the committed row.
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[LastfmArtist.name_key],
+            set_={
+                "url": func.coalesce(stmt.excluded.url, LastfmArtist.url),
+                "mbid": func.coalesce(stmt.excluded.mbid, LastfmArtist.mbid),
+                "last_synced_at": stmt.excluded.last_synced_at,
+            },
+        ).returning(LastfmArtist.name_key, LastfmArtist.artist_id)
+        result = await session.execute(stmt)
+        for key, artist_id in result.all():
+            if artist_id != new_artists[key].id:
+                artist_ids[key] = artist_id
+                await session.delete(new_artists[key])
+
+    return artist_ids
 
 
 async def _sync_interests(
@@ -143,6 +196,7 @@ async def _sync_interests(
     user_id: uuid.UUID,
     kind: str,
     evidence_by_artist: dict[uuid.UUID, dict],
+    prune: bool,
 ) -> ArtistSyncKindResult:
     result = await session.execute(
         select(UserArtistInterest).where(
@@ -169,13 +223,16 @@ async def _sync_interests(
             interest.evidence = evidence
             updated += 1
 
-    for interest in stale.values():
-        await session.delete(interest)
+    removed = 0
+    if prune:
+        for interest in stale.values():
+            await session.delete(interest)
+        removed = len(stale)
 
     return ArtistSyncKindResult(
         kind=kind,
         artists=len(evidence_by_artist),
         interests_created=created,
         interests_updated=updated,
-        interests_removed=len(stale),
+        interests_removed=removed,
     )
