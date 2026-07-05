@@ -153,12 +153,8 @@ artists is one or two calls), aggregates loved tracks, and upserts
 `lastfm_artists` -> `artists` -> `user_artist_interests`. Reuses the existing
 refresh-endpoint pattern; no background infrastructure needed yet.
 
-**Phase 3 - background refresh + sync runs.** A scheduled task re-syncing stale accounts
-(ordered by `last_synced_at`), throttled well under 5 req/s. This is also where sync
-telemetry lands: a `sync_runs` table (id, user_id, source, started/finished timestamps,
-counts, error) with a nullable `last_sync_run_id` FK on interest rows for lineage.
-Adding a bare job-id column earlier would be a free-floating UUID with nothing to join
-against; it becomes useful once runs are real entities.
+**Phase 3 - background refresh.** A scheduled task re-syncing stale accounts (ordered
+by `last_synced_at`), throttled well under 5 req/s.
 
 **Phase 4 - enrichment + cross-service.** `artist.getInfo` for tags, `artist.getSimilar`
 for discovery interests (`kind="lastfm_similar_artist"`, evidence carrying the match
