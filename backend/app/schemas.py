@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models import Source
+
 
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -45,7 +47,7 @@ class ArtistInterestRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     kind: str
-    source: str
+    source: Source
     evidence: dict
     created_at: datetime
     updated_at: datetime
