@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.lastfm import LastfmClient, LastfmLovedTrack, LastfmTopArtist
-from app.models import Artist, InterestSource, LastfmArtist, UserArtistInterest
+from app.models import Artist, LastfmArtist, Source, UserArtistInterest
 from app.schemas import ArtistSyncKindResult
 
 TOP_ARTIST_KIND = "lastfm_top_artist"
@@ -213,7 +213,7 @@ async def _sync_interests(
                     user_id=user_id,
                     artist_id=artist_id,
                     kind=kind,
-                    source=InterestSource.LASTFM,
+                    source=Source.LASTFM,
                     evidence=evidence,
                 )
             )

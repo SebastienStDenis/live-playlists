@@ -7,7 +7,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-class InterestSource(enum.StrEnum):
+class Source(enum.StrEnum):
+    """External systems we ingest data from."""
+
     LASTFM = "lastfm"
 
 
