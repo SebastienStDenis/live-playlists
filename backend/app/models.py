@@ -1,9 +1,14 @@
+import enum
 import uuid
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class InterestSource(enum.StrEnum):
+    LASTFM = "lastfm"
 
 
 class Base(DeclarativeBase):

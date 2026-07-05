@@ -8,18 +8,17 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.lastfm import LastfmClient, LastfmLovedTrack, LastfmTopArtist
-from app.models import Artist, LastfmArtist, UserArtistInterest
+from app.models import Artist, InterestSource, LastfmArtist, UserArtistInterest
 from app.schemas import ArtistSyncKindResult
 
 TOP_ARTIST_KIND = "lastfm_top_artist"
 LOVED_TRACKS_KIND = "lastfm_loved_tracks"
 SYNC_KINDS = (TOP_ARTIST_KIND, LOVED_TRACKS_KIND)
-LASTFM_SOURCE = "lastfm"
 
-TOP_ARTISTS_PERIOD = "12month"
-TOP_ARTISTS_LIMIT = 200
-LOVED_TRACKS_PAGE_SIZE = 200
-LOVED_TRACKS_MAX_PAGES = 10
+LASTFM_TOP_ARTISTS_PERIOD = "12month"
+LASTFM_TOP_ARTISTS_LIMIT = 200
+LASTFM_LOVED_TRACKS_PAGE_SIZE = 200
+LASTFM_LOVED_TRACKS_MAX_PAGES = 10
 
 
 class ArtistSignal(BaseModel):
@@ -69,19 +68,19 @@ async def _fetch_signals(
 ) -> tuple[list[ArtistSignal], bool]:
     if kind == TOP_ARTIST_KIND:
         top_artists = await lastfm.get_top_artists(
-            username, period=TOP_ARTISTS_PERIOD, limit=TOP_ARTISTS_LIMIT
+            username, period=LASTFM_TOP_ARTISTS_PERIOD, limit=LASTFM_TOP_ARTISTS_LIMIT
         )
         return top_artist_signals(top_artists), True
     if kind == LOVED_TRACKS_KIND:
         tracks: list[LastfmLovedTrack] = []
         page = 1
         complete = True
-        while page <= LOVED_TRACKS_MAX_PAGES:
+        while page <= LASTFM_LOVED_TRACKS_MAX_PAGES:
             result = await lastfm.get_loved_tracks(
-                username, limit=LOVED_TRACKS_PAGE_SIZE, page=page
+                username, limit=LASTFM_LOVED_TRACKS_PAGE_SIZE, page=page
             )
             tracks.extend(result.tracks)
-            complete = result.total_pages <= LOVED_TRACKS_MAX_PAGES
+            complete = result.total_pages <= LASTFM_LOVED_TRACKS_MAX_PAGES
             if page >= result.total_pages:
                 break
             page += 1
@@ -101,7 +100,7 @@ def top_artist_signals(top_artists: list[LastfmTopArtist]) -> list[ArtistSignal]
                 evidence={
                     "rank": artist.rank,
                     "playcount": artist.playcount,
-                    "period": TOP_ARTISTS_PERIOD,
+                    "period": LASTFM_TOP_ARTISTS_PERIOD,
                 },
             ),
         )
@@ -214,7 +213,7 @@ async def _sync_interests(
                     user_id=user_id,
                     artist_id=artist_id,
                     kind=kind,
-                    source=LASTFM_SOURCE,
+                    source=InterestSource.LASTFM,
                     evidence=evidence,
                 )
             )
