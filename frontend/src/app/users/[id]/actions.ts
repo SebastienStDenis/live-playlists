@@ -78,17 +78,9 @@ type SyncArtistsResponse = {
 
 export async function syncLastfmArtists(
   userId: string,
-  _prev: SyncArtistsActionState,
-  formData: FormData,
 ): Promise<SyncArtistsActionState> {
-  const kind = formData.get("kind");
-  const single = kind === "lastfm_top_artist" || kind === "lastfm_loved_tracks";
   const res = await fetch(`${apiUrl}/users/${userId}/lastfm/artists/sync`, {
     method: "POST",
-    ...(single && {
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kinds: [kind] }),
-    }),
   });
   if (!res.ok) {
     return {

@@ -1,10 +1,7 @@
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
-ArtistSyncKind = Literal["lastfm_top_artist", "lastfm_loved_tracks"]
 
 
 class UserRead(BaseModel):
@@ -57,10 +54,6 @@ class ArtistInterestRead(BaseModel):
 class UserArtistRead(BaseModel):
     artist: ArtistRead
     interests: list[ArtistInterestRead]
-
-
-class ArtistSyncRequest(BaseModel):
-    kinds: list[ArtistSyncKind] = Field(min_length=1)
 
 
 class ArtistSyncKindResult(BaseModel):

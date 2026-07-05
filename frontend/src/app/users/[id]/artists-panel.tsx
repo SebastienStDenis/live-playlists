@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
 
 import { syncLastfmArtists } from "./actions";
 
@@ -85,52 +84,6 @@ function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
-function SyncForm({
-  action,
-  kind,
-  label,
-  disabled,
-  primary = false,
-}: {
-  action: (formData: FormData) => void;
-  kind: string;
-  label: string;
-  disabled: boolean;
-  primary?: boolean;
-}) {
-  return (
-    <form action={action}>
-      <input type="hidden" name="kind" value={kind} />
-      <SyncButton label={label} disabled={disabled} primary={primary} />
-    </form>
-  );
-}
-
-function SyncButton({
-  label,
-  disabled,
-  primary,
-}: {
-  label: string;
-  disabled: boolean;
-  primary: boolean;
-}) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={disabled}
-      className={
-        primary
-          ? "rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-          : "rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-      }
-    >
-      {pending ? "Syncing..." : label}
-    </button>
-  );
-}
-
 export function ArtistsPanel({
   userId,
   lastfmLinked,
@@ -153,21 +106,15 @@ export function ArtistsPanel({
     <div>
       {lastfmLinked ? (
         <div className="space-y-2">
-          <div className="flex gap-2">
-            <SyncForm action={formAction} kind="all" label="Sync all" primary disabled={pending} />
-            <SyncForm
-              action={formAction}
-              kind="lastfm_top_artist"
-              label="Sync top artists"
+          <form action={formAction}>
+            <button
+              type="submit"
               disabled={pending}
-            />
-            <SyncForm
-              action={formAction}
-              kind="lastfm_loved_tracks"
-              label="Sync loved tracks"
-              disabled={pending}
-            />
-          </div>
+              className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+            >
+              {pending ? "Syncing..." : "Sync artists"}
+            </button>
+          </form>
           {state.summary && <p className="text-sm text-gray-500">{state.summary}</p>}
           {state.error && <p className="text-sm text-red-600">{state.error}</p>}
         </div>

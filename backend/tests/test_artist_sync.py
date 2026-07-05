@@ -213,28 +213,26 @@ async def test_resync_updates_and_prunes_interests() -> None:
         result_returning(make_account()),
         result_with_scalars([existing_row]),
         result_with_scalars([kept, gone]),
+        result_with_scalars([]),
+        result_with_scalars([]),
     ]
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.return_value = [top_artist("Autechre", rank=1, playcount=321)]
+    lastfm.get_loved_tracks.return_value = LastfmLovedTracksPage(tracks=[], total_pages=1)
 
-    response = await request(
-        "POST", SYNC_URL, session, lastfm, json={"kinds": ["lastfm_top_artist"]}
-    )
+    response = await request("POST", SYNC_URL, session, lastfm)
 
     assert response.status_code == 200
-    assert response.json()["results"] == [
-        {
-            "kind": "lastfm_top_artist",
-            "artists": 1,
-            "interests_created": 0,
-            "interests_updated": 1,
-            "interests_removed": 1,
-        }
-    ]
+    assert response.json()["results"][0] == {
+        "kind": "lastfm_top_artist",
+        "artists": 1,
+        "interests_created": 0,
+        "interests_updated": 1,
+        "interests_removed": 1,
+    }
     assert kept.evidence == {"rank": 1, "playcount": 321, "period": "12month"}
     session.delete.assert_awaited_once_with(gone)
     session.add.assert_not_called()
-    lastfm.get_loved_tracks.assert_not_awaited()
     session.commit.assert_awaited_once()
 
 
@@ -244,8 +242,11 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
         result_returning(make_account()),
         result_with_scalars([]),
         result_with_scalars([]),
+        result_with_scalars([]),
+        result_with_scalars([]),
     ]
     lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_top_artists.return_value = []
     lastfm.get_loved_tracks.side_effect = [
         LastfmLovedTracksPage(tracks=[loved_track("Windowlicker", "Aphex Twin")], total_pages=2),
         LastfmLovedTracksPage(
@@ -257,33 +258,19 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
         ),
     ]
 
-    response = await request(
-        "POST", SYNC_URL, session, lastfm, json={"kinds": ["lastfm_loved_tracks"]}
-    )
+    response = await request("POST", SYNC_URL, session, lastfm)
 
     assert response.status_code == 200
-    assert response.json()["results"] == [
-        {
-            "kind": "lastfm_loved_tracks",
-            "artists": 2,
-            "interests_created": 2,
-            "interests_updated": 0,
-            "interests_removed": 0,
-        }
-    ]
+    assert response.json()["results"][1] == {
+        "kind": "lastfm_loved_tracks",
+        "artists": 2,
+        "interests_created": 2,
+        "interests_updated": 0,
+        "interests_removed": 0,
+    }
     assert [call.kwargs["page"] for call in lastfm.get_loved_tracks.await_args_list] == [1, 2]
     interests = added_objects(session, UserArtistInterest)
     assert [interest.evidence for interest in interests] == [{"track_count": 2}, {"track_count": 1}]
-
-
-async def test_sync_rejects_unknown_kind() -> None:
-    session = make_session()
-
-    response = await request(
-        "POST", SYNC_URL, session, AsyncMock(spec=LastfmClient), json={"kinds": ["bogus"]}
-    )
-
-    assert response.status_code == 422
 
 
 async def test_sync_unknown_user() -> None:

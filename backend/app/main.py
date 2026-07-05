@@ -20,7 +20,6 @@ from app.models import Artist, LastfmAccount, LastfmConnection, User, UserArtist
 from app.schemas import (
     ArtistInterestRead,
     ArtistRead,
-    ArtistSyncRequest,
     ArtistSyncResult,
     LastfmAccountRead,
     LastfmLink,
@@ -190,20 +189,15 @@ async def sync_lastfm_artists_for_user(
     user_id: uuid.UUID,
     session: SessionDep,
     lastfm: LastfmClientDep,
-    payload: ArtistSyncRequest | None = None,
 ) -> ArtistSyncResult:
-    """Fetch the linked Last.fm account's taste signals and upsert artist interests.
-
-    Body may narrow the sync to specific kinds; the default syncs all of them.
-    """
+    """Fetch all of the linked Last.fm account's taste signals and upsert artist interests."""
     await _require_user(session, user_id)
     account = await _linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    kinds = list(dict.fromkeys(payload.kinds)) if payload else list(SYNC_KINDS)
     try:
-        results = await sync_lastfm_artists(session, lastfm, user_id, account.username, kinds)
+        results = await sync_lastfm_artists(session, lastfm, user_id, account.username, SYNC_KINDS)
     except LastfmUserNotFoundError:
         raise HTTPException(status_code=404, detail="Last.fm user not found") from None
     except LastfmPrivateDataError:
