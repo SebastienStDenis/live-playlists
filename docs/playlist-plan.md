@@ -108,8 +108,8 @@ For a playlist of kind `city_shows`:
 3. Order by soonest show per artist, then track rank, so the playlist reads as "what's
    coming up next". Dedupe URIs (a track can chart for two artists via collaborations).
 4. Cap the playlist at 100 tracks, dropping lowest-rank tracks from furthest-out shows
-   first. The cap keeps the playlist listenable and keeps every sync write within a
-   single 100-URI replace call.
+   first. The cap keeps the playlist listenable and every delta batch within a single
+   100-URI request.
 
 ## Schema
 
@@ -208,16 +208,31 @@ Design notes:
    (`POST /v1/me/playlists`, public) and store the ID and URL. Created lazily on
    first sync, even if the tracklist is currently empty - an empty playlist with the
    right name and description is a working product surface.
-4. If the desired list differs from `playlist_tracks` (set or order), write it with a
-   single full replace (`PUT /v1/playlists/{id}/items`) - always one call under the
-   100-track cap - and rewrite `playlist_tracks` to match in the same transaction.
-   Store the returned `snapshot_id`. If name or description changed, push those too.
+4. If the desired list differs from `playlist_tracks`, write the difference:
+   removals first (`DELETE /v1/playlists/{id}/items`, batches of 100), then additions
+   at their desired positions (`POST`, batches of 100), then - only when surviving
+   tracks' relative order changed, which takes show dates shifting against each other
+   between syncs - reorder calls (`PUT` in `range_start`/`insert_before` mode), which
+   move items without re-adding them. Rewrite `playlist_tracks` to match in the same
+   transaction and store the returned `snapshot_id`. If name or description changed,
+   push those too.
 5. Touch `last_synced_at`.
 
-Full replace instead of computed add/remove deltas because at ≤100 tracks the replace
-is one request either way, it makes ordering trivial, and it wipes any manual drift on
-the Spotify side. `snapshot_id` is stored for observability more than concurrency - the
-bot is the only writer.
+Deltas instead of a single full replace (`PUT` with `uris`) for a user-visible reason:
+replace removes and re-adds every track, resetting Spotify's per-item `added_at` on
+every sync. Preserved `added_at` is what makes the client's "Date added" sort a free
+"newly announced shows and newly discovered artists first" view on top of the
+canonical soonest-show order. Under deltas, surviving tracks keep their timestamps, a
+new track reads as just-added exactly because its show was just announced, and a song
+that leaves (show passed) and later returns (new show announced) correctly reads as
+newly added again.
+
+What full replace would have bought is drift-healing by brute force. In practice the
+bot is the only writer of its own non-collaborative playlists, so `playlist_tracks`
+can be trusted as the remote image for diffing; `snapshot_id` is the tripwire on that
+assumption - if Spotify's returned snapshot chain diverges from the stored one,
+re-read the playlist (`GET /v1/playlists/{id}/items`, available for the bot's own
+playlists) and heal before diffing again.
 
 Deleting a playlist (user deleted, or a future "turn it off") means unfollowing it on
 the Spotify side (`DELETE /v1/playlists/{id}/followers` - Spotify has no true delete)
@@ -277,12 +292,15 @@ naturally.
 
 **Phase 0 - verify Spotify reality.** Register the app, create the bot account,
 allowlist it, run the auth flow once. From a throwaway script: create a playlist,
-replace items, confirm search behavior and limits, confirm `top-tracks` really is gone.
+add/remove/reorder items, confirm search behavior and limits, confirm `top-tracks`
+really is gone, and confirm the `added_at` behavior the delta-write design rests on
+(full replace resets it, reorder preserves it) - community-confirmed, not documented.
 Everything below assumes these hold.
 
 **Phase 1 - schema + client.** One migration for the four tables. `SpotifyClient` with
-`search_artist`, `search_track`, `create_playlist`, `replace_playlist_items`,
-`update_playlist_details`, plus the token-refresh plumbing and the `spotify_auth` CLI
+`search_artist`, `search_track`, `create_playlist`, `add_playlist_items`,
+`remove_playlist_items`, `reorder_playlist_items`, `update_playlist_details`, plus the
+token-refresh plumbing and the `spotify_auth` CLI
 helper. Extend `LastfmClient` with `get_artist_top_tracks`.
 
 **Phase 2 - artist resolution + track cache.** Resolve matched artists to
