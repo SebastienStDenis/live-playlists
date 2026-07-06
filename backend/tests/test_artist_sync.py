@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from app.artist_sync import loved_track_signals, top_artist_signals
 from app.lastfm import (
@@ -13,7 +13,14 @@ from app.lastfm import (
     LastfmUserNotFoundError,
 )
 from app.models import Artist, LastfmAccount, LastfmArtist, UserArtistInterest
-from tests.helpers import make_session, request, result_returning
+from tests.helpers import (
+    added_objects,
+    make_session,
+    request,
+    result_returning,
+    result_with_rows,
+    result_with_scalars,
+)
 
 USER_ID = uuid.uuid7()
 SYNC_URL = f"/users/{USER_ID}/lastfm/artists/sync"
@@ -35,22 +42,6 @@ def loved_track(title: str, artist_name: str) -> LastfmLovedTrack:
 
 def make_account() -> LastfmAccount:
     return LastfmAccount(id=uuid.uuid7(), username="rj")
-
-
-def result_with_scalars(rows: list) -> MagicMock:
-    result = MagicMock()
-    result.scalars.return_value = rows
-    return result
-
-
-def result_with_rows(rows: list) -> MagicMock:
-    result = MagicMock()
-    result.all.return_value = rows
-    return result
-
-
-def added_objects(session: AsyncMock, kind: type) -> list:
-    return [call.args[0] for call in session.add.call_args_list if isinstance(call.args[0], kind)]
 
 
 def test_top_artist_signals_builds_rank_evidence() -> None:

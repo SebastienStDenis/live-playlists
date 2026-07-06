@@ -58,10 +58,12 @@ class BandsintownClient:
             if (
                 response.status_code == 404
                 or "[NotFound]" in message
-                # Bandsintown 401s some artist names (e.g. non-latin scripts) as
-                # "invalid parameter"; treat that as a per-artist lookup failure
-                # rather than failing the whole sync.
-                or "invalid parameter" in message
+                # Bandsintown rejects some artist names (e.g. non-latin scripts)
+                # with a 400/401 "invalid parameter"; treat that as a per-artist
+                # lookup failure. The status guard keeps a proxy or rate-limit
+                # response that happens to contain the phrase from being
+                # mistaken for a missing artist.
+                or (response.status_code in (400, 401) and "invalid parameter" in message)
             ):
                 raise BandsintownArtistNotFoundError(name)
             raise BandsintownApiError(response.status_code, message)
@@ -113,11 +115,10 @@ def _parse_datetime(value: str | None) -> datetime | None:
         parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
-    if parsed.tzinfo is None:
-        # Bandsintown datetimes are venue-local with no offset; storing them
-        # as UTC is close enough for date-granular matching.
-        parsed = parsed.replace(tzinfo=UTC)
-    return parsed
+    # Bandsintown datetimes are venue-local wall-clock time; labeling that as
+    # UTC (discarding any stray offset) is the convention every consumer
+    # relies on, and close enough for date-granular matching.
+    return parsed.replace(tzinfo=UTC)
 
 
 def _text_or_none(value: str | None) -> str | None:

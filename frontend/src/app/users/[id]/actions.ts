@@ -138,6 +138,7 @@ type SyncEventsResponse = {
   artists_synced: number;
   artists_skipped: number;
   artists_unknown: number;
+  artists_failed: number;
   events_created: number;
   events_updated: number;
   events_removed: number;
@@ -157,7 +158,8 @@ export async function syncEvents(
   }
 
   const body: SyncEventsResponse = await res.json();
-  const checked = `Checked ${body.artists_total} ${body.artists_total === 1 ? "artist" : "artists"} (${body.artists_skipped} fresh, ${body.artists_unknown} not on Bandsintown)`;
+  const failed = body.artists_failed > 0 ? `, ${body.artists_failed} failed` : "";
+  const checked = `Checked ${body.artists_total} ${body.artists_total === 1 ? "artist" : "artists"} (${body.artists_skipped} fresh, ${body.artists_unknown} not on Bandsintown${failed})`;
   const summary = `${checked} · ${body.events_created} events added, ${body.events_updated} updated, ${body.events_removed} removed`;
 
   revalidatePath(`/users/${userId}`);

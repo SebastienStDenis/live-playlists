@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -70,11 +70,11 @@ def test_parse_event_skips_unusable_events() -> None:
     assert _parse_event({**EVENT, "venue": {**VENUE, "longitude": None}}) is None
 
 
-def test_parse_event_keeps_timezone_aware_datetimes() -> None:
+def test_parse_event_labels_wall_clock_as_utc_even_with_offset() -> None:
     data = _parse_event({**EVENT, "datetime": "2026-10-01T20:30:00+02:00"})
 
     assert data is not None
-    assert data.starts_at.utcoffset() == timedelta(hours=2)
+    assert data.starts_at == datetime(2026, 10, 1, 20, 30, tzinfo=UTC)
 
 
 def test_encode_artist_name_double_encodes_reserved_characters() -> None:
@@ -129,6 +129,15 @@ async def test_get_artist_events_treats_invalid_name_as_not_found(
 
     with pytest.raises(BandsintownArtistNotFoundError):
         await BandsintownClient("app-id").get_artist_events("ニュー・ファウンド・グローリー")
+
+
+async def test_get_artist_events_scopes_invalid_parameter_to_client_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_bandsintown_api(monkeypatch, 429, None, text="rate limited: invalid parameter usage")
+
+    with pytest.raises(BandsintownApiError):
+        await BandsintownClient("app-id").get_artist_events("Metallica")
 
 
 async def test_get_artist_events_raises_on_unparseable_error_body(

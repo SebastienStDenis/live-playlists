@@ -100,6 +100,7 @@ class EventSyncResult(BaseModel):
     artists_synced: int
     artists_skipped: int
     artists_unknown: int
+    artists_failed: int
     events_created: int
     events_updated: int
     events_removed: int

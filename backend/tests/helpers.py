@@ -25,8 +25,25 @@ def make_session() -> AsyncMock:
 
 def result_returning(value: object) -> MagicMock:
     result = MagicMock()
+    result.scalar_one.return_value = value
     result.scalar_one_or_none.return_value = value
     return result
+
+
+def result_with_scalars(rows: list) -> MagicMock:
+    result = MagicMock()
+    result.scalars.return_value = rows
+    return result
+
+
+def result_with_rows(rows: list) -> MagicMock:
+    result = MagicMock()
+    result.all.return_value = rows
+    return result
+
+
+def added_objects(session: AsyncMock, kind: type) -> list:
+    return [call.args[0] for call in session.add.call_args_list if isinstance(call.args[0], kind)]
 
 
 async def request(
