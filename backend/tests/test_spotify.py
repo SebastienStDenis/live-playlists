@@ -58,7 +58,7 @@ def ok(payload: dict) -> httpx.Response:
 async def test_mints_token_with_refresh_token_grant() -> None:
     client, requests = make_client([ok({})], refresh_token="my-refresh")
 
-    await client.get_playlist_snapshot_id("p1")
+    await client.replace_playlist_items("p1", [])
 
     (token_request,) = token_requests(requests)
     form = parse_qs(token_request.content.decode())
@@ -69,7 +69,7 @@ async def test_mints_token_with_refresh_token_grant() -> None:
 async def test_mints_token_with_client_credentials_when_no_refresh_token() -> None:
     client, requests = make_client([ok({})], refresh_token="")
 
-    await client.get_playlist_snapshot_id("p1")
+    await client.replace_playlist_items("p1", [])
 
     (token_request,) = token_requests(requests)
     form = parse_qs(token_request.content.decode())
@@ -79,8 +79,8 @@ async def test_mints_token_with_client_credentials_when_no_refresh_token() -> No
 async def test_caches_access_token_across_requests() -> None:
     client, requests = make_client([ok({}), ok({})])
 
-    await client.get_playlist_snapshot_id("p1")
-    await client.get_playlist_snapshot_id("p1")
+    await client.replace_playlist_items("p1", [])
+    await client.replace_playlist_items("p1", [])
 
     assert len(token_requests(requests)) == 1
     assert [r.headers["Authorization"] for r in api_requests(requests)] == [
@@ -98,8 +98,8 @@ async def test_remints_expired_token() -> None:
         ],
     )
 
-    await client.get_playlist_snapshot_id("p1")
-    await client.get_playlist_snapshot_id("p1")
+    await client.replace_playlist_items("p1", [])
+    await client.replace_playlist_items("p1", [])
 
     assert len(token_requests(requests)) == 2
     assert [r.headers["Authorization"] for r in api_requests(requests)] == [
@@ -120,13 +120,13 @@ async def test_invalid_grant_points_to_reauth() -> None:
     )
 
     with pytest.raises(SpotifyAuthError, match="app.spotify_auth"):
-        await client.get_playlist_snapshot_id("p1")
+        await client.replace_playlist_items("p1", [])
 
 
 async def test_401_remints_token_and_retries_once() -> None:
     client, requests = make_client([httpx.Response(401), ok({"snapshot_id": "s1"})])
 
-    snapshot_id = await client.get_playlist_snapshot_id("p1")
+    snapshot_id = await client.replace_playlist_items("p1", [])
 
     assert snapshot_id == "s1"
     assert len(token_requests(requests)) == 2
@@ -142,7 +142,7 @@ async def test_second_401_raises_api_error() -> None:
     )
 
     with pytest.raises(SpotifyApiError, match="Bad token") as excinfo:
-        await client.get_playlist_snapshot_id("p1")
+        await client.replace_playlist_items("p1", [])
     assert excinfo.value.status_code == 401
 
 
@@ -157,7 +157,7 @@ async def test_429_honors_retry_after_and_retries(monkeypatch: pytest.MonkeyPatc
         [httpx.Response(429, headers={"Retry-After": "7"}), ok({"snapshot_id": "s1"})]
     )
 
-    snapshot_id = await client.get_playlist_snapshot_id("p1")
+    snapshot_id = await client.replace_playlist_items("p1", [])
 
     assert snapshot_id == "s1"
     assert sleeps == [7.0]
@@ -173,7 +173,7 @@ async def test_429_gives_up_after_max_retries(monkeypatch: pytest.MonkeyPatch) -
     client, _ = make_client([httpx.Response(429, headers={"Retry-After": "2"}) for _ in range(4)])
 
     with pytest.raises(SpotifyApiError) as excinfo:
-        await client.get_playlist_snapshot_id("p1")
+        await client.replace_playlist_items("p1", [])
 
     assert excinfo.value.status_code == 429
     assert sleeps == [2.0, 2.0, 2.0]
@@ -272,67 +272,16 @@ async def test_create_playlist_maps_fields() -> None:
     }
 
 
-async def test_add_playlist_items_sends_uris_and_position() -> None:
+async def test_replace_playlist_items_sends_uris() -> None:
     client, requests = make_client([ok({"snapshot_id": "s2"})])
 
-    snapshot_id = await client.add_playlist_items("p1", [track_uri("t1")], position=3)
+    snapshot_id = await client.replace_playlist_items("p1", [track_uri("t1"), track_uri("t2")])
 
     assert snapshot_id == "s2"
     (api_request,) = api_requests(requests)
-    assert api_request.method == "POST"
-    assert api_request.url.path == "/v1/playlists/p1/items"
-    assert json.loads(api_request.content) == {"uris": ["spotify:track:t1"], "position": 3}
-
-
-async def test_remove_playlist_items_sends_track_uris() -> None:
-    client, requests = make_client([ok({"snapshot_id": "s3"})])
-
-    snapshot_id = await client.remove_playlist_items("p1", [track_uri("t1"), track_uri("t2")])
-
-    assert snapshot_id == "s3"
-    (api_request,) = api_requests(requests)
-    assert api_request.method == "DELETE"
-    assert api_request.url.path == "/v1/playlists/p1/items"
-    assert json.loads(api_request.content) == {
-        "items": [{"uri": "spotify:track:t1"}, {"uri": "spotify:track:t2"}]
-    }
-
-
-async def test_reorder_playlist_items_sends_range() -> None:
-    client, requests = make_client([ok({"snapshot_id": "s4"})])
-
-    snapshot_id = await client.reorder_playlist_items("p1", range_start=5, insert_before=0)
-
-    assert snapshot_id == "s4"
-    (api_request,) = api_requests(requests)
     assert api_request.method == "PUT"
     assert api_request.url.path == "/v1/playlists/p1/items"
-    assert json.loads(api_request.content) == {
-        "range_start": 5,
-        "insert_before": 0,
-        "range_length": 1,
-    }
-
-
-async def test_get_playlist_track_ids_paginates_and_skips_null_tracks() -> None:
-    client, requests = make_client(
-        [
-            ok({"items": [{"item": {"id": "t1"}}, {"item": None}], "total": 3}),
-            ok({"items": [{"item": {"id": "t2"}}], "total": 3}),
-        ]
-    )
-
-    track_ids = await client.get_playlist_track_ids("p1")
-
-    assert track_ids == ["t1", "t2"]
-    offsets = [r.url.params["offset"] for r in api_requests(requests)]
-    assert offsets == ["0", "2"]
-
-
-async def test_get_playlist_track_ids_when_empty() -> None:
-    client, _ = make_client([ok({"items": [], "total": 0})])
-
-    assert await client.get_playlist_track_ids("p1") == []
+    assert json.loads(api_request.content) == {"uris": ["spotify:track:t1", "spotify:track:t2"]}
 
 
 async def test_api_error_uses_api_error_message() -> None:
@@ -341,5 +290,5 @@ async def test_api_error_uses_api_error_message() -> None:
     )
 
     with pytest.raises(SpotifyApiError, match="Invalid playlist Id") as excinfo:
-        await client.get_playlist_snapshot_id("nope")
+        await client.replace_playlist_items("nope", [])
     assert excinfo.value.status_code == 404

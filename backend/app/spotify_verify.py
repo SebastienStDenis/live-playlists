@@ -2,9 +2,9 @@
 allows a development-mode Client ID, before trusting the design's assumptions.
 
 Needs SPOTIFY_CLIENT_ID/SECRET/REFRESH_TOKEN in .env (run app.spotify_auth
-first). Creates a throwaway playlist on the bot account, exercises the write
-endpoints, checks the added_at semantics the delta-write design rests on, and
-unfollows the playlist at the end.
+first). Creates a throwaway playlist on the bot account, exercises the replace
+write the sync rests on (including its added_at semantics), and unfollows the
+playlist at the end.
 
 Usage (from backend/): uv run python -m app.spotify_verify
 """
@@ -97,67 +97,50 @@ async def run_checks(client: SpotifyClient) -> None:
     )
     check("create playlist", bool(playlist.id), playlist.url or "")
     try:
-        snapshot = await client.add_playlist_items(playlist.id, [track_uri(t) for t in seeds])
-        check("add items returns snapshot_id", snapshot is not None)
+        snapshot = await client.replace_playlist_items(playlist.id, [track_uri(t) for t in seeds])
+        check("replace into empty playlist returns snapshot_id", snapshot is not None)
+        before = await read_items(client, playlist.id)
+        check("replace wrote all tracks in order", [i for i, _ in before] == seeds)
 
-        before = await added_at_by_track(client, playlist.id)
         await asyncio.sleep(2)
-        await client.reorder_playlist_items(playlist.id, 2, 0)
-        after_reorder = await added_at_by_track(client, playlist.id)
+        # Reorder + removal in one replace: the semantics the sync rests on.
+        await client.replace_playlist_items(playlist.id, [track_uri(seeds[2]), track_uri(seeds[0])])
+        after = await read_items(client, playlist.id)
         check(
-            "reorder preserves added_at",
-            before == after_reorder,
-            f"{before} -> {after_reorder}" if before != after_reorder else "",
+            "replace applied new order and removal", [i for i, _ in after] == [seeds[2], seeds[0]]
+        )
+        added_at = dict(before)
+        check(
+            "replace preserves added_at for surviving tracks",
+            all(added_at[i] == a for i, a in after),
+            f"{before} -> {after}" if not all(added_at[i] == a for i, a in after) else "",
         )
 
-        order = await client.get_playlist_track_ids(playlist.id)
-        check("reorder moved the item", bool(order) and order[0] == seeds[2])
-
-        await client._request(
-            "PUT",
-            f"/playlists/{playlist.id}/items",
-            json={"uris": [track_uri(t) for t in seeds]},
-        )
-        after_replace = await added_at_by_track(client, playlist.id)
-        # Verified July 2026: contrary to the community lore the plan cites,
-        # full replace now PRESERVES added_at for surviving tracks. Deltas are
-        # kept anyway - a no-op sync makes zero write calls.
+        await client.replace_playlist_items(playlist.id, [])
         check(
-            "full replace preserves added_at for surviving tracks",
-            before == after_replace,
-            f"{before} -> {after_replace}" if before != after_replace else "",
-        )
-
-        snapshot = await client.remove_playlist_items(playlist.id, [track_uri(seeds[0])])
-        check("remove items returns snapshot_id", snapshot is not None)
-        remaining = await client.get_playlist_track_ids(playlist.id)
-        check(
-            "removal removed exactly that track",
-            seeds[0] not in remaining and len(remaining) == 2,
+            "replace with empty list clears the playlist", not await read_items(client, playlist.id)
         )
 
         await client.update_playlist_details(
             playlist.id, "live-playlists verification (renamed)", "Renamed by app.spotify_verify."
         )
         check("update playlist details", True)
-        remote_snapshot = await client.get_playlist_snapshot_id(playlist.id)
-        check("snapshot_id readable via fields filter", remote_snapshot is not None)
     finally:
         await client.unfollow_playlist(playlist.id)
         print("  (throwaway playlist unfollowed)")
 
 
-async def added_at_by_track(client: SpotifyClient, playlist_id: str) -> dict[str, str]:
+async def read_items(client: SpotifyClient, playlist_id: str) -> list[tuple[str, str]]:
     payload = await client._request(
         "GET",
         f"/playlists/{playlist_id}/items",
         params={"fields": "items(added_at,item(id))", "limit": 100},
     )
-    return {
-        item["item"]["id"]: item["added_at"]
+    return [
+        (item["item"]["id"], item["added_at"])
         for item in payload.get("items", [])
         if item.get("item")
-    }
+    ]
 
 
 if __name__ == "__main__":

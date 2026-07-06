@@ -104,35 +104,10 @@ class SpotifyClient:
             snapshot_id=payload.get("snapshot_id"),
         )
 
-    async def add_playlist_items(
-        self, playlist_id: str, uris: list[str], position: int | None = None
-    ) -> str | None:
-        body: dict = {"uris": uris}
-        if position is not None:
-            body["position"] = position
-        payload = await self._request("POST", f"/playlists/{playlist_id}/items", json=body)
-        return payload.get("snapshot_id")
-
-    async def remove_playlist_items(self, playlist_id: str, uris: list[str]) -> str | None:
-        payload = await self._request(
-            "DELETE",
-            f"/playlists/{playlist_id}/items",
-            json={"items": [{"uri": uri} for uri in uris]},
-        )
-        return payload.get("snapshot_id")
-
-    async def reorder_playlist_items(
-        self, playlist_id: str, range_start: int, insert_before: int, range_length: int = 1
-    ) -> str | None:
-        payload = await self._request(
-            "PUT",
-            f"/playlists/{playlist_id}/items",
-            json={
-                "range_start": range_start,
-                "insert_before": insert_before,
-                "range_length": range_length,
-            },
-        )
+    async def replace_playlist_items(self, playlist_id: str, uris: list[str]) -> str | None:
+        """Atomically replace the playlist's contents (max 100 URIs). Surviving
+        tracks keep their added_at (verified July 2026, see app.spotify_verify)."""
+        payload = await self._request("PUT", f"/playlists/{playlist_id}/items", json={"uris": uris})
         return payload.get("snapshot_id")
 
     async def update_playlist_details(
@@ -143,30 +118,6 @@ class SpotifyClient:
             f"/playlists/{playlist_id}",
             json={"name": name, "description": description or ""},
         )
-
-    async def get_playlist_snapshot_id(self, playlist_id: str) -> str | None:
-        payload = await self._request(
-            "GET", f"/playlists/{playlist_id}", params={"fields": "snapshot_id"}
-        )
-        return payload.get("snapshot_id")
-
-    async def get_playlist_track_ids(self, playlist_id: str) -> list[str]:
-        """Current track ids in playlist order (the snapshot-drift healing read)."""
-        track_ids: list[str] = []
-        offset = 0
-        while True:
-            payload = await self._request(
-                "GET",
-                f"/playlists/{playlist_id}/items",
-                params={"fields": "items(item(id)),total", "limit": 100, "offset": offset},
-            )
-            items = payload.get("items") or []
-            track_ids.extend(
-                item["item"]["id"] for item in items if (item.get("item") or {}).get("id")
-            )
-            offset += len(items)
-            if not items or offset >= (payload.get("total") or 0):
-                return track_ids
 
     async def unfollow_playlist(self, playlist_id: str) -> None:
         await self._request("DELETE", f"/playlists/{playlist_id}/followers")

@@ -324,7 +324,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     spotify.create_playlist.return_value = SpotifyPlaylistData(
         id="pl1", url="http://x", snapshot_id="s1"
     )
-    spotify.add_playlist_items.return_value = "s2"
+    spotify.replace_playlist_items.return_value = "s2"
 
     response = await request(
         "POST",
@@ -348,7 +348,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     assert item["tracks_added"] == 1
     assert item["tracks_total"] == 1
     spotify.create_playlist.assert_awaited_once()
-    spotify.add_playlist_items.assert_awaited_once_with("pl1", ["spotify:track:t1"], position=0)
+    spotify.replace_playlist_items.assert_awaited_once_with("pl1", ["spotify:track:t1"])
     created = added_objects(session, Playlist)[0]
     assert created.spotify_playlist_id == "pl1"
     assert created.snapshot_id == "s2"

@@ -1,12 +1,20 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from itertools import permutations
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy.dialects import postgresql
 
 from app.lastfm import LastfmArtistNotFoundError, LastfmArtistTopTrack, LastfmClient
-from app.models import Artist, ArtistTopTrack, LastfmArtist, Playlist, SpotifyArtist
+from app.models import (
+    Artist,
+    ArtistTopTrack,
+    City,
+    LastfmArtist,
+    Playlist,
+    PlaylistTrack,
+    SpotifyArtist,
+    User,
+)
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.playlist_sync import (
     MATCH_EXACT,
@@ -17,15 +25,19 @@ from app.playlist_sync import (
     ArtistMatch,
     _refresh_top_tracks,
     _resolve_artist,
-    _write_deltas,
+    _sync_playlist,
     desired_tracks,
-    plan_insertions,
-    plan_moves,
     playlist_description,
     playlist_title,
 )
-from app.spotify import SpotifyApiError, SpotifyArtistData, SpotifyClient, SpotifyTrackData
-from tests.helpers import added_objects, make_session, result_returning
+from app.spotify import (
+    SpotifyApiError,
+    SpotifyArtistData,
+    SpotifyClient,
+    SpotifyPlaylistData,
+    SpotifyTrackData,
+)
+from tests.helpers import added_objects, make_session, result_returning, result_with_scalars
 
 FIRST_SHOW = datetime(2026, 8, 1, 20, 0, tzinfo=UTC)
 
@@ -110,55 +122,6 @@ def test_desired_tracks_skips_artists_without_cached_tracks() -> None:
 
 def test_desired_tracks_empty_when_no_matches() -> None:
     assert desired_tracks([], {}) == []
-
-
-def replay_moves(current: list[str], moves: list[tuple[int, int]]) -> list[str]:
-    work = list(current)
-    for range_start, insert_before in moves:
-        work.insert(insert_before, work.pop(range_start))
-    return work
-
-
-def test_plan_moves_no_ops_when_relative_order_matches() -> None:
-    assert plan_moves(["a", "c"], ["a", "b", "c"]) == []
-
-
-def test_plan_moves_sorts_every_permutation() -> None:
-    desired = ["a", "b", "c", "d"]
-    for current in permutations(desired):
-        moves = plan_moves(list(current), desired)
-
-        assert replay_moves(list(current), moves) == desired
-
-
-def test_plan_moves_sorts_survivor_subset() -> None:
-    current = ["d", "a", "c"]
-    desired = ["a", "b", "c", "d"]
-
-    moves = plan_moves(current, desired)
-
-    assert replay_moves(current, moves) == ["a", "c", "d"]
-
-
-def test_plan_moves_single_element_and_empty() -> None:
-    assert plan_moves(["a"], ["a"]) == []
-    assert plan_moves([], ["a", "b"]) == []
-
-
-def test_plan_insertions_all_new_is_one_run_at_zero() -> None:
-    assert plan_insertions(["a", "b", "c"], set()) == [(0, ["a", "b", "c"])]
-
-
-def test_plan_insertions_places_runs_around_survivors() -> None:
-    desired = ["n0", "s1", "n1", "n2", "s2", "n3"]
-
-    runs = plan_insertions(desired, {"s1", "s2"})
-
-    assert runs == [(0, ["n0"]), (2, ["n1", "n2"]), (5, ["n3"])]
-
-
-def test_plan_insertions_empty_when_everything_survives() -> None:
-    assert plan_insertions(["a", "b"], {"a", "b"}) == []
 
 
 def test_playlist_title_with_and_without_city() -> None:
@@ -421,62 +384,146 @@ async def test_resolve_artist_returns_none_without_search_results() -> None:
     session.execute.assert_not_awaited()
 
 
-def make_playlist(snapshot: str | None = "snap-0") -> Playlist:
+SYNC_NOW = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
+
+
+def make_playlist(spotify_playlist_id: str | None = "pl-1") -> Playlist:
     return Playlist(
         id=uuid.uuid7(),
         user_id=uuid.uuid7(),
         kind="city_shows",
-        name="Shows",
-        snapshot_id=snapshot,
+        name=playlist_title("Alice", "Montréal"),
+        description=playlist_description("Montréal", SYNC_NOW),
+        spotify_playlist_id=spotify_playlist_id,
+        snapshot_id="snap-0",
     )
 
 
-async def test_write_deltas_pushes_removals_moves_and_additions() -> None:
+def local_row(playlist: Playlist, track: ArtistTopTrack, event_id: uuid.UUID) -> PlaylistTrack:
+    return PlaylistTrack(
+        playlist_id=playlist.id,
+        position=0,
+        spotify_track_id=track.spotify_track_id,
+        artist_id=track.artist_id,
+        event_id=event_id,
+    )
+
+
+async def run_sync_playlist(
+    session: AsyncMock, spotify: AsyncMock, playlist: Playlist, matches: list[ArtistMatch]
+):
+    return await _sync_playlist(
+        session,
+        spotify,
+        playlist,
+        User(id=playlist.user_id, name="Alice"),
+        City(geonameid=6077243, name="Montréal"),
+        matches,
+        SYNC_NOW,
+    )
+
+
+async def test_sync_playlist_replaces_remote_and_rewrites_changed_local_rows() -> None:
     playlist = make_playlist()
-    spotify = AsyncMock(spec=SpotifyClient)
-    spotify.remove_playlist_items.return_value = "snap-1"
-    spotify.reorder_playlist_items.return_value = "snap-2"
-    spotify.add_playlist_items.side_effect = ["snap-3", "snap-4"]
-    current = ["a", "x", "b", "y"]
-    desired = ["b", "n1", "a", "n2"]
-
-    added, removed, moved = await _write_deltas(spotify, playlist, "pl-1", current, desired)
-
-    assert (added, removed, moved) == (2, 2, 1)
-    spotify.remove_playlist_items.assert_awaited_once_with(
-        "pl-1", ["spotify:track:x", "spotify:track:y"]
-    )
-    assert spotify.reorder_playlist_items.await_args_list == [call("pl-1", 1, 0)]
-    assert spotify.add_playlist_items.await_args_list == [
-        call("pl-1", ["spotify:track:n1"], position=1),
-        call("pl-1", ["spotify:track:n2"], position=3),
+    match = make_match(uuid.uuid7())
+    cached = [cached_track(match.artist_id, "t1", 1), cached_track(match.artist_id, "t2", 2)]
+    stale = local_row(playlist, cached_track(uuid.uuid7(), "old", 1), uuid.uuid7())
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars(cached),
+        result_with_scalars([stale]),
+        MagicMock(),  # delete of the stale playlist_tracks rows
     ]
-    assert playlist.snapshot_id == "snap-4"
-
-
-async def test_write_deltas_batches_removals() -> None:
-    playlist = make_playlist()
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.remove_playlist_items.side_effect = ["snap-1", "snap-2"]
-    current = [f"c{index:03}" for index in range(101)]
+    spotify.replace_playlist_items.return_value = "snap-1"
 
-    added, removed, moved = await _write_deltas(spotify, playlist, "pl-1", current, [])
+    item = await run_sync_playlist(session, spotify, playlist, [match])
 
-    assert (added, removed, moved) == (0, 101, 0)
-    batches = [awaited.args[1] for awaited in spotify.remove_playlist_items.await_args_list]
-    assert [len(batch) for batch in batches] == [100, 1]
-    assert playlist.snapshot_id == "snap-2"
+    spotify.replace_playlist_items.assert_awaited_once_with(
+        "pl-1", ["spotify:track:t1", "spotify:track:t2"]
+    )
+    spotify.create_playlist.assert_not_awaited()
+    assert playlist.snapshot_id == "snap-1"
+    assert session.execute.await_count == 3
+    rewritten = [
+        (row.position, row.spotify_track_id, row.artist_id, row.event_id)
+        for row in added_objects(session, PlaylistTrack)
+    ]
+    assert rewritten == [
+        (0, "t1", match.artist_id, match.event_id),
+        (1, "t2", match.artist_id, match.event_id),
+    ]
+    assert item.status == "synced"
+    assert item.created_remotely is False
+    assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (2, 1, 2)
+    assert playlist.last_synced_at == SYNC_NOW
 
 
-async def test_write_deltas_makes_no_remote_calls_when_in_sync() -> None:
+async def test_sync_playlist_replaces_remote_but_keeps_matching_local_rows() -> None:
     playlist = make_playlist()
+    match = make_match(uuid.uuid7())
+    cached = cached_track(match.artist_id, "t1", 1)
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([cached]),
+        result_with_scalars([local_row(playlist, cached, match.event_id)]),
+    ]
     spotify = AsyncMock(spec=SpotifyClient)
-    current = ["a", "b", "c"]
+    spotify.replace_playlist_items.return_value = None
 
-    added, removed, moved = await _write_deltas(spotify, playlist, "pl-1", current, current)
+    item = await run_sync_playlist(session, spotify, playlist, [match])
 
-    assert (added, removed, moved) == (0, 0, 0)
-    spotify.remove_playlist_items.assert_not_awaited()
-    spotify.reorder_playlist_items.assert_not_awaited()
-    spotify.add_playlist_items.assert_not_awaited()
-    assert playlist.snapshot_id == "snap-0"
+    spotify.replace_playlist_items.assert_awaited_once_with("pl-1", ["spotify:track:t1"])
+    assert playlist.snapshot_id == "snap-0"  # kept when Spotify omits the new snapshot
+    assert session.execute.await_count == 2  # no delete: local rows already match
+    session.add.assert_not_called()
+    assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (0, 0, 1)
+
+
+async def test_sync_playlist_skips_replace_for_fresh_empty_playlist() -> None:
+    playlist = make_playlist(spotify_playlist_id=None)
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars([])]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.create_playlist.return_value = SpotifyPlaylistData(
+        id="pl-new", url="https://open.spotify.com/playlist/pl-new", snapshot_id="snap-new"
+    )
+
+    item = await run_sync_playlist(session, spotify, playlist, [])
+
+    spotify.create_playlist.assert_awaited_once_with(
+        playlist_title("Alice", "Montréal"), playlist_description("Montréal", SYNC_NOW)
+    )
+    spotify.replace_playlist_items.assert_not_awaited()
+    session.commit.assert_awaited_once()  # the remote id is persisted right after creation
+    assert playlist.spotify_playlist_id == "pl-new"
+    assert playlist.snapshot_id == "snap-new"
+    session.add.assert_not_called()
+    assert item.created_remotely is True
+    assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (0, 0, 0)
+
+
+async def test_sync_playlist_creates_then_replaces_when_fresh_with_tracks() -> None:
+    playlist = make_playlist(spotify_playlist_id=None)
+    match = make_match(uuid.uuid7())
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([cached_track(match.artist_id, "t1", 1)]),
+        result_with_scalars([]),
+        MagicMock(),
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.create_playlist.return_value = SpotifyPlaylistData(
+        id="pl-new", url=None, snapshot_id="snap-new"
+    )
+    spotify.replace_playlist_items.return_value = "snap-1"
+
+    item = await run_sync_playlist(session, spotify, playlist, [match])
+
+    spotify.create_playlist.assert_awaited_once()
+    spotify.replace_playlist_items.assert_awaited_once_with("pl-new", ["spotify:track:t1"])
+    session.commit.assert_awaited_once()
+    assert playlist.snapshot_id == "snap-1"
+    assert [row.spotify_track_id for row in added_objects(session, PlaylistTrack)] == ["t1"]
+    assert item.created_remotely is True
+    assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (1, 0, 1)

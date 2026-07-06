@@ -151,7 +151,6 @@ class PlaylistSyncItem(BaseModel):
     created_remotely: bool = False
     tracks_added: int = 0
     tracks_removed: int = 0
-    tracks_moved: int = 0
     tracks_total: int = 0
 
 

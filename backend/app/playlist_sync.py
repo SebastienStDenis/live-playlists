@@ -36,8 +36,7 @@ MATCH_FUZZY = "fuzzy"
 TOP_TRACKS_TTL = timedelta(days=30)
 TOP_TRACKS_PER_ARTIST = 5
 TOP_TRACKS_FETCH_LIMIT = 10
-PLAYLIST_MAX_TRACKS = 100
-WRITE_BATCH_SIZE = 100
+PLAYLIST_MAX_TRACKS = 100  # one 100-URI replace request per sync
 
 
 class ArtistMatch(BaseModel):
@@ -74,8 +73,9 @@ async def sync_user_playlists(
     """Reconcile all of the user's playlists against current local state.
 
     Inputs are refreshed first (Spotify resolution for newly matched artists,
-    top-track cache past TTL), shared across playlists; then each playlist is
-    diffed and delta-written. Event freshness is the event sync's job.
+    top-track cache past TTL), shared across playlists; then each playlist's
+    desired tracklist is written as one full replace. Event freshness is the
+    event sync's job.
     """
     now = datetime.now(UTC)
     playlists = await _ensure_default_playlist(session, user)
@@ -342,7 +342,7 @@ def desired_tracks(
     top_tracks: dict[uuid.UUID, list[ArtistTopTrack]],
 ) -> list[DesiredTrack]:
     """Soonest show first, then track rank; URIs deduped (first artist wins);
-    capped so every delta batch fits one 100-URI request."""
+    capped so the tracklist always fits one 100-URI replace request."""
     desired: list[DesiredTrack] = []
     seen: set[str] = set()
     for match in matches:
@@ -358,43 +358,6 @@ def desired_tracks(
                 )
             )
     return desired[:PLAYLIST_MAX_TRACKS]
-
-
-def plan_moves(current: list[str], desired_order: list[str]) -> list[tuple[int, int]]:
-    """Reorder ops (range_start, insert_before) that sort `current` into the
-    relative order given by `desired_order`, moving items instead of
-    re-adding them so Spotify's per-item added_at survives."""
-    order = {track_id: index for index, track_id in enumerate(desired_order)}
-    target = sorted(current, key=lambda track_id: order[track_id])
-    work = list(current)
-    moves: list[tuple[int, int]] = []
-    for position, wanted in enumerate(target):
-        if work[position] == wanted:
-            continue
-        source = work.index(wanted, position + 1)
-        moves.append((source, position))
-        work.insert(position, work.pop(source))
-    return moves
-
-
-def plan_insertions(desired: list[str], surviving: set[str]) -> list[tuple[int, list[str]]]:
-    """Contiguous runs of new tracks with their final insert positions,
-    assuming survivors are already in desired relative order."""
-    runs: list[tuple[int, list[str]]] = []
-    run: list[str] = []
-    run_start = 0
-    for index, track_id in enumerate(desired):
-        if track_id in surviving:
-            if run:
-                runs.append((run_start, run))
-                run = []
-            continue
-        if not run:
-            run_start = index
-        run.append(track_id)
-    if run:
-        runs.append((run_start, run))
-    return runs
 
 
 async def _sync_playlist(
@@ -437,21 +400,20 @@ async def _sync_playlist(
         .order_by(PlaylistTrack.position)
     )
     current_rows = list(result.scalars())
-    current_ids = [row.spotify_track_id for row in current_rows]
 
-    if not created and playlist.snapshot_id:
-        # The bot is the only writer of its own playlists, so playlist_tracks
-        # is trusted as the remote image; the snapshot chain is the tripwire
-        # on that assumption. On divergence, re-read and heal the diff base.
-        remote_snapshot = await spotify.get_playlist_snapshot_id(spotify_playlist_id)
-        if remote_snapshot != playlist.snapshot_id:
-            current_ids = await spotify.get_playlist_track_ids(spotify_playlist_id)
+    # One replace per sync: atomic, idempotent, and self-healing against any
+    # manual edits on the Spotify side. Surviving tracks keep their added_at
+    # (verified, app.spotify_verify), so "Date added" still reads as "newly
+    # announced shows first". Skipped only when a just-created playlist has
+    # nothing to write.
+    if not (created and not desired):
+        snapshot = await spotify.replace_playlist_items(
+            spotify_playlist_id, [track_uri(track.spotify_track_id) for track in desired]
+        )
+        playlist.snapshot_id = snapshot or playlist.snapshot_id
 
-    desired_ids = [track.spotify_track_id for track in desired]
-    added, removed, moved = await _write_deltas(
-        spotify, playlist, spotify_playlist_id, current_ids, desired_ids
-    )
-
+    current_ids = {row.spotify_track_id for row in current_rows}
+    desired_ids = {track.spotify_track_id for track in desired}
     current_state = [(row.spotify_track_id, row.artist_id, row.event_id) for row in current_rows]
     desired_state = [(track.spotify_track_id, track.artist_id, track.event_id) for track in desired]
     if current_state != desired_state:
@@ -473,58 +435,7 @@ async def _sync_playlist(
         name=playlist.name,
         status="synced",
         created_remotely=created,
-        tracks_added=added,
-        tracks_removed=removed,
-        tracks_moved=moved,
+        tracks_added=len(desired_ids - current_ids),
+        tracks_removed=len(current_ids - desired_ids),
         tracks_total=len(desired),
     )
-
-
-async def _write_deltas(
-    spotify: SpotifyClient,
-    playlist: Playlist,
-    playlist_id: str,
-    current_ids: list[str],
-    desired_ids: list[str],
-) -> tuple[int, int, int]:
-    """Push the difference: removals, then survivor reorders, then additions
-    at their final positions. Every write's snapshot_id lands on the playlist."""
-    snapshot = playlist.snapshot_id
-
-    desired_set = set(desired_ids)
-    to_remove = sorted({track_id for track_id in current_ids if track_id not in desired_set})
-    for batch in _batches(to_remove, WRITE_BATCH_SIZE):
-        snapshot = (
-            await spotify.remove_playlist_items(
-                playlist_id, [track_uri(track_id) for track_id in batch]
-            )
-            or snapshot
-        )
-
-    survivors = [track_id for track_id in current_ids if track_id in desired_set]
-    moves = plan_moves(survivors, desired_ids)
-    for range_start, insert_before in moves:
-        snapshot = (
-            await spotify.reorder_playlist_items(playlist_id, range_start, insert_before)
-            or snapshot
-        )
-
-    added = 0
-    for position, run in plan_insertions(desired_ids, set(survivors)):
-        for offset, batch in enumerate(_batches(run, WRITE_BATCH_SIZE)):
-            snapshot = (
-                await spotify.add_playlist_items(
-                    playlist_id,
-                    [track_uri(track_id) for track_id in batch],
-                    position=position + offset * WRITE_BATCH_SIZE,
-                )
-                or snapshot
-            )
-            added += len(batch)
-
-    playlist.snapshot_id = snapshot
-    return added, len(to_remove), len(moves)
-
-
-def _batches(items: list[str], size: int) -> list[list[str]]:
-    return [items[start : start + size] for start in range(0, len(items), size)]
