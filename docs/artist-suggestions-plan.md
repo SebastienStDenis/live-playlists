@@ -448,15 +448,19 @@ by the setting ("New artists you might like playing near {city}" vs the current
 shapes are unchanged or additive - but the Concerts panel will show only
 suggested-artist events by default, which is the intended product pivot.
 
-## Playlist layer tweak: fewer tracks per suggested artist
+## Playlist layer tweak: three tracks per artist, regardless of kind
 
-The per-kind weighting the playlist plan reserved space for:
-`TOP_TRACKS_PER_ARTIST` stays 5 for known artists, `SUGGESTED_TRACKS_PER_ARTIST = 3`
-for suggested artists. A suggested artist is a cheaper bet at three tracks, and a
-suggested-only playlist fits more artists under the 100-track cap. An artist briefly
-holding both row types (the grace window, sync lag) gets the known count - known
-wins, decidable in SQL as a weight-floor check on the known-kind row. Ordering,
-dedupe, provenance, and the full-replace write are untouched.
+`TOP_TRACKS_PER_ARTIST` drops from 5 to 3, uniformly - the per-kind weighting the
+earlier plans reserved space for is deliberately not taken. The core surface is the
+suggested-only playlist (the setting's default), where breadth wins: an artist's
+three best tracks answer "do I like this, is the show worth it?" about as well as
+five, and the 100-track cap then covers ~33 artists' shows instead of 20. The
+known-artists mode earns no extra depth either - its value is knowing your artists
+are in town, not proving with five tracks what the user already knows they like. A
+uniform count also deletes complexity: no per-kind branch in the desired-state
+computation, and an artist briefly holding both row types (the grace window, sync
+lag) needs no adjudication at all. The 5 -> 3 change applies to existing playlists
+at rollout. Ordering, dedupe, provenance, and the full-replace write are untouched.
 
 ## Volume and rate limits
 
@@ -502,8 +506,8 @@ created/kept/removed). Ends with the calibration run against a real account.
 
 **Phase 3 - the setting + match integration.** Consolidate the match join into
 `matching.py` with kind and exclusion filters; wire it into the events endpoint
-(override param) and playlist desired state; per-kind track counts; setting-aware
-playlist description; `UserRead` field and `PATCH /users/{user_id}`.
+(override param) and playlist desired state; `TOP_TRACKS_PER_ARTIST` 5 -> 3;
+setting-aware playlist description; `UserRead` field and `PATCH /users/{user_id}`.
 
 **Phase 4 - exclusion endpoints + background refresh.** The "ignore this artist"
 write path (`PUT`/`DELETE /users/{id}/artists/{artist_id}/exclusion`) landing with

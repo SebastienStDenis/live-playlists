@@ -207,9 +207,9 @@ events for every distinct artist referenced by any interest row" - it never asks
 an interest exists, and no branch anywhere says suggested vs known. The distinction
 surfaces only downstream, deliberately:
 
-- **Playlist layer** weights or caps by `kind` (e.g. top 5 tracks for known artists,
-  top 2 for a suggested artist, or a bounded share of the playlist for suggested
-  artists).
+- **Playlist layer** filters by kind sets (the "include artists I know" setting).
+  Weighting track counts by `kind` was anticipated here but ultimately declined: the
+  suggestion plan settles on a uniform per-artist track count.
 - **UI** renders "because you listen to X" straight from the interest row's evidence.
 - **Sync ownership**: the similarity engine upserts and deletes only its own `kind`, so
   a Last.fm top-artists re-sync and a suggestion refresh never clobber each other.
