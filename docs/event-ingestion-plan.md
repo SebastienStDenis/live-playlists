@@ -6,13 +6,12 @@ data we already hold. Scope for now: suggest events only for artists the user is
 linked to; suggested artists are covered at the end because they change nothing in this
 pipeline.
 
-> **Status: TBD pending API verification.** This design assumes Bandsintown as the
-> events source and an artist -> upcoming-events lookup. Bandsintown's public API is
-> officially aimed at artists and their managers and requires an app_id; whether access
-> terms permit this use case remains to be checked. The flow was chosen on structural
-> grounds first (see below), so if Bandsintown falls through, the design carries over to
-> another source (e.g. Ticketmaster Discovery), with the flow-direction tradeoff
-> revisited if that source is city-shaped rather than artist-shaped.
+> **Status: Phases 0-2 done.** Bandsintown access is verified (app_id in `.env` as
+> `BANDSINTOWN_API_KEY`) and the schema, client, and sync + read endpoints are
+> implemented, with a demo Concerts panel on the user page. Two deviations from the
+> sketch below: events store the source's full `country` name rather than a
+> `country_code`, and Bandsintown's venue-local datetimes (no offset) are stored as
+> UTC, which is close enough for date-granular matching. Phases 3-4 remain.
 
 ## Decision: artist-first ingestion, not city-first
 
@@ -98,13 +97,27 @@ bandsintown_artists          -- Bandsintown's identity claim on an artist
 Design notes:
 
 - **`event_artists` is many-to-many out of necessity, not generality.** Real shows have
-  lineups. If a user likes both the headliner and the opener, artist-first sync fetches
-  the same show twice via two artists; upserting by `external_id` dedupes the event and
-  adds a second link row. A single `events.artist_id` FK would make the second sync
-  either fail or steal the event from the first artist.
-- **Lineup resolution is deferred.** An event links only to the artist(s) we fetched it
+  lineups, and a single `events.artist_id` FK could not represent a show matched to
+  more than one interest artist without the second sync either failing or stealing the
+  event from the first.
+- **Bandsintown event records are per-artist** (observed in production data): each
+  record carries a single owner `artist_id`, so co-billed artists each publish a
+  *separate* record with its own `external_id` for the same physical show. Two
+  consequences. First, upserting by `external_id` never dedupes across feeds - in the
+  ingested data ~13% of events are cross-feed duplicates of the same show (festivals
+  are the worst case), each linked to one artist, so a show shared by two interest
+  artists currently appears once per artist. Second, openers still match today: an
+  interest artist's own feed includes their support and festival slots.
+- **Lineup resolution is deferred.** An event links only to the artist we fetched it
   through; the raw lineup names sit in JSONB on the source row for a later pass that
-  resolves them against the registry.
+  resolves them against the registry. That pass is also where cross-feed duplicates
+  merge: same venue coordinates + same start time (lineup overlap as confidence)
+  collapses per-artist records into one canonical event carrying several
+  `bandsintown_events` rows - each keeping its own `external_id` so per-artist
+  re-syncs keep working - with `event_artists` links for every co-billed interest
+  artist. Vanish-deletion then becomes per source row: a show dropping out of one
+  artist's feed removes that artist's source row and link, and the canonical event
+  only dies with its last source row.
 - **`bandsintown_artists` mirrors `lastfm_artists`**: the source-specific identity claim
   anticipated by the artist plan. `last_synced_at` here means "when we last fetched this
   artist's events" and is what makes freshness global rather than per-user.
