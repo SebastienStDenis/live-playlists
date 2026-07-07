@@ -210,6 +210,7 @@ function CurrentStep({
   const [cursor, setCursor] = useState<{
     index: number;
     phase: "running" | "final";
+    since: number;
   }>(() => {
     const active = steps.findIndex((step) => step.status !== "completed");
     const index = active === -1 ? steps.length - 1 : active;
@@ -218,6 +219,7 @@ function CurrentStep({
       index,
       phase:
         status === "completed" || status === "failed" ? "final" : "running",
+      since: Date.now(),
     };
   });
 
@@ -233,12 +235,18 @@ function CurrentStep({
       }
       return;
     }
+    // Whatever is on screen stays there for at least STEP_HOLD_MS, measured
+    // from when it appeared so poll updates don't restart the clock.
+    const holdLeft = Math.max(0, STEP_HOLD_MS - (Date.now() - cursor.since));
     const done = step.status === "completed" || step.status === "failed";
     if (cursor.phase === "running") {
       if (!done) {
         return;
       }
-      const timer = setTimeout(() => setCursor({ index, phase: "final" }), 0);
+      const timer = setTimeout(
+        () => setCursor({ index, phase: "final", since: Date.now() }),
+        holdLeft,
+      );
       return () => clearTimeout(timer);
     }
     const next = steps[index + 1];
@@ -250,16 +258,17 @@ function CurrentStep({
           setCursor({
             index: index + 1,
             phase: nextDone ? "final" : "running",
+            since: Date.now(),
           }),
-        STEP_HOLD_MS,
+        holdLeft,
       );
       return () => clearTimeout(timer);
     }
     if (finished) {
-      const timer = setTimeout(onSettled, STEP_HOLD_MS);
+      const timer = setTimeout(onSettled, holdLeft);
       return () => clearTimeout(timer);
     }
-  }, [steps, cursor.phase, index, step, finished, onSettled]);
+  }, [steps, cursor, index, step, finished, onSettled]);
 
   if (!step) {
     return null;
