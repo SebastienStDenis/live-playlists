@@ -24,6 +24,10 @@ const POLL_INTERVAL_MS = 1500;
 // moves on.
 const STEP_HOLD_MS = 900;
 
+// TEMP demo: cycle each finished run's shown outcome so every last-synced
+// variant can be previewed. Remove this and its uses (search "demo") when done.
+const DEMO_OUTCOMES = ["completed", "failed", "none"] as const;
+
 const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -72,6 +76,8 @@ export function SyncCard({
   const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
+  // TEMP demo: -1 until the first run finishes, then advances each run.
+  const [demoOutcomeSeq, setDemoOutcomeSeq] = useState(-1);
 
   // Loaded client-side so the page never waits on Temporal to render.
   useEffect(() => {
@@ -118,6 +124,7 @@ export function SyncCard({
         // Let the last step's final state show before collapsing to the
         // last-synced line.
         setSettling(true);
+        setDemoOutcomeSeq((seq) => seq + 1); // TEMP demo
         router.refresh();
       }
     }
@@ -145,6 +152,12 @@ export function SyncCard({
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
+  // TEMP demo: override the finished-run outcome shown on the last-synced line.
+  const demoOutcome =
+    demoOutcomeSeq >= 0
+      ? DEMO_OUTCOMES[demoOutcomeSeq % DEMO_OUTCOMES.length]
+      : null;
+  const finalOutcome = demoOutcome ?? status?.status ?? "none";
 
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
@@ -237,26 +250,26 @@ export function SyncCard({
                     <LastStepLine steps={status.steps} />
                   </div>
                 )}
-                {status && status.status !== "none" && (
+                {status && finalOutcome !== "none" && (
                   <details className="group animate-slide-in-up">
                     <summary
                       className={`flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden ${
-                        status.status === "failed"
+                        finalOutcome === "failed"
                           ? "text-foreground"
                           : "text-gray-500"
                       }`}
                     >
                       <span
                         className={
-                          status.status === "failed"
+                          finalOutcome === "failed"
                             ? "text-red-600"
                             : "text-green-600 dark:text-green-500"
                         }
                       >
-                        <StepMark status={status.status} />
+                        <StepMark status={finalOutcome} />
                       </span>
                       <span>
-                        {status.status === "failed"
+                        {finalOutcome === "failed"
                           ? "Last sync failed"
                           : "Last synced"}
                         {finishedAt && ` ${finishedAt}`}.
@@ -588,7 +601,7 @@ function ExpandToggleMark() {
         className="h-3.5 w-3.5 group-open:hidden"
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden
@@ -601,13 +614,13 @@ function ExpandToggleMark() {
         className="hidden h-3.5 w-3.5 group-open:block"
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden
       >
-        <path d="M5 4 8 7 11 4" />
-        <path d="M5 12 8 9 11 12" />
+        <path d="M5 3.5 8 6.5 11 3.5" />
+        <path d="M5 12.5 8 9.5 11 12.5" />
       </svg>
     </span>
   );
