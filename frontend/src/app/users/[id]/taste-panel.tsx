@@ -116,7 +116,7 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
               </select>
             </label>
           </div>
-          <ul className="mt-2 -mr-4 -mb-4 max-h-80 space-y-1 overflow-y-auto pr-4 pb-4">
+          <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600">
             {sortedArtists.map(({ artist, interests }) => (
               <li
                 key={artist.id}
