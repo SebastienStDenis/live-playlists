@@ -162,7 +162,7 @@ export function SyncCard({
   }
 
   return (
-    <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
+    <div>
       {/* Fixed-height area holding either the sync control or the running
           steps, so swapping them never shifts the layout below; expanding
           the step list is the one user-initiated exception. */}
@@ -183,23 +183,9 @@ export function SyncCard({
                 type="button"
                 onClick={onSync}
                 disabled={starting}
-                title="Sync"
-                aria-label="Sync"
-                className="rounded bg-foreground p-1.5 text-background disabled:opacity-50"
+                className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M23 4v6h-6" />
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                </svg>
+                Sync
               </button>
               {status && status.status !== "none" && (
                 <details className="min-w-0 flex-1 pt-1">

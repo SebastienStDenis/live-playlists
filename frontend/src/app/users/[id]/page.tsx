@@ -96,6 +96,11 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
     ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
   ]);
+  // Playlists appear only once they exist on Spotify; rows pending their
+  // first sync stay hidden.
+  const linkedPlaylists = playlists.filter(
+    (playlist) => playlist.spotify_url !== null,
+  );
   // The tab count matches the panel's default view: suggested artists only.
   const suggestedEventCount = events.filter((userEvent) =>
     userEvent.artists.some(
@@ -134,13 +139,13 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
             },
             {
               key: "playlists",
-              label: `Playlists (${playlists.length})`,
+              label: `Playlists (${linkedPlaylists.length})`,
               content: (
                 <PlaylistsPanel
                   userId={user.id}
                   hasCity={city !== null}
                   hasArtists={userArtists.length > 0}
-                  playlists={playlists}
+                  playlists={linkedPlaylists}
                 />
               ),
             },
