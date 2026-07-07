@@ -23,7 +23,8 @@ export default function AboutPage() {
             We look at who sounds similar to the artists you listen to most and
             keep the strongest matches - each one shows its reason, like
             &ldquo;because you listen to Slowdive&rdquo;. Artists you already
-            know are left out; a name you have only brushed past is fair game.
+            know are left out; an artist you have only played a few times can
+            still be suggested.
           </p>
         </section>
         <section>
