@@ -85,9 +85,9 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         href={`/users/${id}/account`}
         className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
       >
+        {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
         Account settings
         <span aria-hidden>&rarr;</span>
-        {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
       </Link>
       <section className="mt-6">
         <Tabs

@@ -30,8 +30,8 @@ function Section({
   return (
     <section className={className}>
       <h2 className="mb-3 text-lg font-medium">
-        {heading}
         {alert && <AttentionDot />}
+        {heading}
       </h2>
       <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
         {children}

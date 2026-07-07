@@ -162,8 +162,8 @@ export function SyncCard({
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
   const missing = [
-    !lastfmLinked && "link a Last.fm account",
-    !citySet && "set a city",
+    !lastfmLinked && "link Last.fm",
+    !citySet && "set home city",
   ].filter((item): item is string => item !== false);
   const canSync = missing.length === 0;
   const missingNote = canSync
@@ -280,6 +280,12 @@ export function SyncCard({
                       <StepList steps={status.steps} />
                     </div>
                   </details>
+                )}
+                {finalOutcome === "none" && !statusLoading && (
+                  <p className="text-xs text-gray-500 italic">
+                    Import listening history, suggest concerts and create
+                    playlists.
+                  </p>
                 )}
               </div>
             )}

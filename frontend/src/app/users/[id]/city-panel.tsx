@@ -143,7 +143,7 @@ function CitySearch({
     <div className="space-y-2">
       {!hasCity && (
         <p className="text-sm text-gray-500">
-          No city set. Set one to find concerts nearby.
+          Set home city to find concerts nearby.
         </p>
       )}
       <div className="flex gap-2">
