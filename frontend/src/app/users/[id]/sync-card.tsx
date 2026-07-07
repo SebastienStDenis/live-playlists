@@ -138,9 +138,10 @@ export function SyncCard({
   }, [leaving]);
 
   const running = status?.status === "running";
-  // The button shows a spinner both while a run is in progress and while we're
-  // still checking whether one exists.
-  const busy = running || statusLoading;
+  // The button shows a spinner while checking for an existing run, while one is
+  // in progress, and while the step playback is still catching up after the run
+  // finished behind the scenes (settling).
+  const busy = running || statusLoading || settling;
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
