@@ -129,7 +129,9 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
                   hasArtists={userArtists.length > 0}
                   playlists={linkedPlaylists}
                   pendingPins={pendingPins}
-                  cityPlaylistCount={playlists.length}
+                  pinnedCount={
+                    playlists.filter((playlist) => playlist.city !== null).length
+                  }
                 />
               ),
             },

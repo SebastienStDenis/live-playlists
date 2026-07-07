@@ -36,7 +36,7 @@ type PlaylistTrack = {
   url: string | null;
 };
 
-export const CITY_PLAYLIST_CAP = 3;
+export const PINNED_PLAYLIST_CAP = 2;
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
 // UTC displays the original local time.
@@ -72,15 +72,20 @@ export function PlaylistsPanel({
   hasArtists,
   playlists,
   pendingPins,
-  cityPlaylistCount,
+  pinnedCount,
 }: {
   userId: string;
   hasCity: boolean;
   hasArtists: boolean;
   playlists: Playlist[];
   pendingPins: Playlist[];
-  cityPlaylistCount: number;
+  pinnedCount: number;
 }) {
+  // The home-city playlist (no pinned city) always leads the list.
+  const orderedPlaylists = [...playlists].sort(
+    (a, b) => Number(b.city === null) - Number(a.city === null),
+  );
+
   return (
     <div>
       {!hasArtists ? (
@@ -102,7 +107,7 @@ export function PlaylistsPanel({
             </p>
           )}
           <ul className="space-y-3">
-            {playlists.map((playlist) => (
+            {orderedPlaylists.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
                 userId={userId}
@@ -116,7 +121,7 @@ export function PlaylistsPanel({
       <div className="mt-6">
         <PinCitySearch
           userId={userId}
-          atCap={cityPlaylistCount >= CITY_PLAYLIST_CAP}
+          atCap={pinnedCount >= PINNED_PLAYLIST_CAP}
         />
         {pendingPins.length > 0 && (
           <ul className="mt-3 space-y-1">
@@ -192,6 +197,7 @@ function PlaylistCard({
                   </div>
                   {track.event && (
                     <p className="mt-0.5 text-xs text-gray-500">
+                      playing{" "}
                       {track.url ? (
                         <a
                           href={track.url}
@@ -199,12 +205,12 @@ function PlaylistCard({
                           rel="noreferrer"
                           className="underline hover:text-gray-700 dark:hover:text-gray-300"
                         >
-                          playing {track.event.venue_name} on{" "}
+                          {track.event.venue_name} on{" "}
                           {showDateFormat.format(new Date(track.event.starts_at))} ↗
                         </a>
                       ) : (
                         <>
-                          playing {track.event.venue_name} on{" "}
+                          {track.event.venue_name} on{" "}
                           {showDateFormat.format(new Date(track.event.starts_at))}
                         </>
                       )}
@@ -306,8 +312,8 @@ function PinCitySearch({
   if (atCap) {
     return (
       <p className="text-sm text-gray-500">
-        You&apos;ve reached the limit of {CITY_PLAYLIST_CAP} playlists. Delete
-        one to pin another city.
+        You can pin at most {PINNED_PLAYLIST_CAP} cities (on top of your home
+        city). Delete a pinned city to add another.
       </p>
     );
   }
@@ -319,7 +325,7 @@ function PinCitySearch({
         onClick={() => setOpen(true)}
         className="text-sm text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
       >
-        + Pin another city
+        + Add a playlist for another city
       </button>
     );
   }

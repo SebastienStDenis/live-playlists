@@ -236,7 +236,7 @@ async def test_create_pinned_playlist_duplicate_city() -> None:
 
 
 async def test_create_pinned_playlist_at_cap() -> None:
-    pinned = [make_playlist(id=uuid.uuid7(), city_id=geonameid) for geonameid in (1000, 2000, 3000)]
+    pinned = [make_playlist(id=uuid.uuid7(), city_id=geonameid) for geonameid in (1000, 2000)]
     session = make_session()
     session.get.side_effect = [make_user(), make_city()]
     session.execute.side_effect = [result_with_scalars(pinned)]
@@ -244,7 +244,7 @@ async def test_create_pinned_playlist_at_cap() -> None:
     response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "At most 3 playlists per user"
+    assert response.json()["detail"] == "At most 2 pinned playlists per user"
     session.add.assert_not_called()
 
 

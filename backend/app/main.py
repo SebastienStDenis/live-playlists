@@ -50,8 +50,8 @@ from app.models import (
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.playlist_sync import (
-    CITY_PLAYLIST_CAP,
     CITY_SHOWS_KIND,
+    PINNED_PLAYLIST_CAP,
     playlist_title,
     sync_user_playlists,
 )
@@ -610,14 +610,15 @@ async def create_pinned_playlist(
         select(Playlist).where(
             Playlist.user_id == user_id,
             Playlist.kind == CITY_SHOWS_KIND,
+            Playlist.city_id.is_not(None),
         )
     )
-    existing = list(result.scalars())
-    if any(playlist.city_id == city.geonameid for playlist in existing):
+    pinned = list(result.scalars())
+    if any(playlist.city_id == city.geonameid for playlist in pinned):
         raise HTTPException(status_code=409, detail="A playlist for this city already exists")
-    if len(existing) >= CITY_PLAYLIST_CAP:
+    if len(pinned) >= PINNED_PLAYLIST_CAP:
         raise HTTPException(
-            status_code=409, detail=f"At most {CITY_PLAYLIST_CAP} playlists per user"
+            status_code=409, detail=f"At most {PINNED_PLAYLIST_CAP} pinned playlists per user"
         )
 
     playlist = Playlist(
