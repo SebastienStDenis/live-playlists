@@ -570,7 +570,7 @@ async def list_user_playlists(user_id: uuid.UUID, session: SessionDep) -> list[P
     }
     if playlists:
         result = await session.execute(
-            select(PlaylistTrack, Artist, Event, ArtistTopTrack.title)
+            select(PlaylistTrack, Artist, Event, ArtistTopTrack.title, BandsintownEvent.url)
             .outerjoin(Artist, Artist.id == PlaylistTrack.artist_id)
             .outerjoin(Event, Event.id == PlaylistTrack.event_id)
             .outerjoin(
@@ -578,10 +578,11 @@ async def list_user_playlists(user_id: uuid.UUID, session: SessionDep) -> list[P
                 (ArtistTopTrack.artist_id == PlaylistTrack.artist_id)
                 & (ArtistTopTrack.spotify_track_id == PlaylistTrack.spotify_track_id),
             )
+            .outerjoin(BandsintownEvent, BandsintownEvent.event_id == PlaylistTrack.event_id)
             .where(PlaylistTrack.playlist_id.in_(playlists.keys()))
             .order_by(PlaylistTrack.playlist_id, PlaylistTrack.position)
         )
-        for track, artist, event, title in result.all():
+        for track, artist, event, title, url in result.all():
             playlists[track.playlist_id].tracks.append(
                 PlaylistTrackRead(
                     position=track.position,
@@ -589,6 +590,7 @@ async def list_user_playlists(user_id: uuid.UUID, session: SessionDep) -> list[P
                     title=title,
                     artist=ArtistRead.model_validate(artist) if artist else None,
                     event=EventRead.model_validate(event) if event else None,
+                    url=url,
                 )
             )
     return list(playlists.values())
@@ -608,15 +610,14 @@ async def create_pinned_playlist(
         select(Playlist).where(
             Playlist.user_id == user_id,
             Playlist.kind == CITY_SHOWS_KIND,
-            Playlist.city_id.is_not(None),
         )
     )
-    pinned = list(result.scalars())
-    if any(playlist.city_id == city.geonameid for playlist in pinned):
+    existing = list(result.scalars())
+    if any(playlist.city_id == city.geonameid for playlist in existing):
         raise HTTPException(status_code=409, detail="A playlist for this city already exists")
-    if len(pinned) >= CITY_PLAYLIST_CAP:
+    if len(existing) >= CITY_PLAYLIST_CAP:
         raise HTTPException(
-            status_code=409, detail=f"At most {CITY_PLAYLIST_CAP} city playlists per user"
+            status_code=409, detail=f"At most {CITY_PLAYLIST_CAP} playlists per user"
         )
 
     playlist = Playlist(

@@ -33,7 +33,10 @@ type PlaylistTrack = {
     venue_name: string;
     starts_at: string;
   } | null;
+  url: string | null;
 };
+
+export const CITY_PLAYLIST_CAP = 3;
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
 // UTC displays the original local time.
@@ -69,12 +72,14 @@ export function PlaylistsPanel({
   hasArtists,
   playlists,
   pendingPins,
+  cityPlaylistCount,
 }: {
   userId: string;
   hasCity: boolean;
   hasArtists: boolean;
   playlists: Playlist[];
   pendingPins: Playlist[];
+  cityPlaylistCount: number;
 }) {
   return (
     <div>
@@ -109,7 +114,10 @@ export function PlaylistsPanel({
       )}
 
       <div className="mt-6">
-        <PinCitySearch userId={userId} />
+        <PinCitySearch
+          userId={userId}
+          atCap={cityPlaylistCount >= CITY_PLAYLIST_CAP}
+        />
         {pendingPins.length > 0 && (
           <ul className="mt-3 space-y-1">
             {pendingPins.map((playlist) => (
@@ -172,19 +180,37 @@ function PlaylistCard({
             {playlist.tracks.map((track) => (
               <li
                 key={track.spotify_track_id}
-                className="flex flex-wrap items-baseline gap-x-2 text-sm"
+                className="flex gap-x-2 text-sm"
               >
                 <span className="text-gray-500">{track.position + 1}.</span>
-                <span>{track.title ?? "Unknown title"}</span>
-                {track.artist && (
-                  <span className="text-gray-500">by {track.artist.name}</span>
-                )}
-                {track.event && (
-                  <span className="text-xs text-gray-500">
-                    · playing {track.event.venue_name} on{" "}
-                    {showDateFormat.format(new Date(track.event.starts_at))}
-                  </span>
-                )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span>{track.title ?? "Unknown title"}</span>
+                    {track.artist && (
+                      <span className="text-gray-500">by {track.artist.name}</span>
+                    )}
+                  </div>
+                  {track.event && (
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {track.url ? (
+                        <a
+                          href={track.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline hover:text-gray-700 dark:hover:text-gray-300"
+                        >
+                          playing {track.event.venue_name} on{" "}
+                          {showDateFormat.format(new Date(track.event.starts_at))} ↗
+                        </a>
+                      ) : (
+                        <>
+                          playing {track.event.venue_name} on{" "}
+                          {showDateFormat.format(new Date(track.event.starts_at))}
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
               </li>
             ))}
           </ol>
@@ -256,7 +282,13 @@ function PendingPinRow({
   );
 }
 
-function PinCitySearch({ userId }: { userId: string }) {
+function PinCitySearch({
+  userId,
+  atCap,
+}: {
+  userId: string;
+  atCap: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -269,6 +301,15 @@ function PinCitySearch({ userId }: { userId: string }) {
         setOpen(false);
       }
     });
+  }
+
+  if (atCap) {
+    return (
+      <p className="text-sm text-gray-500">
+        You&apos;ve reached the limit of {CITY_PLAYLIST_CAP} playlists. Delete
+        one to pin another city.
+      </p>
+    );
   }
 
   if (!open) {

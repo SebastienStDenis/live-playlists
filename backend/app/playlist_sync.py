@@ -26,7 +26,7 @@ from app.schemas import PlaylistSyncItem, PlaylistSyncResult
 from app.spotify import SpotifyApiError, SpotifyArtistData, SpotifyClient, track_uri
 
 CITY_SHOWS_KIND = "city_shows"
-CITY_PLAYLIST_CAP = 3
+CITY_PLAYLIST_CAP = 3  # total city_shows playlists per user, home city included
 
 MATCH_EXACT = "exact"
 MATCH_FUZZY = "fuzzy"

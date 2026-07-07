@@ -42,9 +42,11 @@ export function Tabs({
       {tabs.map((tab) => (
         <div key={tab.key} hidden={active !== tab.key} className="mt-4">
           {tab.description && (
-            <p className="mb-4 text-sm text-gray-500">{tab.description}</p>
+            <p key="description" className="mb-4 text-sm text-gray-500">
+              {tab.description}
+            </p>
           )}
-          {tab.content}
+          <div key="content">{tab.content}</div>
         </div>
       ))}
     </div>
