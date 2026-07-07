@@ -141,9 +141,13 @@ class SpotifyClient:
                 self._access_token = None
                 continue
             if response.status_code == 429 and rate_limit_retries < MAX_RATE_LIMIT_RETRIES:
-                rate_limit_retries += 1
                 retry_after = float(response.headers.get("Retry-After") or 1)
-                await asyncio.sleep(min(retry_after, MAX_RETRY_AFTER))
+                if retry_after > MAX_RETRY_AFTER:
+                    # A long ban (quota exhaustion announces hours): waiting
+                    # our capped interval cannot help, so fail immediately.
+                    raise SpotifyApiError(response.status_code, _error_message(response))
+                rate_limit_retries += 1
+                await asyncio.sleep(retry_after)
                 continue
             if response.status_code >= 400:
                 raise SpotifyApiError(response.status_code, _error_message(response))
