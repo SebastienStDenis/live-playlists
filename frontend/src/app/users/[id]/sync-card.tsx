@@ -461,14 +461,27 @@ function StepLine({
   snapshot: StepSnapshot;
   total: number;
 }) {
+  const isFinal =
+    snapshot.status === "completed" || snapshot.status === "failed";
   return (
     <div className="flex gap-2 text-sm">
-      {/* Keyed by status so a phase flip remounts and fades the icon. */}
-      <span
-        key={snapshot.status}
-        className={`mt-0.5 animate-fade-in ${stepMarkClasses[snapshot.status]}`}
-      >
-        <StepMark status={snapshot.status} />
+      {/* The waiting dot and the final check/cross are stacked and cross-faded
+          on opacity so the dot eases out as the mark eases in. */}
+      <span className="relative mt-0.5 inline-block h-3.5 w-3.5 shrink-0">
+        <span
+          className={`absolute inset-0 transition-opacity duration-300 ${
+            stepMarkClasses.running
+          } ${isFinal ? "opacity-0" : "opacity-100"}`}
+        >
+          <StepMark status="running" />
+        </span>
+        <span
+          className={`absolute inset-0 transition-opacity duration-300 ${
+            stepMarkClasses[snapshot.status]
+          } ${isFinal ? "opacity-100" : "opacity-0"}`}
+        >
+          {isFinal && <StepMark status={snapshot.status} />}
+        </span>
       </span>
       <div className="min-w-0">
         <span>{snapshot.label}</span>
@@ -484,7 +497,10 @@ function StepLine({
             overflows; the post-run step list shows the full text. A running
             step has no summary yet, so a placeholder keeps the two-line
             height (and vertical centering) consistent. */}
-        <p className="animate-fade-in truncate text-xs text-gray-500">
+        <p
+          key={snapshot.status}
+          className="animate-fade-in truncate text-xs text-gray-500"
+        >
           {snapshot.summary ??
             (snapshot.status === "running" ? "In progress" : " ")}
         </p>
