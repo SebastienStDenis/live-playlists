@@ -14,6 +14,7 @@ import { EventsPanel, type UserEvent } from "./events-panel";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
+import { SyncCard } from "./sync-card";
 import { Tabs } from "./tabs";
 
 type User = {
@@ -108,6 +109,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         />
       </section>
       <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Sync</h2>
+        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
+      </section>
+      <section className="mt-8">
         <Tabs
           tabs={[
             {
@@ -115,7 +120,6 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               label: `Known artists (${knownArtists.length})`,
               content: (
                 <ArtistsPanel
-                  userId={user.id}
                   lastfmLinked={lastfm !== null}
                   userArtists={knownArtists}
                   allArtists={allArtists}
@@ -127,7 +131,6 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               label: `Suggested artists (${suggestedArtists.length})`,
               content: (
                 <SuggestedArtistsPanel
-                  userId={user.id}
                   lastfmLinked={lastfm !== null}
                   suggestedArtists={suggestedArtists}
                 />
