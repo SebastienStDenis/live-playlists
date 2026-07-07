@@ -163,19 +163,15 @@ export function EventsPanel({
             </FilterPill>
           </div>
           {visibleEvents.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">
-              {hiddenCount > 0
-                ? `${
-                    hiddenCount === 1
-                      ? "One concert is"
-                      : `${hiddenCount} concerts are`
-                  } hidden by the artist filter above.`
-                : !hasSuggestions
+            hiddenCount === 0 && (
+              <p className="mt-4 text-sm text-gray-500">
+                {!hasSuggestions
                   ? "No suggested artists yet, so no concerts to show. Sync to get some."
                   : viewCity
                     ? `No upcoming concerts by your artists near ${viewCity.name}.`
                     : "No upcoming concerts by your artists nearby. Try syncing."}
-            </p>
+              </p>
+            )
           ) : (
             <ul className="mt-3 space-y-3">
               {visibleEvents.map(({ event, url, distance_km, artists }) => (
@@ -219,6 +215,12 @@ export function EventsPanel({
                 </li>
               ))}
             </ul>
+          )}
+          {hiddenCount > 0 && (
+            <p className="mt-3 text-sm text-gray-500">
+              {hiddenCount} {hiddenCount === 1 ? "concert is" : "concerts are"}{" "}
+              hidden by filters.
+            </p>
           )}
         </>
       )}
