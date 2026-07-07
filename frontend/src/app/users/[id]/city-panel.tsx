@@ -141,11 +141,6 @@ function CitySearch({
 
   return (
     <div className="space-y-2">
-      {!hasCity && (
-        <p className="-mt-2 text-xs text-gray-500 italic">
-          Set home city to find concerts nearby.
-        </p>
-      )}
       <div className="flex gap-2">
         <input
           value={query}

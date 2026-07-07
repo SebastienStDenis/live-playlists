@@ -19,11 +19,13 @@ import {
 function Section({
   heading,
   alert,
+  alertText,
   className,
   children,
 }: {
   heading: string;
   alert?: boolean;
+  alertText?: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -32,6 +34,11 @@ function Section({
       <h2 className="mb-3 flex items-center text-lg font-medium">
         {alert && <AttentionDot />}
         {heading}
+        {alert && alertText && (
+          <span className="ml-2 text-xs font-normal text-gray-500 italic">
+            {alertText}
+          </span>
+        )}
       </h2>
       <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
         {children}
@@ -69,7 +76,11 @@ export default async function AccountPage(
         &larr; Back
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
-      <Section heading="Sync" alert={neverSynced}>
+      <Section
+        heading="Sync"
+        alert={neverSynced}
+        alertText="Sync to import listening history, suggest concerts and create playlists."
+      >
         <SyncCard
           userId={user.id}
           lastfmLinked={lastfm !== null}
@@ -79,11 +90,17 @@ export default async function AccountPage(
       <Section
         heading="Last.fm"
         alert={lastfm === null}
+        alertText="Link Last.fm account to enable sync."
         className="mt-8"
       >
         <LastfmPanel userId={user.id} account={lastfm} />
       </Section>
-      <Section heading="Home City" alert={city === null} className="mt-8">
+      <Section
+        heading="Home City"
+        alert={city === null}
+        alertText="Set home city to enable sync."
+        className="mt-8"
+      >
         <CityPanel userId={user.id} city={city} />
       </Section>
       <Section heading="Options" className="mt-8">
