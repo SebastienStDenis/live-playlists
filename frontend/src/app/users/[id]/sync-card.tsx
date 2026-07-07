@@ -28,13 +28,6 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-const stepMarks: Record<SyncStep["status"], string> = {
-  pending: "○",
-  running: "●",
-  completed: "✓",
-  failed: "✕",
-};
-
 const stepMarkClasses: Record<SyncStep["status"], string> = {
   pending: "text-gray-400 dark:text-gray-600",
   running: "animate-pulse",
@@ -169,25 +162,19 @@ export function SyncCard({
       {error && <p className="text-sm text-red-600">{error}</p>}
       {running && status && <StepList steps={status.steps} />}
       {!running && status && status.status !== "none" && (
-        <div className="space-y-2">
-          {status.status === "failed" ? (
-            <p className="text-sm text-red-600">
-              Last sync failed{finishedAt && ` ${finishedAt}`}.
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500">
-              Last synced{finishedAt && ` ${finishedAt}`}.
-            </p>
-          )}
-          <details>
-            <summary className="cursor-pointer text-sm text-gray-500">
-              Steps
-            </summary>
-            <div className="mt-2">
-              <StepList steps={status.steps} />
-            </div>
-          </details>
-        </div>
+        <details>
+          <summary
+            className={`cursor-pointer text-sm ${
+              status.status === "failed" ? "text-red-600" : "text-gray-500"
+            }`}
+          >
+            {status.status === "failed" ? "Last sync failed" : "Last synced"}
+            {finishedAt && ` ${finishedAt}`}.
+          </summary>
+          <div className="mt-2">
+            <StepList steps={status.steps} />
+          </div>
+        </details>
       )}
     </div>
   );
@@ -195,28 +182,75 @@ export function SyncCard({
 
 function StepList({ steps }: { steps: SyncStep[] }) {
   return (
-    <ul className="space-y-1">
+    <ul className="space-y-1.5">
       {steps.map((step) => (
-        <li
-          key={step.key}
-          className="flex flex-wrap items-baseline gap-2 text-sm"
-        >
-          <span className={stepMarkClasses[step.status]}>
-            {stepMarks[step.status]}
+        <li key={step.key} className="flex gap-2 text-sm">
+          <span className={`mt-0.5 ${stepMarkClasses[step.status]}`}>
+            <StepMark status={step.status} />
           </span>
-          <span
-            className={step.status === "pending" ? "text-gray-500" : undefined}
-          >
-            {step.label}
-          </span>
-          {step.status === "failed" && (
-            <span className="text-xs text-red-600">failed</span>
-          )}
-          {step.summary && (
-            <span className="text-xs text-gray-500">{step.summary}</span>
-          )}
+          <div>
+            <span
+              className={
+                step.status === "pending" ? "text-gray-500" : undefined
+              }
+            >
+              {step.label}
+            </span>
+            {step.status === "failed" && (
+              <span className="ml-2 text-xs text-red-600">failed</span>
+            )}
+            {step.summary && (
+              <p className="text-xs text-gray-500">{step.summary}</p>
+            )}
+          </div>
         </li>
       ))}
     </ul>
+  );
+}
+
+function StepMark({ status }: { status: SyncStep["status"] }) {
+  if (status === "completed") {
+    return (
+      <svg
+        viewBox="0 0 16 16"
+        className="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+      </svg>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <svg
+        viewBox="0 0 16 16"
+        className="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        aria-hidden
+      >
+        <path d="m4.5 4.5 7 7m0-7-7 7" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden>
+      <circle
+        cx="8"
+        cy="8"
+        r="4.5"
+        fill={status === "running" ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth={1.5}
+      />
+    </svg>
   );
 }
