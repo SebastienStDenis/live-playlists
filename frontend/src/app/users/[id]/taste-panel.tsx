@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
@@ -87,13 +86,7 @@ function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
-export function TastePanel({
-  userArtists,
-  allArtists,
-}: {
-  userArtists: UserArtist[];
-  allArtists: Artist[];
-}) {
+export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
@@ -145,23 +138,6 @@ export function TastePanel({
           </ul>
         </>
       )}
-
-      <div className="mt-6">
-        <h3 className="mb-2 text-sm font-medium">
-          <Link href="/artists" className="hover:underline">
-            All artists ({numberFormat.format(allArtists.length)}) &rarr;
-          </Link>
-        </h3>
-        {allArtists.length === 0 ? (
-          <p className="text-sm text-gray-500">No artists in the registry.</p>
-        ) : (
-          <ul className="max-h-64 overflow-y-auto rounded border border-gray-300 px-3 py-2 text-sm text-gray-500 dark:border-gray-700">
-            {allArtists.map((artist) => (
-              <li key={artist.id}>{artist.name}</li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }
