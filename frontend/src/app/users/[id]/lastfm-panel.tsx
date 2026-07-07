@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useSyncExternalStore } from "react";
 
 import { linkLastfm, refreshLastfm, unlinkLastfm } from "./actions";
 
@@ -19,6 +19,10 @@ export type LastfmAccount = {
 
 const numberFormat = new Intl.NumberFormat("en-US");
 
+// Client-only flag (false during SSR/hydration, true after) so the local-time
+// swap never causes a hydration mismatch.
+const noopSubscribe = () => () => {};
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -28,14 +32,16 @@ function formatDate(iso: string): string {
   });
 }
 
-function formatDateTime(iso: string): string {
+// timeZone omitted => the viewer's local zone. The server render passes "UTC"
+// so it stays deterministic; the client swaps to local after mount.
+function formatDateTime(iso: string, timeZone?: string): string {
   return new Date(iso).toLocaleString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone,
     timeZoneName: "short",
   });
 }
@@ -101,6 +107,13 @@ function AccountCard({
     { error: null },
   );
   const error = refreshState.error ?? unlinkState.error;
+  // Format in the viewer's local zone once mounted; the server and first client
+  // render both report false (UTC) so hydration stays clean.
+  const localTime = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   return (
     <div>
@@ -162,8 +175,11 @@ function AccountCard({
       <div className="mt-4 flex items-center justify-between">
         <p className="text-xs text-gray-500 italic">
           {account.last_synced_at
-            ? `Last synced ${formatDateTime(account.last_synced_at)}`
-            : "Never synced"}
+            ? `Imported ${formatDateTime(
+                account.last_synced_at,
+                localTime ? undefined : "UTC",
+              )}`
+            : "Never imported"}
         </p>
         <div className="flex gap-2">
           <form action={refreshAction}>
