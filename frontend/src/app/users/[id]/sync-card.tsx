@@ -15,10 +15,18 @@ export type SyncStep = {
 export type SyncStatus = {
   status: "none" | "running" | "completed" | "failed";
   started_at: string | null;
+  finished_at: string | null;
   steps: SyncStep[];
 };
 
 const POLL_INTERVAL_MS = 1500;
+
+const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 const stepMarks: Record<SyncStep["status"], string> = {
   pending: "○",
@@ -114,6 +122,9 @@ export function SyncCard({
   }
 
   const running = status?.status === "running";
+  const finishedAt = status?.finished_at
+    ? syncedAtFormat.format(new Date(status.finished_at))
+    : null;
 
   function onSync() {
     // Show the run as started right away; the first poll replaces this with
@@ -123,6 +134,7 @@ export function SyncCard({
     setStatus({
       status: "running",
       started_at: null,
+      finished_at: null,
       steps: (previous?.steps ?? []).map((step) => ({
         ...step,
         status: "pending" as const,
@@ -158,38 +170,57 @@ export function SyncCard({
         </span>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {status && status.status !== "none" && (
-        <ul className="space-y-1">
-          {status.steps.map((step) => (
-            <li
-              key={step.key}
-              className="flex flex-wrap items-baseline gap-2 text-sm"
-            >
-              <span className={stepMarkClasses[step.status]}>
-                {stepMarks[step.status]}
-              </span>
-              <span
-                className={
-                  step.status === "pending" ? "text-gray-500" : undefined
-                }
-              >
-                {step.label}
-              </span>
-              {step.status === "failed" && (
-                <span className="text-xs text-red-600">failed</span>
-              )}
-              {step.summary && (
-                <span className="text-xs text-gray-500">{step.summary}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {status?.status === "failed" && (
-        <p className="text-sm text-red-600">
-          The last sync failed. Syncing again picks up where it left off.
-        </p>
+      {running && status && <StepList steps={status.steps} />}
+      {!running && status && status.status !== "none" && (
+        <div className="space-y-2">
+          {status.status === "failed" ? (
+            <p className="text-sm text-red-600">
+              Last sync failed{finishedAt && ` ${finishedAt}`}. Syncing again
+              picks up where it left off.
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Last synced{finishedAt && ` ${finishedAt}`}.
+            </p>
+          )}
+          <details>
+            <summary className="cursor-pointer text-sm text-gray-500">
+              Steps
+            </summary>
+            <div className="mt-2">
+              <StepList steps={status.steps} />
+            </div>
+          </details>
+        </div>
       )}
     </div>
+  );
+}
+
+function StepList({ steps }: { steps: SyncStep[] }) {
+  return (
+    <ul className="space-y-1">
+      {steps.map((step) => (
+        <li
+          key={step.key}
+          className="flex flex-wrap items-baseline gap-2 text-sm"
+        >
+          <span className={stepMarkClasses[step.status]}>
+            {stepMarks[step.status]}
+          </span>
+          <span
+            className={step.status === "pending" ? "text-gray-500" : undefined}
+          >
+            {step.label}
+          </span>
+          {step.status === "failed" && (
+            <span className="text-xs text-red-600">failed</span>
+          )}
+          {step.summary && (
+            <span className="text-xs text-gray-500">{step.summary}</span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

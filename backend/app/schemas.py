@@ -203,4 +203,5 @@ class SyncStartResult(BaseModel):
 class SyncStatusResult(BaseModel):
     status: Literal["none", "running", "completed", "failed"]
     started_at: datetime | None = None
+    finished_at: datetime | None = None
     steps: list[SyncStepProgress]

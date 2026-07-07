@@ -106,9 +106,12 @@ def make_handle(
     status: WorkflowExecutionStatus | None,
     steps: list[SyncStepProgress] | None = None,
     started_at: datetime | None = SYNCED_AT,
+    finished_at: datetime | None = None,
 ) -> MagicMock:
     handle = MagicMock()
-    handle.describe = AsyncMock(return_value=SimpleNamespace(status=status, start_time=started_at))
+    handle.describe = AsyncMock(
+        return_value=SimpleNamespace(status=status, start_time=started_at, close_time=finished_at)
+    )
     handle.query = AsyncMock(return_value=steps if steps is not None else pending_steps())
     return handle
 
@@ -212,13 +215,14 @@ async def test_sync_status_maps_terminal_statuses() -> None:
         (WorkflowExecutionStatus.TERMINATED, "failed"),
         (WorkflowExecutionStatus.TIMED_OUT, "failed"),
     ]:
-        handle = make_handle(execution_status)
+        handle = make_handle(execution_status, finished_at=SYNCED_AT)
         temporal = make_temporal(handle)
 
         response = await request("GET", SYNC_URL, session, temporal=temporal)
 
         assert response.status_code == 200
         assert response.json()["status"] == expected
+        assert response.json()["finished_at"] is not None
 
 
 async def test_sync_status_degrades_when_query_fails() -> None:

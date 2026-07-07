@@ -760,4 +760,9 @@ async def get_user_sync_status(
         # Progress is best-effort: the run's history may have aged out or no
         # worker may be available to answer; the overall status still stands.
         steps = pending_steps()
-    return SyncStatusResult(status=status, started_at=description.start_time, steps=steps)
+    return SyncStatusResult(
+        status=status,
+        started_at=description.start_time,
+        finished_at=description.close_time,
+        steps=steps,
+    )
