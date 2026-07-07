@@ -179,6 +179,22 @@ async def test_429_gives_up_after_max_retries(monkeypatch: pytest.MonkeyPatch) -
     assert sleeps == [2.0, 2.0, 2.0]
 
 
+async def test_429_fails_fast_on_long_ban(monkeypatch: pytest.MonkeyPatch) -> None:
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    client, _ = make_client([httpx.Response(429, headers={"Retry-After": "54741"})])
+
+    with pytest.raises(SpotifyApiError) as excinfo:
+        await client.replace_playlist_items("p1", [])
+
+    assert excinfo.value.status_code == 429
+    assert sleeps == []
+
+
 async def test_search_artists_parses_items() -> None:
     client, requests = make_client(
         [

@@ -4,25 +4,22 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import name_key
 from app.lastfm import LastfmApiError, LastfmArtistNotFoundError, LastfmClient
-from app.matching import EVENT_MATCH_RADIUS_KM, distance_km
+from app.matching import ArtistMatch, match_artist_shows
 from app.models import (
     Artist,
     ArtistTopTrack,
     City,
-    Event,
-    EventArtist,
     LastfmArtist,
     Playlist,
     PlaylistTrack,
     SpotifyArtist,
     User,
-    UserArtistInterest,
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.schemas import PlaylistSyncItem, PlaylistSyncResult
@@ -35,18 +32,10 @@ MATCH_EXACT = "exact"
 MATCH_FUZZY = "fuzzy"
 
 TOP_TRACKS_TTL = timedelta(days=30)
-TOP_TRACKS_PER_ARTIST = 5
+TOP_TRACKS_PER_ARTIST = 3  # breadth over depth: ~33 artists' shows fit the cap
 TOP_TRACKS_FETCH_LIMIT = 10
 FETCH_CONCURRENCY = 4  # conservative: dev-mode rate limits are unpublished and low
 PLAYLIST_MAX_TRACKS = 100  # one 100-URI replace request per sync
-
-
-class ArtistMatch(BaseModel):
-    """A playlist-relevant artist with their soonest matched show."""
-
-    artist_id: uuid.UUID
-    event_id: uuid.UUID
-    starts_at: datetime
 
 
 class DesiredTrack(BaseModel):
@@ -61,8 +50,10 @@ def playlist_title(user_name: str, city_name: str | None) -> str:
     return f"{user_name}'s shows in {city_name}"
 
 
-def playlist_description(city_name: str, now: datetime) -> str:
-    return f"Artists you love playing near {city_name}. Updated {now:%B %Y}."
+def playlist_description(city_name: str, now: datetime, include_known_artists: bool) -> str:
+    if include_known_artists:
+        return f"Artists you love playing near {city_name}. Updated {now:%B %Y}."
+    return f"New artists you might like playing near {city_name}. Updated {now:%B %Y}."
 
 
 async def sync_user_playlists(
@@ -80,6 +71,9 @@ async def sync_user_playlists(
     event sync's job.
     """
     now = datetime.now(UTC)
+    # One policy snapshot for the whole run: a toggle committed mid-sync must
+    # not make the tracklist and the description disagree.
+    include_known_artists = user.include_known_artists
     playlists = await _ensure_default_playlist(session, user)
 
     items: list[PlaylistSyncItem] = []
@@ -92,15 +86,23 @@ async def sync_user_playlists(
                 PlaylistSyncItem(playlist_id=playlist.id, name=playlist.name, status="no_city")
             )
             continue
-        matches = await _match_artists(session, user.id, city)
+        matches = await match_artist_shows(session, user.id, city, include_known_artists)
         to_sync.append((playlist, city, matches))
         matched_ids |= {match.artist_id for match in matches}
 
     resolved = await _resolve_spotify_artists(session, spotify, musicbrainz, matched_ids)
     refreshed = await _refresh_top_tracks(session, spotify, lastfm, resolved)
+    # Bank the resolution and top-track work: it is global cache data, valid
+    # on its own, and a cold run can represent many minutes of throttled API
+    # calls that a later failure must not roll back.
+    await session.commit()
 
     for playlist, city, matches in to_sync:
-        items.append(await _sync_playlist(session, spotify, playlist, user, city, matches, now))
+        items.append(
+            await _sync_playlist(
+                session, spotify, playlist, user, city, matches, now, include_known_artists
+            )
+        )
 
     contributing = sum(1 for row in resolved if row.match_confidence != MATCH_FUZZY)
     return PlaylistSyncResult(
@@ -150,32 +152,6 @@ async def _target_city(session: AsyncSession, playlist: Playlist, user: User) ->
     if city_id is None:
         return None
     return await session.get(City, city_id)
-
-
-async def _match_artists(
-    session: AsyncSession, user_id: uuid.UUID, city: City
-) -> list[ArtistMatch]:
-    """The event-plan match join, reduced to one soonest show per artist,
-    ordered soonest-first."""
-    distance = distance_km(city.latitude, city.longitude)
-    result = await session.execute(
-        select(EventArtist.artist_id, Event.id, Event.starts_at)
-        .join(Event, Event.id == EventArtist.event_id)
-        .join(UserArtistInterest, UserArtistInterest.artist_id == EventArtist.artist_id)
-        .where(
-            UserArtistInterest.user_id == user_id,
-            Event.starts_at > func.now(),
-            distance <= EVENT_MATCH_RADIUS_KM,
-        )
-        .order_by(Event.starts_at, Event.id)
-        .distinct()
-    )
-    matches: dict[uuid.UUID, ArtistMatch] = {}
-    for artist_id, event_id, starts_at in result.all():
-        matches.setdefault(
-            artist_id, ArtistMatch(artist_id=artist_id, event_id=event_id, starts_at=starts_at)
-        )
-    return list(matches.values())
 
 
 async def _resolve_spotify_artists(
@@ -401,12 +377,13 @@ async def _sync_playlist(
     city: City,
     matches: list[ArtistMatch],
     now: datetime,
+    include_known_artists: bool,
 ) -> PlaylistSyncItem:
     top_tracks = await _top_tracks_by_artist(session, {match.artist_id for match in matches})
     desired = desired_tracks(matches, top_tracks)
 
     name = playlist_title(user.name, city.name)
-    description = playlist_description(city.name, now)
+    description = playlist_description(city.name, now, include_known_artists)
     created = False
     spotify_playlist_id = playlist.spotify_playlist_id
     if spotify_playlist_id is None:

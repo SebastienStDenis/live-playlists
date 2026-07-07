@@ -41,15 +41,35 @@ function placeLabel(event: UserEvent["event"]): string {
     .join(", ");
 }
 
+export type ArtistRelation = "known" | "suggested";
+
+function artistChipLabel(
+  artist: { id: string; name: string },
+  relations: Record<string, ArtistRelation>,
+): string {
+  switch (relations[artist.id]) {
+    case "suggested":
+      return `you might like ${artist.name}`;
+    case "known":
+      return `you listen to ${artist.name}`;
+    default:
+      return artist.name;
+  }
+}
+
 export function EventsPanel({
   userId,
   city,
   hasArtists,
+  needsSuggestions,
+  artistRelations,
   events,
 }: {
   userId: string;
   city: City | null;
   hasArtists: boolean;
+  needsSuggestions: boolean;
+  artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
   const [state, formAction, pending] = useActionState(
@@ -129,9 +149,11 @@ export function EventsPanel({
         </p>
       ) : shownEvents.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          {viewCity
-            ? `No upcoming concerts by your artists near ${viewCity.name}.`
-            : "No upcoming concerts by your artists nearby. Try syncing events."}
+          {needsSuggestions
+            ? "Concerts show suggested artists only, and you have none yet. Sync suggestions in the Suggested artists tab, or include artists you know via the Discovery setting."
+            : viewCity
+              ? `No upcoming concerts by your artists near ${viewCity.name}.`
+              : "No upcoming concerts by your artists nearby. Try syncing events."}
         </p>
       ) : (
         <>
@@ -163,7 +185,7 @@ export function EventsPanel({
                       key={artist.id}
                       className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
                     >
-                      you listen to {artist.name}
+                      {artistChipLabel(artist, artistRelations)}
                     </span>
                   ))}
                   {url && (

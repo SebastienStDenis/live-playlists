@@ -28,6 +28,7 @@ class ArtistSignal(BaseModel):
     url: str | None
     mbid: str | None
     evidence: dict
+    weight: float | None = None
 
 
 def name_key(name: str) -> str:
@@ -53,12 +54,12 @@ async def sync_lastfm_artists(
     results = []
     for kind in kinds:
         signals, complete = await _fetch_signals(lastfm, username, kind)
-        artist_ids = await _upsert_lastfm_artists(session, signals)
-        evidence_by_artist = {
-            artist_ids[name_key(signal.name)]: signal.evidence for signal in signals
-        }
+        artist_ids = await upsert_lastfm_artists(session, signals)
+        signal_by_artist = {artist_ids[name_key(signal.name)]: signal for signal in signals}
         results.append(
-            await _sync_interests(session, user_id, kind, evidence_by_artist, prune=complete)
+            await sync_interests(
+                session, user_id, kind, signal_by_artist, source=Source.LASTFM, prune=complete
+            )
         )
     return results
 
@@ -102,6 +103,7 @@ def top_artist_signals(top_artists: list[LastfmTopArtist]) -> list[ArtistSignal]
                     "playcount": artist.playcount,
                     "period": LASTFM_TOP_ARTISTS_PERIOD,
                 },
+                weight=float(artist.playcount) if artist.playcount is not None else None,
             ),
         )
     return list(signals.values())
@@ -120,10 +122,11 @@ def loved_track_signals(tracks: list[LastfmLovedTrack]) -> list[ArtistSignal]:
             ),
         )
         signal.evidence["track_count"] += 1
+        signal.weight = float(signal.evidence["track_count"])
     return list(signals.values())
 
 
-async def _upsert_lastfm_artists(
+async def upsert_lastfm_artists(
     session: AsyncSession, signals: list[ArtistSignal]
 ) -> dict[str, uuid.UUID]:
     """Upsert Last.fm artist rows and their canonical artists, returning a
@@ -190,13 +193,18 @@ async def _upsert_lastfm_artists(
     return artist_ids
 
 
-async def _sync_interests(
+async def sync_interests(
     session: AsyncSession,
     user_id: uuid.UUID,
     kind: str,
-    evidence_by_artist: dict[uuid.UUID, dict],
+    signal_by_artist: dict[uuid.UUID, ArtistSignal],
+    *,
+    source: Source,
     prune: bool,
 ) -> ArtistSyncKindResult:
+    """Reconcile the (user, kind) interest scope against the given signals:
+    new artists get rows, survivors are updated in place (created_at
+    preserved), and absent ones are deleted when pruning."""
     result = await session.execute(
         select(UserArtistInterest).where(
             UserArtistInterest.user_id == user_id, UserArtistInterest.kind == kind
@@ -205,7 +213,7 @@ async def _sync_interests(
     stale = {interest.artist_id: interest for interest in result.scalars()}
 
     created = updated = 0
-    for artist_id, evidence in evidence_by_artist.items():
+    for artist_id, signal in signal_by_artist.items():
         interest = stale.pop(artist_id, None)
         if interest is None:
             session.add(
@@ -213,13 +221,15 @@ async def _sync_interests(
                     user_id=user_id,
                     artist_id=artist_id,
                     kind=kind,
-                    source=Source.LASTFM,
-                    evidence=evidence,
+                    source=source,
+                    evidence=signal.evidence,
+                    weight=signal.weight,
                 )
             )
             created += 1
-        elif interest.evidence != evidence:
-            interest.evidence = evidence
+        elif (interest.evidence, interest.weight) != (signal.evidence, signal.weight):
+            interest.evidence = signal.evidence
+            interest.weight = signal.weight
             updated += 1
 
     removed = 0
@@ -230,7 +240,7 @@ async def _sync_interests(
 
     return ArtistSyncKindResult(
         kind=kind,
-        artists=len(evidence_by_artist),
+        artists=len(signal_by_artist),
         interests_created=created,
         interests_updated=updated,
         interests_removed=removed,
