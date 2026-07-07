@@ -288,7 +288,7 @@ function CurrentStep({
       <span className={`mt-0.5 ${stepMarkClasses[shownStatus]}`}>
         <StepMark status={shownStatus} />
       </span>
-      <div>
+      <div className="min-w-0">
         <span>{step.label}</span>
         {shownStatus === "failed" && (
           <span className="ml-2 text-xs text-red-600">failed</span>
@@ -296,8 +296,10 @@ function CurrentStep({
         <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
           step {index + 1} of {steps.length}
         </span>
+        {/* One truncated line so the fixed-height status area never
+            overflows; the post-run step list shows the full text. */}
         {cursor.phase === "final" && step.summary && (
-          <p className="text-xs text-gray-500">{step.summary}</p>
+          <p className="truncate text-xs text-gray-500">{step.summary}</p>
         )}
       </div>
     </div>
