@@ -161,7 +161,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       </section>
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-medium">
-          My taste ({knownArtists.length})
+          My artists ({knownArtists.length})
         </h2>
         <TastePanel userArtists={knownArtists} allArtists={allArtists} />
       </section>
