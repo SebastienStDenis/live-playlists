@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { AttentionDot } from "./attention-dot";
@@ -33,12 +32,6 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
       loadNeverSynced(id),
     ]);
-
-  // Nothing here works without a linked account, so send new users straight
-  // to the account page to set one up.
-  if (lastfm === null) {
-    redirect(`/users/${id}/account`);
-  }
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
@@ -88,7 +81,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         className="mt-1 inline-block text-sm text-gray-500 hover:underline"
       >
         Account
-        {(city === null || neverSynced) && <AttentionDot />}
+        {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
       </Link>
       <section className="mt-6">
         <Tabs
