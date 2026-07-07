@@ -14,7 +14,7 @@ import { EventsPanel, type UserEvent } from "./events-panel";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
-import { SyncCard, type SyncStatus } from "./sync-card";
+import { SyncCard } from "./sync-card";
 import { Tabs } from "./tabs";
 
 type User = {
@@ -44,21 +44,6 @@ async function fetchOptional<T>(url: string, what: string): Promise<T | null> {
   return res.json();
 }
 
-// Tolerates failures: the page must render even while Temporal is down.
-async function fetchSyncStatus(id: string): Promise<SyncStatus | null> {
-  try {
-    const res = await fetch(`${apiUrl}/users/${id}/sync`, {
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return null;
-    }
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
 export default async function UserPage(props: PageProps<"/users/[id]">) {
   const { id } = await props.params;
 
@@ -71,18 +56,16 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   }
   const user: User = await userRes.json();
 
-  const [lastfm, city, userArtists, allArtists, playlists, syncStatus] =
-    await Promise.all([
-      fetchOptional<LastfmAccount>(
-        `${apiUrl}/users/${id}/lastfm`,
-        "Last.fm account",
-      ),
-      fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
-      fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
-      fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
-      fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
-      fetchSyncStatus(id),
-    ]);
+  const [lastfm, city, userArtists, allArtists, playlists] = await Promise.all([
+    fetchOptional<LastfmAccount>(
+      `${apiUrl}/users/${id}/lastfm`,
+      "Last.fm account",
+    ),
+    fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
+    fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
+    fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
+    fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
+  ]);
 
   const events =
     city !== null
@@ -127,11 +110,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       </section>
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-medium">Sync</h2>
-        <SyncCard
-          userId={user.id}
-          lastfmLinked={lastfm !== null}
-          initialStatus={syncStatus}
-        />
+        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
       </section>
       <section className="mt-8">
         <Tabs

@@ -8,6 +8,7 @@ client, shared across activities for the life of the process.
 import asyncio
 import logging
 
+from temporalio.api.workflowservice.v1 import DescribeNamespaceRequest
 from temporalio.client import Client
 from temporalio.service import RPCError
 from temporalio.worker import Worker
@@ -23,7 +24,7 @@ from app.temporal import connect_temporal
 
 logger = logging.getLogger(__name__)
 
-CONNECT_ATTEMPTS = 30
+CONNECT_ATTEMPTS = 90
 CONNECT_RETRY_SECONDS = 2.0
 
 REQUIRED_SETTINGS = (
@@ -37,10 +38,16 @@ REQUIRED_SETTINGS = (
 
 async def _connect_with_retry(settings: Settings) -> Client:
     # The compose worker starts alongside the Temporal server, which takes a
-    # while to come up; retry instead of ordering startup precisely.
+    # while to come up; retry instead of ordering startup precisely. Checking
+    # the namespace matters as much as connecting: on a fresh database,
+    # auto-setup registers it well after the server starts answering gRPC.
     for attempt in range(1, CONNECT_ATTEMPTS + 1):
         try:
-            return await connect_temporal(settings)
+            client = await connect_temporal(settings)
+            await client.workflow_service.describe_namespace(
+                DescribeNamespaceRequest(namespace=settings.temporal_namespace)
+            )
+            return client
         except (RPCError, OSError, RuntimeError) as exc:
             if attempt == CONNECT_ATTEMPTS:
                 raise

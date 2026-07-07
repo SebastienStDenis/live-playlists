@@ -34,39 +34,63 @@ const stepMarkClasses: Record<SyncStep["status"], string> = {
   failed: "text-red-600",
 };
 
+async function fetchStatus(userId: string): Promise<SyncStatus | null> {
+  try {
+    const res = await fetch(`/api/users/${userId}/sync`);
+    if (!res.ok) {
+      return null;
+    }
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export function SyncCard({
   userId,
   lastfmLinked,
-  initialStatus,
 }: {
   userId: string;
   lastfmLinked: boolean;
-  initialStatus: SyncStatus | null;
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState(initialStatus);
-  const [polling, setPolling] = useState(initialStatus?.status === "running");
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
+
+  // Loaded client-side so the page never waits on Temporal to render.
+  useEffect(() => {
+    let cancelled = false;
+    fetchStatus(userId).then((next) => {
+      if (cancelled || next === null) {
+        return;
+      }
+      setStatus(next);
+      if (next.status === "running") {
+        setPolling(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!polling) {
       return;
     }
     let cancelled = false;
+    let inFlight = false;
     async function tick() {
-      let next: SyncStatus;
-      try {
-        const res = await fetch(`/api/users/${userId}/sync`);
-        if (!res.ok) {
-          return;
-        }
-        next = await res.json();
-      } catch {
-        // Transient poll failures just skip a tick.
+      // The status call can be slow under load; never let ticks stack up.
+      if (inFlight) {
         return;
       }
-      if (cancelled) {
+      inFlight = true;
+      const next = await fetchStatus(userId);
+      inFlight = false;
+      if (cancelled || next === null) {
         return;
       }
       setStatus(next);
