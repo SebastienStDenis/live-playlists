@@ -198,7 +198,7 @@ export function SyncCard({
       {/* The Sync button stays put; the running steps play out to its right,
           centered against the button while a run plays and pinned to the top
           once idle so expanding the step list only grows downward. */}
-      <div className="flex min-h-9 flex-col justify-center">
+      <div className="flex min-h-9 flex-col justify-start">
         <div
           className={`flex gap-3 ${
             running || settling ? "items-center" : "items-start"
@@ -461,27 +461,10 @@ function StepLine({
   snapshot: StepSnapshot;
   total: number;
 }) {
-  const isFinal =
-    snapshot.status === "completed" || snapshot.status === "failed";
   return (
     <div className="flex gap-2 text-sm">
-      {/* The waiting dot and the final check/cross are stacked and cross-faded
-          on opacity so the dot eases out as the mark eases in. */}
-      <span className="relative mt-0.5 inline-block h-3.5 w-3.5 shrink-0">
-        <span
-          className={`absolute inset-0 transition-opacity duration-300 ${
-            stepMarkClasses.running
-          } ${isFinal ? "opacity-0" : "opacity-100"}`}
-        >
-          <StepMark status="running" />
-        </span>
-        <span
-          className={`absolute inset-0 transition-opacity duration-300 ${
-            stepMarkClasses[snapshot.status]
-          } ${isFinal ? "opacity-100" : "opacity-0"}`}
-        >
-          {isFinal && <StepMark status={snapshot.status} />}
-        </span>
+      <span className={`mt-0.5 ${stepMarkClasses[snapshot.status]}`}>
+        <StepMark status={snapshot.status} />
       </span>
       <div className="min-w-0">
         <span>{snapshot.label}</span>
