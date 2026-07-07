@@ -163,10 +163,10 @@ export function SyncCard({
 
   return (
     <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
-      {/* Fixed-height area holding either the button or the running steps,
-          so swapping them never shifts the layout below; expanding the step
-          list is the one user-initiated exception. */}
-      <div className="min-h-15">
+      {/* Fixed-height area holding either the sync control or the running
+          steps, so swapping them never shifts the layout below; expanding
+          the step list is the one user-initiated exception. */}
+      <div className="min-h-9">
         {(running || settling) && status ? (
           <div className="animate-fade-in">
             <CurrentStep
@@ -177,35 +177,51 @@ export function SyncCard({
             />
           </div>
         ) : (
-          <div className="animate-fade-in space-y-3">
-            <button
-              type="button"
-              onClick={onSync}
-              disabled={starting}
-              className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-            >
-              Sync
-            </button>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {status && status.status !== "none" && (
-              <details>
-                <summary
-                  className={`cursor-pointer text-sm ${
-                    status.status === "failed"
-                      ? "text-red-600"
-                      : "text-gray-500"
-                  }`}
+          <div className="animate-fade-in">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                onClick={onSync}
+                disabled={starting}
+                title="Sync"
+                aria-label="Sync"
+                className="rounded bg-foreground p-1.5 text-background disabled:opacity-50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
                 >
-                  {status.status === "failed"
-                    ? "Last sync failed"
-                    : "Last synced"}
-                  {finishedAt && ` ${finishedAt}`}.
-                </summary>
-                <div className="mt-2">
-                  <StepList steps={status.steps} />
-                </div>
-              </details>
-            )}
+                  <path d="M23 4v6h-6" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+              </button>
+              {status && status.status !== "none" && (
+                <details className="min-w-0 flex-1 pt-1">
+                  <summary
+                    className={`cursor-pointer text-sm ${
+                      status.status === "failed"
+                        ? "text-red-600"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {status.status === "failed"
+                      ? "Last sync failed"
+                      : "Last synced"}
+                    {finishedAt && ` ${finishedAt}`}.
+                  </summary>
+                  <div className="mt-2">
+                    <StepList steps={status.steps} />
+                  </div>
+                </details>
+              )}
+            </div>
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </div>
         )}
       </div>
