@@ -94,12 +94,12 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
     <div>
       {userArtists.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Nothing synced yet. Sync your taste from the Suggestions section.
+          Nothing synced yet.
         </p>
       ) : (
         <>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">
+            <h3 className="text-xs text-gray-500 italic">
               Artists you listen to ({numberFormat.format(userArtists.length)})
             </h3>
             <label className="text-xs text-gray-500">
@@ -116,7 +116,7 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
               </select>
             </label>
           </div>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600">
             {sortedArtists.map(({ artist, interests }) => (
               <li
                 key={artist.id}
