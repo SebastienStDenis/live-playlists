@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
-import { syncEvents } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 
@@ -72,10 +71,6 @@ export function EventsPanel({
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
-  const [state, formAction, pending] = useActionState(
-    syncEvents.bind(null, userId),
-    { error: null, summary: null },
-  );
   const [showKnown, setShowKnown] = useState(false);
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
@@ -120,20 +115,6 @@ export function EventsPanel({
   return (
     <div>
       <div className="space-y-2">
-        <form action={formAction}>
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-          >
-            {pending ? "Syncing..." : "Sync events"}
-          </button>
-        </form>
-        {state.summary && <p className="text-sm text-gray-500">{state.summary}</p>}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      </div>
-
-      <div className="mt-4 space-y-2">
         <CitySearchBox
           placeholder="See concerts in another city"
           disabled={loading}
@@ -181,10 +162,10 @@ export function EventsPanel({
                 hiddenCount === 1 ? "it" : "them"
               }.`
             : !hasSuggestions
-              ? "No suggested artists yet, so no concerts to show. Sync suggestions in the Suggested artists tab."
+              ? "No suggested artists yet, so no concerts to show. Sync to get some."
               : viewCity
                 ? `No upcoming concerts by your artists near ${viewCity.name}.`
-                : "No upcoming concerts by your artists nearby. Try syncing events."}
+                : "No upcoming concerts by your artists nearby. Try syncing."}
         </p>
       ) : (
         <>
