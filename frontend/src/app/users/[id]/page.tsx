@@ -81,6 +81,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         (interest) => interest.kind === SIMILAR_ARTIST_KIND,
       ),
   );
+  const artistRelations = Object.fromEntries([
+    ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
+    ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
+  ]);
 
   return (
     <main className="mx-auto max-w-xl p-8">
@@ -140,6 +144,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
                   needsSuggestions={
                     !user.include_known_artists && suggestedArtists.length === 0
                   }
+                  artistRelations={artistRelations}
                   events={events}
                 />
               ),
