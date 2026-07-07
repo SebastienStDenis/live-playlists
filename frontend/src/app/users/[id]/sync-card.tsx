@@ -162,7 +162,7 @@ export function SyncCard({
   }
 
   return (
-    <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
+    <div>
       {/* Fixed-height area holding either the sync control or the running
           steps, vertically centered, so swapping them never shifts the
           layout below; expanding the step list is the one user-initiated
@@ -377,7 +377,7 @@ function StepLine({
             height (and vertical centering) consistent. */}
         <p className="animate-fade-in truncate text-xs text-gray-500">
           {snapshot.summary ??
-            (snapshot.status === "running" ? "Running..." : " ")}
+            (snapshot.status === "running" ? "In progress" : " ")}
         </p>
       </div>
     </div>
