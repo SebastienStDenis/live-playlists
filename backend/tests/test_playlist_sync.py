@@ -418,7 +418,7 @@ def make_playlist(spotify_playlist_id: str | None = "pl-1") -> Playlist:
         user_id=uuid.uuid7(),
         kind="city_shows",
         name=playlist_title("Alice", "Montréal"),
-        description=playlist_description("Montréal", SYNC_NOW, include_known_artists=False),
+        description=playlist_description("Montréal", SYNC_NOW),
         spotify_playlist_id=spotify_playlist_id,
         snapshot_id="snap-0",
     )
@@ -519,7 +519,7 @@ async def test_sync_playlist_skips_replace_for_fresh_empty_playlist() -> None:
 
     spotify.create_playlist.assert_awaited_once_with(
         playlist_title("Alice", "Montréal"),
-        playlist_description("Montréal", SYNC_NOW, include_known_artists=False),
+        playlist_description("Montréal", SYNC_NOW),
     )
     spotify.replace_playlist_items.assert_not_awaited()
     session.commit.assert_awaited_once()  # the remote id is persisted right after creation
