@@ -37,8 +37,7 @@ export function PinnedCitiesPanel({
   );
 }
 
-// One pinned city, whether or not its Spotify playlist exists yet: a fresh pin
-// shows "awaiting first sync" until a sync creates it, then links to Spotify.
+// One pinned city; links out to Spotify once a sync has created its playlist.
 function PinnedCityRow({
   userId,
   playlist,
@@ -68,7 +67,7 @@ function PinnedCityRow({
     <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
       <span>
         {playlist.city?.name}
-        {playlist.spotify_url ? (
+        {playlist.spotify_url && (
           <>
             {" · "}
             <a
@@ -80,8 +79,6 @@ function PinnedCityRow({
               Open in Spotify ↗
             </a>
           </>
-        ) : (
-          <span className="text-gray-500"> · awaiting first sync</span>
         )}
       </span>
       <span className="flex items-baseline gap-2">
