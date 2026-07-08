@@ -205,10 +205,7 @@ export function SyncCard({
         <div
           className="flex items-start gap-3"
         >
-          <span
-            className="order-last shrink-0"
-            title={missingNote ?? undefined}
-          >
+          <span className="order-last shrink-0">
             <button
               type="button"
               onClick={onSync}
@@ -285,6 +282,11 @@ export function SyncCard({
             )}
           </div>
         </div>
+        {missingNote && (
+          <p className="mt-1 text-right text-xs text-gray-500 italic">
+            {missingNote}
+          </p>
+        )}
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
