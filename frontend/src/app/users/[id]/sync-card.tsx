@@ -146,6 +146,9 @@ export function SyncCard({
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
   const finalOutcome = status?.status ?? "none";
+  // A live run (or its settle animation) always wins the status area, even if a
+  // requirement looks unmet - never replace an active run with the setup hint.
+  const showSteps = (running || settling) && status !== null;
 
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
@@ -203,7 +206,7 @@ export function SyncCard({
       <div className="flex flex-col">
         <div
           className={`flex gap-3 ${
-            missingNote ? "items-center" : "items-start"
+            missingNote && !showSteps ? "items-center" : "items-start"
           }`}
         >
           <button
@@ -222,9 +225,7 @@ export function SyncCard({
             )}
           </button>
           <div className="min-w-0 flex-1">
-            {missingNote ? (
-              <p className="text-sm text-gray-500">{missingNote}</p>
-            ) : (running || settling) && status ? (
+            {showSteps && status ? (
               <div className="animate-fade-in pt-1">
                 <CurrentStep
                   key={runSeq}
@@ -236,6 +237,8 @@ export function SyncCard({
                   }}
                 />
               </div>
+            ) : missingNote ? (
+              <p className="text-sm text-gray-500">{missingNote}</p>
             ) : (
               <div className="relative pt-1">
                 {leaving && status && (
