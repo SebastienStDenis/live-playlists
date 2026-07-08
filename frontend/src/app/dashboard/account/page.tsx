@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { AttentionDot } from "../attention-dot";
 import { CityPanel, type City } from "../city-panel";
-import { DeleteUserButton } from "../delete-user-button";
+import { DeleteAccountButton } from "../delete-account-button";
 import { DiscoveryToggle } from "../discovery-toggle";
 import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
 import { PinnedCitiesPanel } from "../pinned-cities-panel";
@@ -127,7 +127,7 @@ export default async function AccountPage() {
         <TastePanel userArtists={knownArtists} />
       </Section>
       <section className="mt-8">
-        <DeleteUserButton userName={user.name} />
+        <DeleteAccountButton userName={user.name} />
       </section>
     </main>
   );

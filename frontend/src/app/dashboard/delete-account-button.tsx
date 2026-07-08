@@ -4,7 +4,7 @@ import { useActionState } from "react";
 
 import { deleteAccount } from "./actions";
 
-export function DeleteUserButton({ userName }: { userName: string }) {
+export function DeleteAccountButton({ userName }: { userName: string }) {
   const [state, formAction, pending] = useActionState(deleteAccount, {
     error: null,
   });
@@ -13,7 +13,9 @@ export function DeleteUserButton({ userName }: { userName: string }) {
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm(`Delete ${userName}? This cannot be undone.`)) {
+        if (
+          !window.confirm(`Delete ${userName}'s account? This cannot be undone.`)
+        ) {
           event.preventDefault();
         }
       }}
@@ -24,7 +26,7 @@ export function DeleteUserButton({ userName }: { userName: string }) {
         disabled={pending}
         className="rounded border border-red-600 px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950"
       >
-        {pending ? "Deleting..." : "Delete user"}
+        {pending ? "Deleting..." : "Delete account"}
       </button>
       {state.error && <p className="mt-2 text-sm text-red-600">{state.error}</p>}
     </form>
