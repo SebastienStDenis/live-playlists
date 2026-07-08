@@ -47,9 +47,10 @@ Phase 2.
    ```
    postgresql+psycopg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
    ```
-   That is the `DATABASE_URL`. Session mode keeps prepared statements working, so
-   leave `DATABASE_DISABLE_PREPARED_STATEMENTS=false`. Only the transaction
-   pooler (`:6543`) needs it set to `true` - the sole reason the toggle exists.
+   That is the `DATABASE_URL`, and it pairs with
+   `DATABASE_DISABLE_PREPARED_STATEMENTS=false` (session mode keeps prepared
+   statements working). You would only flip that to `true` if you had picked the
+   transaction pooler instead - which you did not, so it stays `false`.
 4. Nothing to migrate by hand - Render's pre-deploy runs `alembic upgrade head`
    and loads cities on first deploy (step 3).
 
@@ -75,7 +76,7 @@ Phase 2.
    | Key | Value |
    |-----|-------|
    | `DATABASE_URL` | from step 1 |
-   | `DATABASE_DISABLE_PREPARED_STATEMENTS` | `false` (or `true` for the txn pooler) |
+   | `DATABASE_DISABLE_PREPARED_STATEMENTS` | `false` |
    | `TEMPORAL_ADDRESS` | from step 2 |
    | `TEMPORAL_NAMESPACE` | from step 2 |
    | `TEMPORAL_TASK_QUEUE` | `user-sync` |
