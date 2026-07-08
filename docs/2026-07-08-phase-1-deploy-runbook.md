@@ -37,16 +37,11 @@ Phase 2.
      role that bypasses RLS, so backend queries and Alembic migrations are
      unaffected - RLS only ever guards the (now disabled) Data API path.
 3. Get the connection string from the green **Connect** button at the top of the
-   dashboard. The modal has tabs (Framework / Server / Direct / ORM / MCP); open
-   **Server** - the pooler string for a server-side app, which is IPv4 and works
-   on Render. Ignore **Direct** (IPv6-only without the paid IPv4 add-on) and
-   **Framework**/**MCP**. The Server string points at `...pooler.supabase.com`;
-   the port is the tell, not any label:
-   - `:5432` = **session mode** - what you want (persistent async pool; prepared
-     statements work).
-   - `:6543` = transaction mode, which the Server tab often shows by default. If
-     so, just change `:6543` to `:5432` - same host and `postgres.<ref>` user -
-     to get session mode (a Supabase-supported switch).
+   dashboard. Open the **Direct** tab - it has three sub-sections. Copy the
+   **Session pooler** string (host `...pooler.supabase.com`, port `5432`): it's
+   IPv4 (works on Render) and, being session mode, keeps prepared statements
+   working. Ignore **Direct connection** (IPv6-only without the paid IPv4
+   add-on) and **Transaction pooler** (port `6543`).
 
    Fill in the password and swap the scheme to psycopg 3 (async):
    ```
