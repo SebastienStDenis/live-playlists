@@ -258,11 +258,13 @@ workflow instead of on raw push.
 Parity is a first-class goal, and the good news is most of it already holds. Two
 services keep their local form, and one gains a local form:
 
-- **Temporal stays self-hosted locally.** The existing `temporal` +
-  `temporal-ui` compose services (auto-setup on the local Postgres) are unchanged;
-  locally `TEMPORAL_API_KEY` is empty so `connect_temporal()` takes the plaintext
-  path. Prod points the same vars at Cloud. Self-hosted locally, managed in prod,
-  identical app code - the switch already built.
+- **Temporal stays self-hosted locally.** As of Phase 2 it runs as the
+  single-container Temporal dev server (`temporalio/temporal`: SQLite
+  persistence, built-in UI - see `docs/2026-07-08-auth-plan.md`), replacing the
+  auto-setup + UI + Postgres trio; locally `TEMPORAL_API_KEY` is empty so
+  `connect_temporal()` takes the plaintext path. Prod points the same vars at
+  Cloud. Self-hosted locally, managed in prod, identical app code - the switch
+  already built.
 - **Supabase runs locally via its own CLI stack.** We use the sanctioned path -
   `supabase start` - rather than folding Supabase's images into our `docker-compose`.
   The CLI brings up Postgres + the same GoTrue auth engine *behind the same Kong
