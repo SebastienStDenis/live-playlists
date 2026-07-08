@@ -82,7 +82,11 @@ export default async function AccountPage(
       >
         &larr; Back
       </Link>
-      <h1 className="mt-2 mb-6 text-2xl font-semibold">Hey, {user.name}</h1>
+      <h1 className="mt-2 text-2xl font-semibold">Hey, {user.name}</h1>
+      <p className="mt-1 mb-6 text-xs text-gray-500 italic">
+        After making updates on this page, run a sync to generate new
+        suggestions and playlists, or wait for the next automated sync.
+      </p>
       <Section
         heading="Sync"
         alert={neverSynced}
