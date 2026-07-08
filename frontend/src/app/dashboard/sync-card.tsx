@@ -205,7 +205,10 @@ export function SyncCard({
         <div
           className="flex items-start gap-3"
         >
-          <span className="order-last shrink-0">
+          <span
+            className="order-last shrink-0"
+            title={missingNote ?? undefined}
+          >
             <button
               type="button"
               onClick={onSync}
@@ -275,18 +278,13 @@ export function SyncCard({
                 )}
                 {finalOutcome === "none" && !statusLoading && (
                   <p className="text-sm text-gray-500">
-                    Run a sync
+                    Run a sync (requires Last.fm and home city).
                   </p>
                 )}
               </div>
             )}
           </div>
         </div>
-        {missingNote && (
-          <p className="mt-1 text-right text-xs text-gray-500 italic">
-            {missingNote}
-          </p>
-        )}
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
