@@ -223,9 +223,7 @@ export function SyncCard({
             type="button"
             onClick={onSync}
             disabled={starting || busy || !canSync}
-            className={`relative my-1 inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50 ${
-              missingNote ? "order-last" : ""
-            }`}
+            className="relative order-last my-1 inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
           >
             {/* Kept in the layout (just hidden) while busy so the button holds
                 the same width as when it reads "Sync". */}
