@@ -26,23 +26,35 @@ Phase 2.
 
 1. Create a new project. Pick a region near the Render region you'll use in
    step 3 (Oregon → US West). Save the database password.
-2. Get the connection string: **Project Settings → Database → Connection string
-   → "Connection pooling"**, and pick **Session mode** (host on port `5432`).
-   It looks like:
+2. Security settings (offered at creation, or later under **Settings → API**).
+   The app talks to Postgres directly over `DATABASE_URL` and never uses
+   Supabase's Data API (PostgREST), so:
+   - **Enable Data API → off.** Removes the public REST exposure of the `public`
+     schema. Does not affect the direct database connection.
+   - **Automatically expose new tables → off.** Moot with the Data API off; off
+     is the safe posture regardless.
+   - **Enable automatic RLS → on.** Free defense-in-depth. The connection uses a
+     role that bypasses RLS, so backend queries and Alembic migrations are
+     unaffected - RLS only ever guards the (now disabled) Data API path.
+3. Get the connection string from the green **Connect** button at the top of the
+   dashboard (older UI: **Settings → Database → Connection pooling**). It offers
+   three strings; the reliable tell is the port on the `...pooler.supabase.com`
+   host, not the label:
+   - **Direct** (`db.<ref>.supabase.co:5432`) - skip; IPv6-only without the paid
+     IPv4 add-on, which Render may not have.
+   - **Session pooler** (`...pooler.supabase.com:5432`) - **use this one.**
+   - **Transaction pooler** (`...pooler.supabase.com:6543`).
+
+   If the modal only shows the transaction string, change its `:6543` to
+   `:5432` - same host and `postgres.<ref>` user, that's the session pooler.
+   Fill in the password and swap the scheme to psycopg 3 (async):
    ```
-   postgresql://postgres.<project-ref>:<password>@<region>.pooler.supabase.com:5432/postgres
+   postgresql+psycopg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
    ```
-   Swap the scheme to what the app expects (psycopg 3, async):
-   ```
-   postgresql+psycopg://postgres.<project-ref>:<password>@<region>.pooler.supabase.com:5432/postgres
-   ```
-   That is the `DATABASE_URL`.
-   - Session mode keeps prepared statements working, so leave
-     `DATABASE_DISABLE_PREPARED_STATEMENTS=false`.
-   - If you deliberately choose the **transaction**-mode pooler instead (port
-     `6543`), set `DATABASE_DISABLE_PREPARED_STATEMENTS=true`. That's the only
-     reason the toggle exists.
-3. Nothing to migrate by hand - Render's pre-deploy runs `alembic upgrade head`
+   That is the `DATABASE_URL`. Session mode keeps prepared statements working, so
+   leave `DATABASE_DISABLE_PREPARED_STATEMENTS=false`. Only the transaction
+   pooler (`:6543`) needs it set to `true` - the sole reason the toggle exists.
+4. Nothing to migrate by hand - Render's pre-deploy runs `alembic upgrade head`
    and loads cities on first deploy (step 3).
 
 ## 2. Temporal Cloud (namespace)
