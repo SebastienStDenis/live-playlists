@@ -35,10 +35,10 @@ function Section({
     <section className={className}>
       <div className="mb-3">
         <h2 className="flex items-center text-lg font-medium">
-          {alert && <AttentionDot />}
           {heading}
           {alert && alertText && (
-            <span className="ml-2 text-xs font-normal text-gray-500 italic">
+            <span className="ml-2 flex items-center text-xs font-normal text-gray-500 italic">
+              <AttentionDot />
               {alertText}
             </span>
           )}
