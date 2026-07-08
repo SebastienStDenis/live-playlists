@@ -236,7 +236,7 @@ export function SyncCard({
           </button>
           <div className="min-w-0 flex-1">
             {missingNote ? (
-              <p className="text-xs text-gray-500 italic">{missingNote}</p>
+              <p className="text-sm text-gray-500">{missingNote}</p>
             ) : (running || settling) && status ? (
               <div className="animate-fade-in">
                 <CurrentStep

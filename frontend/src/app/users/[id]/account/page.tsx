@@ -82,7 +82,7 @@ export default async function AccountPage(
       >
         &larr; Back
       </Link>
-      <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
+      <h1 className="mt-2 mb-6 text-3xl font-light italic">Hey, {user.name}</h1>
       <Section
         heading="Sync"
         alert={neverSynced}
