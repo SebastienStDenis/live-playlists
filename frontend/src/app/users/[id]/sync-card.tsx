@@ -214,12 +214,18 @@ export function SyncCard({
           button centered on both. It stays pinned to the top, so expanding the
           step list only grows downward. */}
       <div className="flex flex-col">
-        <div className="flex gap-3 items-start">
+        <div
+          className={`flex gap-3 ${
+            missingNote ? "items-center" : "items-start"
+          }`}
+        >
           <button
             type="button"
             onClick={onSync}
             disabled={starting || busy || !canSync}
-            className="relative my-1 inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+            className={`relative my-1 inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50 ${
+              missingNote ? "order-last" : ""
+            }`}
           >
             {/* Kept in the layout (just hidden) while busy so the button holds
                 the same width as when it reads "Sync". */}
@@ -231,7 +237,9 @@ export function SyncCard({
             )}
           </button>
           <div className="min-w-0 flex-1">
-            {(running || settling) && status ? (
+            {missingNote ? (
+              <p className="text-xs text-gray-500 italic">{missingNote}</p>
+            ) : (running || settling) && status ? (
               <div className="animate-fade-in">
                 <CurrentStep
                   key={runSeq}
@@ -286,9 +294,6 @@ export function SyncCard({
           </div>
         </div>
       </div>
-      {missingNote && (
-        <p className="mt-2 text-xs text-gray-500 italic">{missingNote}</p>
-      )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
