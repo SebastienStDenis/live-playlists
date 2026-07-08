@@ -44,6 +44,9 @@ services:
 
   temporal:
     image: temporalio/temporal:1.7.2
+    # Run as root so the dev server can create its SQLite file on the
+    # root-owned named volume (dev-only; production is Temporal Cloud).
+    user: root
     command: server start-dev --ip 0.0.0.0 --db-filename /data/temporal.db
     ports:
       - "${TEMPORAL_PORT:-7233}:7233"
