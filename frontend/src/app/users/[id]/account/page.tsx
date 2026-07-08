@@ -5,7 +5,7 @@ import { CityPanel, type City } from "../city-panel";
 import { DeleteUserButton } from "../delete-user-button";
 import { DiscoveryToggle } from "../discovery-toggle";
 import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
-import { PinnedCitiesPanel } from "../pinned-cities-panel";
+import { PinnedCitiesPanel, isPinned } from "../pinned-cities-panel";
 import { type Playlist } from "../playlists-panel";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
@@ -70,16 +70,18 @@ export default async function AccountPage(
       ),
       fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
       fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
-      fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
+      // A playlists outage should only blank the Pinned Cities panel, not take
+      // down the rest of account settings, so degrade to an empty list.
+      fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists").catch(
+        (): Playlist[] => [],
+      ),
       loadNeverSynced(id),
     ]);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
   );
-  const pinnedPlaylists = playlists.filter(
-    (playlist) => playlist.city !== null,
-  );
+  const pinnedPlaylists = playlists.filter(isPinned);
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">

@@ -89,7 +89,7 @@ export function PlaylistsPanel({
       <p className="text-sm text-gray-500">
         {hasCity
           ? "No playlists yet. Sync to create your playlists on Spotify."
-          : "Set your city in the Account section to get your local playlist."}
+          : "Set a home city or pin a city in the Account section, then sync to create playlists."}
       </p>
     );
   }
