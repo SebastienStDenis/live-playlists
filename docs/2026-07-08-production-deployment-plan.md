@@ -263,14 +263,19 @@ services keep their local form, and one gains a local form:
   locally `TEMPORAL_API_KEY` is empty so `connect_temporal()` takes the plaintext
   path. Prod points the same vars at Cloud. Self-hosted locally, managed in prod,
   identical app code - the switch already built.
-- **Supabase runs locally via the CLI.** `supabase start` brings up Postgres + the
-  same GoTrue auth engine in Docker, giving true auth parity (the local JWTs are
-  issued by the same software as production). Locally, `DATABASE_URL` and the Supabase
-  URL/keys point at that local stack; Alembic migrates it exactly as it migrates the
-  Supabase cloud project. This replaces the bare `db` Postgres container for anyone
-  working on auth; the two ways of running the local database (existing compose
-  Postgres vs `supabase start`) should converge on the Supabase local stack so dev
-  matches prod.
+- **Supabase runs locally via its own CLI stack.** We use the sanctioned path -
+  `supabase start` - rather than folding Supabase's images into our `docker-compose`.
+  The CLI brings up Postgres + the same GoTrue auth engine *behind the same Kong
+  gateway and keys as hosted*, so local JWTs are issued by identical software and
+  `supabase-js` sees the identical `/auth/v1` URL structure - true parity, and the CLI
+  owns the component versions and upgrades for us. Cherry-picking bare GoTrue into our
+  compose was considered and rejected: it would mean re-implementing the gateway
+  routing Supabase already gives us, for no real gain. Locally, `DATABASE_URL` and the
+  Supabase URL/keys point at the CLI stack, and Alembic migrates it exactly as it
+  migrates the cloud project. The accepted tax is that this is a **second set of
+  containers** alongside the app compose (the CLI manages its own), so local dev is
+  `supabase start` **and** `docker compose up` rather than a single command - a
+  deliberate trade of one extra command for exact auth parity.
 - **api / worker / web** run from the same compose definitions, against the local
   Supabase Postgres and local Temporal.
 
@@ -335,7 +340,3 @@ educational path, which is a stated goal of the project - so it is a deliberate
   today. If the product ever wants users to own the playlist in *their own* Spotify,
   that is a per-user OAuth flow and a real design change - orthogonal to app-login
   auth, and out of scope here.
-- **Supabase local vs a dev cloud project.** `supabase start` gives the best parity;
-  a shared dev Supabase project is lower-friction for a solo dev who doesn't want a
-  second local stack. Phase 2 should pick one; this doc leans toward the local stack
-  for parity.
