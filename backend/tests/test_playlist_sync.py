@@ -138,12 +138,8 @@ def test_playlist_description_chooses_copy_by_setting() -> None:
     now = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
 
     assert (
-        playlist_description("Montréal", now, include_known_artists=False)
-        == "New artists you might like playing near Montréal. Updated July 2026."
-    )
-    assert (
-        playlist_description("Montréal", now, include_known_artists=True)
-        == "Artists you love playing near Montréal. Updated July 2026."
+        playlist_description("Montréal", now)
+        == "Artists you might like playing near Montréal. Updated July 2026."
     )
 
 

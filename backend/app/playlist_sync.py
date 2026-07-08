@@ -50,10 +50,8 @@ def playlist_title(user_name: str, city_name: str | None) -> str:
     return f"{user_name}'s shows in {city_name}"
 
 
-def playlist_description(city_name: str, now: datetime, include_known_artists: bool) -> str:
-    if include_known_artists:
-        return f"Artists you love playing near {city_name}. Updated {now:%B %Y}."
-    return f"New artists you might like playing near {city_name}. Updated {now:%B %Y}."
+def playlist_description(city_name: str, now: datetime) -> str:
+    return f"Artists you might like playing near {city_name}. Updated {now:%B %Y}."
 
 
 async def sync_user_playlists(
@@ -383,7 +381,7 @@ async def _sync_playlist(
     desired = desired_tracks(matches, top_tracks)
 
     name = playlist_title(user.name, city.name)
-    description = playlist_description(city.name, now, include_known_artists)
+    description = playlist_description(city.name, now)
     created = False
     spotify_playlist_id = playlist.spotify_playlist_id
     if spotify_playlist_id is None:
