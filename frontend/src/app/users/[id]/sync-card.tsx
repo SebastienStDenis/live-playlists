@@ -205,25 +205,28 @@ export function SyncCard({
           extra step lines just grow downward. */}
       <div className="flex flex-col">
         <div
-          className={`flex gap-3 ${
-            missingNote && !showSteps ? "items-center" : "items-start"
-          }`}
+          className="flex items-start gap-3"
         >
-          <button
-            type="button"
-            onClick={onSync}
-            disabled={starting || busy || !canSync}
-            className="relative order-last inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+          <span
+            className="order-last shrink-0"
+            title={missingNote ?? undefined}
           >
-            {/* Kept in the layout (just hidden) while busy so the button holds
-                the same width as when it reads "Sync". */}
-            <span className={busy ? "invisible" : undefined}>Sync</span>
-            {busy && (
-              <span className="absolute inset-0 flex items-center justify-center">
-                <Spinner />
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={starting || busy || !canSync}
+              className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {/* Kept in the layout (just hidden) while busy so the button holds
+                  the same width as when it reads "Sync". */}
+              <span className={busy ? "invisible" : undefined}>Sync</span>
+              {busy && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <Spinner />
+                </span>
+              )}
+            </button>
+          </span>
           <div className="min-w-0 flex-1">
             {showSteps && status ? (
               <div className="animate-fade-in pt-1">
@@ -237,8 +240,6 @@ export function SyncCard({
                   }}
                 />
               </div>
-            ) : missingNote ? (
-              <p className="text-sm text-gray-500">{missingNote}</p>
             ) : (
               <div className="relative pt-1">
                 {leaving && status && (
@@ -278,7 +279,9 @@ export function SyncCard({
                   </details>
                 )}
                 {finalOutcome === "none" && !statusLoading && (
-                  <p className="text-sm text-gray-500">Ready to sync</p>
+                  <p className="text-sm text-gray-500">
+                    Run your first sync to get started.
+                  </p>
                 )}
               </div>
             )}
