@@ -146,6 +146,9 @@ export function SyncCard({
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
   const finalOutcome = status?.status ?? "none";
+  // A live run (or its settle animation) always wins the status area, even if a
+  // requirement looks unmet - never replace an active run with the setup hint.
+  const showSteps = (running || settling) && status !== null;
 
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
@@ -202,29 +205,30 @@ export function SyncCard({
           extra step lines just grow downward. */}
       <div className="flex flex-col">
         <div
-          className={`flex gap-3 ${
-            missingNote ? "items-center" : "items-start"
-          }`}
+          className="flex items-start gap-3"
         >
-          <button
-            type="button"
-            onClick={onSync}
-            disabled={starting || busy || !canSync}
-            className="relative order-last inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+          <span
+            className="order-last shrink-0"
+            title={missingNote ?? undefined}
           >
-            {/* Kept in the layout (just hidden) while busy so the button holds
-                the same width as when it reads "Sync". */}
-            <span className={busy ? "invisible" : undefined}>Sync</span>
-            {busy && (
-              <span className="absolute inset-0 flex items-center justify-center">
-                <Spinner />
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={starting || busy || !canSync}
+              className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {/* Kept in the layout (just hidden) while busy so the button holds
+                  the same width as when it reads "Sync". */}
+              <span className={busy ? "invisible" : undefined}>Sync</span>
+              {busy && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <Spinner />
+                </span>
+              )}
+            </button>
+          </span>
           <div className="min-w-0 flex-1">
-            {missingNote ? (
-              <p className="text-sm text-gray-500">{missingNote}</p>
-            ) : (running || settling) && status ? (
+            {showSteps && status ? (
               <div className="animate-fade-in pt-1">
                 <CurrentStep
                   key={runSeq}
@@ -275,7 +279,9 @@ export function SyncCard({
                   </details>
                 )}
                 {finalOutcome === "none" && !statusLoading && (
-                  <p className="text-sm text-gray-500">Ready to sync</p>
+                  <p className="text-sm text-gray-500">
+                    Run a sync to get started (requires Last.fm and home city).
+                  </p>
                 )}
               </div>
             )}
