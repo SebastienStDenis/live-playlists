@@ -80,15 +80,12 @@ export default async function AccountPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />
       </div>
-      <p className="mt-1 mb-6 text-xs text-gray-500 italic">
-        After making updates on this page, run a sync to generate new
-        suggestions and playlists, or wait for the next automated sync.
-      </p>
       <Section
         heading="Sync"
         alert={neverSynced}
         alertText="Get started by running a sync"
         description="Imports listening history, suggests concerts and creates playlists. Re-runs automatically on a cadence."
+        className="mt-6"
       >
         <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
       </Section>
