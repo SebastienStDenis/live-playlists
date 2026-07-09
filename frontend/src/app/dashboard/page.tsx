@@ -6,7 +6,6 @@ import { type City } from "./city-panel";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
-import { SignOutButton } from "./sign-out-button";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
 import { Tabs } from "./tabs";
 import { type UserArtist } from "./taste-panel";
@@ -63,8 +62,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-xl p-8">
-      <SignOutButton />
-      <div className="mt-2 flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Link
           href="/dashboard/account"
