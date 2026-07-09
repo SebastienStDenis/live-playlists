@@ -81,22 +81,25 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           />
         )}
         <div>
-          {account.profile_url ? (
-            <a
-              href={account.profile_url}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium hover:underline"
-            >
-              {account.username}
-            </a>
-          ) : (
-            <span className="font-medium">{account.username}</span>
-          )}
-          {account.real_name && (
-            <p className="text-sm text-gray-500">{account.real_name}</p>
-          )}
+          <p className="font-medium">
+            {account.real_name ?? account.username}
+          </p>
           <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <dt className="text-gray-500">Username</dt>
+            <dd>
+              {account.profile_url ? (
+                <a
+                  href={account.profile_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:underline"
+                >
+                  {account.username}
+                </a>
+              ) : (
+                account.username
+              )}
+            </dd>
             {account.country && (
               <>
                 <dt className="text-gray-500">Country</dt>
