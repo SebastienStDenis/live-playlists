@@ -16,11 +16,31 @@ export type City = {
 
 export function CityPanel({ city }: { city: City | null }) {
   const [editing, setEditing] = useState(false);
-
-  if (city !== null && !editing) {
-    return <CityCard city={city} onEdit={() => setEditing(true)} />;
+  // The set-city action resolves before the revalidated server payload
+  // commits, so the prop is stale for a moment; show the picked city until a
+  // fresh payload (new prop identity) arrives.
+  const [optimisticCity, setOptimisticCity] = useState<City | null>(null);
+  const [prevCity, setPrevCity] = useState(city);
+  if (city !== prevCity) {
+    setPrevCity(city);
+    setOptimisticCity(null);
   }
-  return <CitySearch hasCity={city !== null} onDone={() => setEditing(false)} />;
+
+  const shown = optimisticCity ?? city;
+  if (shown !== null && !editing) {
+    return <CityCard city={shown} onEdit={() => setEditing(true)} />;
+  }
+  return (
+    <CitySearch
+      hasCity={shown !== null}
+      onDone={(selected) => {
+        if (selected) {
+          setOptimisticCity(selected);
+        }
+        setEditing(false);
+      }}
+    />
+  );
 }
 
 function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
@@ -61,7 +81,7 @@ function CitySearch({
   onDone,
 }: {
   hasCity: boolean;
-  onDone: () => void;
+  onDone: (selected?: City) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -74,7 +94,7 @@ function CitySearch({
         return;
       }
       setError(null);
-      onDone();
+      onDone(city);
     });
   }
 
@@ -91,7 +111,7 @@ function CitySearch({
         {hasCity && (
           <button
             type="button"
-            onClick={onDone}
+            onClick={() => onDone()}
             className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
           >
             Cancel
