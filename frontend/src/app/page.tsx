@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { IntroText } from "./intro-text";
@@ -10,7 +10,11 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
   if (user) {
-    redirect("/dashboard");
+    // Replace (not push) so "/" never lingers in history: an authenticated
+    // visit here (e.g. the browser Back button landing on it) would otherwise
+    // push a new /dashboard entry on top instead of reusing this one, leaving
+    // "/" in history to bounce forward again on the next Back press.
+    redirect("/dashboard", RedirectType.replace);
   }
 
   return (
