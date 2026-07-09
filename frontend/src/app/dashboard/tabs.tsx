@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 
 export function Tabs({
   tabs,
+  initialTab,
 }: {
   tabs: {
     key: string;
@@ -11,8 +12,22 @@ export function Tabs({
     description?: string;
     content: ReactNode;
   }[];
+  initialTab?: string;
 }) {
-  const [active, setActive] = useState(tabs[0].key);
+  const [active, setActive] = useState(
+    initialTab && tabs.some((tab) => tab.key === initialTab)
+      ? initialTab
+      : tabs[0].key,
+  );
+
+  const selectTab = (key: string) => {
+    setActive(key);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", key);
+    // Update the URL without a server round-trip so the panels stay mounted;
+    // replaceState keeps tab switches out of the back/forward history.
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  };
 
   return (
     <div>
@@ -26,7 +41,7 @@ export function Tabs({
             type="button"
             role="tab"
             aria-selected={active === tab.key}
-            onClick={() => setActive(tab.key)}
+            onClick={() => selectTab(tab.key)}
             className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
               active === tab.key
                 ? "border-foreground"
