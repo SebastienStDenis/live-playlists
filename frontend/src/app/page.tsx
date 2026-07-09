@@ -18,10 +18,12 @@ export default async function Home() {
       <h1 className="text-3xl font-semibold tracking-tight">
         Next.fm
       </h1>
-      <p className="max-w-md text-center text-lg text-zinc-600 dark:text-zinc-400">
-        Live-music discovery through listening.
-      </p>
-      <IntroText className="-mt-3 max-w-md text-center text-xs text-gray-500 italic" />
+      <div className="flex flex-col items-center gap-1">
+        <p className="max-w-md text-center text-lg text-zinc-600 dark:text-zinc-400">
+          Live-music discovery through listening.
+        </p>
+        <IntroText className="max-w-md text-center text-xs text-gray-500 italic" />
+      </div>
       <div className="flex gap-4">
         <Link
           className="flex h-12 items-center justify-center rounded-full bg-foreground px-6 font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
