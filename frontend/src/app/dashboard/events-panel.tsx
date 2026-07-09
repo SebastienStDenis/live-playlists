@@ -218,7 +218,7 @@ export function EventsPanel({
             </ul>
           )}
           {hiddenCount > 0 && (
-            <p className="mt-3 text-sm text-gray-500">
+            <p className="mt-3 text-xs text-gray-500 italic">
               {hiddenCount} {hiddenCount === 1 ? "concert is" : "concerts are"}{" "}
               hidden by filters.
             </p>
