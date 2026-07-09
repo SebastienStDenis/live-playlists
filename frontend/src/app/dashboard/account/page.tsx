@@ -1,11 +1,12 @@
 import { AttentionDot } from "../attention-dot";
-import { BackButton } from "../back-button";
+import { BackButton } from "../../back-button";
 import { CityPanel, type City } from "../city-panel";
 import { DeleteAccountButton } from "../delete-account-button";
 import { DiscoveryToggle } from "../discovery-toggle";
 import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
 import { PinnedCitiesPanel } from "../pinned-cities-panel";
 import { type Playlist } from "../playlists-panel";
+import { SignOutButton } from "../sign-out-button";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
@@ -74,17 +75,17 @@ export default async function AccountPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">
-      <BackButton />
-      <h1 className="mt-2 text-2xl font-semibold">Hey, {user.name}</h1>
-      <p className="mt-1 mb-6 text-xs text-gray-500 italic">
-        After making updates on this page, run a sync to generate new
-        suggestions and playlists, or wait for the next automated sync.
-      </p>
+      <BackButton fallbackHref="/dashboard" />
+      <div className="mt-2 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
+        <SignOutButton />
+      </div>
       <Section
         heading="Sync"
         alert={neverSynced}
         alertText="Get started by running a sync"
         description="Imports listening history, suggests concerts and creates playlists. Re-runs automatically on a cadence."
+        className="mt-6"
       >
         <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
       </Section>
