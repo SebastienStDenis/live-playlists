@@ -30,8 +30,8 @@ export default function AboutPage() {
           <p className="mt-1 text-sm text-gray-500">
             A few top tracks from each suggested artist playing near your city,
             soonest concert first. You can pin extra cities to follow concerts
-            where you travel. Tracklists are automatically updated as your
-            listening history and upcoming concerts change.
+            where you travel. Tracklists are automatically updated every day
+            as your listening history and upcoming concerts change.
           </p>
         </section>
       </div>

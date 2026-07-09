@@ -65,10 +65,10 @@ Keep these exactly as written:
 - Intro: "We find upcoming concerts near you by artists that match your
   listening history, and generate Spotify playlists for you to discover them."
 - Sync section: "Imports listening history, suggests artists, finds concerts
-  and generates playlists. Re-runs automatically on a cadence."
+  and generates playlists. Re-runs automatically every day."
 - Concerts tab: "Upcoming concerts near you by suggested artists."
 - Playlists tab: "Spotify playlists tracking suggested concerts in your
-  cities. Tracklists are automatically updated as your listening history and
-  upcoming concerts change."
+  cities. Tracklists are automatically updated every day as your listening
+  history and upcoming concerts change."
 - Confirmation email: "... and start discovering live music through
   listening."

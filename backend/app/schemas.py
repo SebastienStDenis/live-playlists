@@ -13,6 +13,7 @@ class UserRead(BaseModel):
     id: uuid.UUID
     name: str
     include_known_artists: bool
+    last_synced_at: datetime | None
 
 
 class UserUpdate(BaseModel):
@@ -200,3 +201,10 @@ class SyncStatusResult(BaseModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     steps: list[SyncStepProgress]
+
+
+class DispatchSyncsResult(BaseModel):
+    dispatched: int
+    succeeded: int
+    failed: int
+    skipped: int

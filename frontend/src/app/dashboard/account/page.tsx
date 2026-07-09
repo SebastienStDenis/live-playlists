@@ -14,6 +14,7 @@ import { IntroText } from "../../intro-text";
 import {
   fetchJson,
   fetchOptional,
+  hasNeverSynced,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -71,7 +72,7 @@ export default async function AccountPage() {
     ),
     loadSyncStatus(),
   ]);
-  const neverSynced = sync?.status === "none";
+  const neverSynced = hasNeverSynced(user, sync);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
@@ -92,7 +93,7 @@ export default async function AccountPage() {
         heading="Sync"
         alert={neverSynced}
         alertText="Get started by running a sync"
-        description="Imports listening history, suggests artists, finds concerts and generates playlists. Re-runs automatically on a cadence."
+        description="Imports listening history, suggests artists, finds concerts and generates playlists. Re-runs automatically every day."
         className="mt-6"
       >
         <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />

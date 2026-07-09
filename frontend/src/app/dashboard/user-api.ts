@@ -7,6 +7,7 @@ export type User = {
   id: string;
   name: string;
   include_known_artists: boolean;
+  last_synced_at: string | null;
 };
 
 export async function loadMe(): Promise<User> {
@@ -40,6 +41,18 @@ export async function loadSyncStatus(): Promise<SyncStatus | null> {
   } catch {
     return null;
   }
+}
+
+// True when the user has never completed a sync: the "get started" nudge.
+// last_synced_at is the durable success record; a retained completed run also
+// counts (it predates the column), and a running first sync isn't nudged.
+// A null sync (transport or Temporal error) hides the nudge rather than
+// breaking the page over a dot.
+export function hasNeverSynced(user: User, sync: SyncStatus | null): boolean {
+  return (
+    user.last_synced_at === null &&
+    (sync?.status === "none" || sync?.status === "failed")
+  );
 }
 
 // Whether the latest sync run completed the given step. Empty lists read

@@ -12,6 +12,7 @@ import { type UserArtist } from "./taste-panel";
 import {
   fetchJson,
   fetchOptional,
+  hasNeverSynced,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -27,7 +28,7 @@ export default async function DashboardPage() {
     fetchJson<Playlist[]>("/me/playlists", "playlists"),
     loadSyncStatus(),
   ]);
-  const neverSynced = sync?.status === "none";
+  const neverSynced = hasNeverSynced(user, sync);
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
@@ -112,7 +113,7 @@ export default async function DashboardPage() {
               key: "playlists",
               label: `Playlists (${linkedPlaylists.length})`,
               description:
-                "Spotify playlists tracking suggested concerts in your cities. Tracklists are automatically updated as your listening history and upcoming concerts change.",
+                "Spotify playlists tracking suggested concerts in your cities. Tracklists are automatically updated every day as your listening history and upcoming concerts change.",
               content: (
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}
