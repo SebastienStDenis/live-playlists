@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect, unstable_rethrow } from "next/navigation";
+import { redirect, RedirectType, unstable_rethrow } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
@@ -157,7 +157,10 @@ export async function deletePlaylist(playlistId: string): Promise<ActionState> {
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  // Replace (not push) so /dashboard never lingers in history: the proxy
+  // force-redirects an unauthenticated visit to /dashboard back to /,
+  // which would otherwise trap the browser Back button in a redirect loop.
+  redirect("/", RedirectType.replace);
 }
 
 export async function deleteAccount(): Promise<ActionState> {
@@ -173,5 +176,8 @@ export async function deleteAccount(): Promise<ActionState> {
   }
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  // Replace (not push) so /dashboard never lingers in history: the proxy
+  // force-redirects an unauthenticated visit to /dashboard back to /,
+  // which would otherwise trap the browser Back button in a redirect loop.
+  redirect("/", RedirectType.replace);
 }

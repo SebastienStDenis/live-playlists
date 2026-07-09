@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,5 +28,8 @@ export async function logIn(
   if (error) {
     return { error: error.message };
   }
-  redirect("/dashboard");
+  // Replace (not push) so /login never lingers in history: the proxy
+  // force-redirects an authenticated visit to /login back to /dashboard,
+  // which would otherwise trap the browser Back button in a redirect loop.
+  redirect("/dashboard", RedirectType.replace);
 }
