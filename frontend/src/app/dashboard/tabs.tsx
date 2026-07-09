@@ -1,6 +1,18 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
+
+const STORAGE_KEY = "dashboard-active-tab";
+const CHANGE_EVENT = "dashboard-active-tab-change";
+
+function subscribe(callback: () => void) {
+  window.addEventListener(CHANGE_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(CHANGE_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
 
 export function Tabs({
   tabs,
@@ -12,7 +24,21 @@ export function Tabs({
     content: ReactNode;
   }[];
 }) {
-  const [active, setActive] = useState(tabs[0].key);
+  // Read the persisted tab from localStorage. The server snapshot returns null
+  // so SSR always renders the first tab, then hydration swaps to the stored one
+  // without a mismatch.
+  const stored = useSyncExternalStore(
+    subscribe,
+    () => localStorage.getItem(STORAGE_KEY),
+    () => null,
+  );
+  const active =
+    stored && tabs.some((tab) => tab.key === stored) ? stored : tabs[0].key;
+
+  const selectTab = (key: string) => {
+    localStorage.setItem(STORAGE_KEY, key);
+    window.dispatchEvent(new Event(CHANGE_EVENT));
+  };
 
   return (
     <div>
@@ -26,7 +52,7 @@ export function Tabs({
             type="button"
             role="tab"
             aria-selected={active === tab.key}
-            onClick={() => setActive(tab.key)}
+            onClick={() => selectTab(tab.key)}
             className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
               active === tab.key
                 ? "border-foreground"
