@@ -137,7 +137,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
         </p>
       ) : (
         <details className="group mt-2">
-          <summary className="flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden text-gray-500">
+          <summary className="flex cursor-pointer items-center gap-0.75 text-sm list-none [&::-webkit-details-marker]:hidden text-gray-500">
             <span>{playlist.tracks.length} tracks</span>
             <ExpandToggleMark />
           </summary>
