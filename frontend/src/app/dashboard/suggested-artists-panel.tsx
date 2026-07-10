@@ -70,16 +70,16 @@ export function SuggestedArtistsPanel({
                     </span>
                   )}
                 </div>
-                <div className="mt-1">
+                {reasonOf(userArtist) && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {reasonOf(userArtist)}
+                  </p>
+                )}
+                <div className="mt-1.5">
                   <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs whitespace-nowrap text-gray-500 dark:border-gray-700">
                     score {scoreOf(userArtist).toFixed(2)}
                   </span>
                 </div>
-                {reasonOf(userArtist) && (
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    {reasonOf(userArtist)}
-                  </p>
-                )}
                 {(userArtist.tags ?? []).length > 0 && (
                   <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
                     {(userArtist.tags ?? []).map((tag) => (
