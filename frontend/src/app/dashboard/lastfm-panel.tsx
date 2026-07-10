@@ -124,9 +124,16 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           <button
             type="submit"
             disabled={unlinkPending}
-            className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            className="relative rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
           >
-            {unlinkPending ? "Unlinking..." : "Unlink"}
+            <span className={unlinkPending ? "invisible" : undefined}>
+              Unlink
+            </span>
+            {unlinkPending && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <Spinner />
+              </span>
+            )}
           </button>
         </form>
       </div>
