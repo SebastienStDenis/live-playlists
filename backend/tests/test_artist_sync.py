@@ -345,12 +345,23 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
 
     autechre = Artist(id=uuid.uuid7(), name="Autechre")
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
+    autechre_info = LastfmArtist(
+        artist_id=autechre.id,
+        name="Autechre",
+        name_key="autechre",
+        listeners=700_000,
+        tags=["electronic", "seen live", "idm"],
+    )
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([boc]),
+        result_with_rows([(boc, None)]),
         result_with_rows(
             [
-                (interest(autechre, "lastfm_loved_tracks", {"track_count": 3}), autechre),
+                (
+                    interest(autechre, "lastfm_loved_tracks", {"track_count": 3}),
+                    autechre,
+                    autechre_info,
+                ),
                 (
                     interest(
                         autechre,
@@ -358,12 +369,14 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
                         {"rank": 1, "playcount": 321, "period": "12month"},
                     ),
                     autechre,
+                    autechre_info,
                 ),
                 (
                     interest(
                         boc, "lastfm_top_artist", {"rank": 2, "playcount": 210, "period": "12month"}
                     ),
                     boc,
+                    None,
                 ),
             ]
         ),
@@ -382,6 +395,8 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     assert body[0]["interests"][0]["evidence"] == {"track_count": 3}
     assert body[0]["interests"][0]["source"] == "lastfm"
     assert body[0]["excluded"] is False
+    assert body[0]["tags"] == ["electronic", "idm"]  # meta tags filtered out
+    assert body[0]["listeners"] == 700_000
     assert body[1]["artist"] == {"id": str(boc.id), "name": "Boards of Canada"}
     assert len(body[1]["interests"]) == 1
     assert body[1]["excluded"] is True
@@ -396,7 +411,7 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([boc]),
+        result_with_rows([(boc, None)]),
         result_with_rows(
             [
                 (
@@ -410,6 +425,7 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
                         updated_at=now,
                     ),
                     autechre,
+                    None,
                 )
             ]
         ),
@@ -424,6 +440,8 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
         ("Boards of Canada", True),
     ]
     assert body[1]["interests"] == []
+    assert body[1]["tags"] == []
+    assert body[1]["listeners"] is None
 
 
 async def test_list_user_artists_requires_authentication() -> None:

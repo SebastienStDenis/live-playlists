@@ -35,6 +35,7 @@ from app.lastfm import (
     LastfmPrivateDataError,
     LastfmUserInfo,
     LastfmUserNotFoundError,
+    visible_tags,
 )
 from app.matching import (
     EVENT_MATCH_RADIUS_KM,
@@ -50,6 +51,7 @@ from app.models import (
     Event,
     EventArtist,
     LastfmAccount,
+    LastfmArtist,
     LastfmConnection,
     Playlist,
     PlaylistTrack,
@@ -488,34 +490,42 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
     show and undo the exclusion - even when the exclusion outlived every
     interest row (a hidden suggestion loses its interest immediately)."""
     result = await session.execute(
-        select(Artist)
+        select(Artist, LastfmArtist)
         .join(UserArtistExclusion, UserArtistExclusion.artist_id == Artist.id)
+        .outerjoin(LastfmArtist, LastfmArtist.artist_id == Artist.id)
         .where(UserArtistExclusion.user_id == user.id)
     )
-    excluded_artists = list(result.scalars())
-    excluded_ids = {artist.id for artist in excluded_artists}
+    excluded_rows = result.all()
+    excluded_ids = {artist.id for artist, _ in excluded_rows}
 
     result = await session.execute(
-        select(UserArtistInterest, Artist)
+        select(UserArtistInterest, Artist, LastfmArtist)
         .join(Artist, UserArtistInterest.artist_id == Artist.id)
+        .outerjoin(LastfmArtist, LastfmArtist.artist_id == Artist.id)
         .where(UserArtistInterest.user_id == user.id)
         .order_by(func.lower(Artist.name), UserArtistInterest.kind)
     )
     grouped: dict[uuid.UUID, UserArtistRead] = {}
-    for interest, artist in result.all():
+    for interest, artist, info in result.all():
         entry = grouped.get(artist.id)
         if entry is None:
             entry = UserArtistRead(
                 artist=ArtistRead.model_validate(artist),
                 interests=[],
                 excluded=artist.id in excluded_ids,
+                tags=visible_tags(info.tags) if info and info.tags else [],
+                listeners=info.listeners if info else None,
             )
             grouped[artist.id] = entry
         entry.interests.append(ArtistInterestRead.model_validate(interest))
-    for artist in excluded_artists:
+    for artist, info in excluded_rows:
         if artist.id not in grouped:
             grouped[artist.id] = UserArtistRead(
-                artist=ArtistRead.model_validate(artist), interests=[], excluded=True
+                artist=ArtistRead.model_validate(artist),
+                interests=[],
+                excluded=True,
+                tags=visible_tags(info.tags) if info and info.tags else [],
+                listeners=info.listeners if info else None,
             )
     return sorted(grouped.values(), key=lambda entry: entry.artist.name.casefold())
 

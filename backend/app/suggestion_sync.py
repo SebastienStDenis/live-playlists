@@ -1,6 +1,8 @@
 import asyncio
+import json
 import math
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -18,6 +20,7 @@ from app.artist_sync import (
 )
 from app.lastfm import (
     LastfmApiError,
+    LastfmArtistInfo,
     LastfmArtistNotFoundError,
     LastfmClient,
     LastfmSimilarArtistData,
@@ -38,7 +41,9 @@ from app.models import (
 from app.schemas import SuggestionSyncResult
 
 SIMILAR_TTL = timedelta(days=30)
+INFO_TTL = timedelta(days=30)
 SIMILAR_FETCH_LIMIT = 100
+INFO_FETCH_LIMIT = 200
 FETCH_CONCURRENCY = 4
 
 # A lastfm_top_artist interest counts toward the known classification only
@@ -174,6 +179,11 @@ async def sync_user_suggestions(
         session, user.id, SIMILAR_ARTIST_KIND, signal_by_artist, source=Source.INTERNAL, prune=True
     )
 
+    enrich_ids = {interest.artist_id for interest in interests} | set(signal_by_artist)
+    enriched, enrich_failed = await _enrich_artist_info(
+        session, lastfm, enrich_ids, now, priority_ids=frozenset(signal_by_artist)
+    )
+
     return SuggestionSyncResult(
         synced_at=now,
         seeds_total=len(seeds),
@@ -184,6 +194,8 @@ async def sync_user_suggestions(
         suggestions_created=written.interests_created,
         suggestions_kept=len(kept) - written.interests_created,
         suggestions_removed=written.interests_removed,
+        artists_enriched=enriched,
+        artists_enrich_failed=enrich_failed,
     )
 
 
@@ -340,15 +352,78 @@ async def _refresh_seed_edges(
 async def _fetch_similar(
     lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
 ) -> list[LastfmSimilarArtistData] | None:
+    return await _guarded_fetch(
+        lambda: lastfm.get_similar_artists(name, limit=SIMILAR_FETCH_LIMIT), [], semaphore
+    )
+
+
+async def _guarded_fetch[T](
+    fetch: Callable[[], Awaitable[T]], not_found: T, semaphore: asyncio.Semaphore
+) -> T | None:
     """None means a transient failure that should not stamp the freshness
-    timestamp; an artist unknown to Last.fm is a durable empty result."""
+    timestamp; an artist unknown to Last.fm durably yields not_found."""
     async with semaphore:
         try:
-            return await lastfm.get_similar_artists(name, limit=SIMILAR_FETCH_LIMIT)
+            return await fetch()
         except LastfmArtistNotFoundError:
-            return []
-        except LastfmApiError, httpx.HTTPError:
+            return not_found
+        except LastfmApiError, httpx.HTTPError, json.JSONDecodeError:
             return None
+
+
+async def _enrich_artist_info(
+    session: AsyncSession,
+    lastfm: LastfmClient,
+    artist_ids: set[uuid.UUID],
+    now: datetime,
+    *,
+    priority_ids: frozenset[uuid.UUID] = frozenset(),
+) -> tuple[int, int]:
+    """Fill url, listening stats, and tags for interest artists whose info is
+    missing or stale. The registry is global, so one user's sync serves every
+    user reading the same artist."""
+    result = await session.execute(
+        select(LastfmArtist).where(LastfmArtist.artist_id.in_(artist_ids))
+    )
+    stale = [
+        row
+        for row in result.scalars()
+        if row.info_synced_at is None or now - row.info_synced_at >= INFO_TTL
+    ]
+    # A cold registry can make this the sync's biggest fan-out; the cap bounds
+    # one run, and the rows left stale complete over the following syncs.
+    # Priority rows (the current suggestions, whose panel shows the tags) go
+    # ahead of the rest.
+    stale.sort(key=lambda row: row.artist_id not in priority_ids)
+    rows = stale[:INFO_FETCH_LIMIT]
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+    outcomes = await asyncio.gather(*(_fetch_info(lastfm, row.name, semaphore) for row in rows))
+
+    # Failed fetches keep their old info and their stale info_synced_at, so
+    # the next sync retries them.
+    enriched = 0
+    for row, info in zip(rows, outcomes, strict=True):
+        if info is None:
+            continue
+        if info.url:
+            row.url = info.url
+        if info.mbid:
+            row.mbid = info.mbid
+        row.listeners = info.listeners
+        row.playcount = info.playcount
+        row.tags = info.tags
+        row.info_synced_at = now
+        enriched += 1
+    return enriched, len(rows) - enriched
+
+
+async def _fetch_info(
+    lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
+) -> LastfmArtistInfo | None:
+    empty = LastfmArtistInfo(
+        name=name, url=None, mbid=None, listeners=None, playcount=None, tags=[]
+    )
+    return await _guarded_fetch(lambda: lastfm.get_artist_info(name), empty, semaphore)
 
 
 async def _blocked_name_keys(lastfm: LastfmClient, username: str) -> set[str]:

@@ -7,6 +7,49 @@ API_URL = "https://ws.audioscrobbler.com/2.0/"
 USER_NOT_FOUND_ERROR_CODE = 6
 PRIVATE_DATA_ERROR_CODE = 17
 
+# Meta tags users apply to their own library rather than to describe the
+# artist; filtered out wherever tags are shown.
+TAG_BLOCKLIST = frozenset(
+    {
+        "seen live",
+        "want to see live",
+        "seen in concert",
+        "favorites",
+        "favourites",
+        "favorite",
+        "favourite",
+        "my favorites",
+        "my favourites",
+        "favorite artists",
+        "favourite artists",
+        "albums i own",
+        "vinyl",
+        "vinyls i own",
+        "cds i own",
+        "under 2000 listeners",
+        "female vocalists",
+        "female vocalist",
+        "male vocalists",
+        "male vocalist",
+        "all",
+        "music",
+        "good",
+        "awesome",
+        "amazing",
+        "beautiful",
+        "epic",
+        "cool",
+        "love",
+        "loved",
+        "check out",
+        "spotify",
+    }
+)
+
+
+def visible_tags(tags: list[str]) -> list[str]:
+    return [tag for tag in tags if tag.casefold() not in TAG_BLOCKLIST]
+
 
 class LastfmUserNotFoundError(Exception):
     pass
@@ -67,6 +110,15 @@ class LastfmSimilarArtistData(BaseModel):
     match: float
 
 
+class LastfmArtistInfo(BaseModel):
+    name: str
+    url: str | None
+    mbid: str | None
+    listeners: int | None
+    playcount: int | None
+    tags: list[str]
+
+
 class LastfmClient:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
@@ -109,39 +161,30 @@ class LastfmClient:
         self, artist: str, limit: int = 10
     ) -> list[LastfmArtistTopTrack]:
         """An artist's tracks ranked by global playcount, best first."""
-        try:
-            payload = await self._get(
-                {
-                    "method": "artist.gettoptracks",
-                    "artist": artist,
-                    "autocorrect": 1,
-                    "limit": limit,
-                }
-            )
-        except LastfmUserNotFoundError:
-            # Error 6 means "not found" for whatever entity the method takes.
-            raise LastfmArtistNotFoundError(artist) from None
+        payload = await self._get_artist("artist.gettoptracks", artist, limit=limit)
         return [_parse_artist_top_track(track) for track in _as_list(payload["toptracks"], "track")]
 
     async def get_similar_artists(
         self, artist: str, limit: int = 100
     ) -> list[LastfmSimilarArtistData]:
         """Artists similar to the given one, with Last.fm's 0-1 match score."""
-        try:
-            payload = await self._get(
-                {
-                    "method": "artist.getsimilar",
-                    "artist": artist,
-                    "autocorrect": 1,
-                    "limit": limit,
-                }
-            )
-        except LastfmUserNotFoundError:
-            # Error 6 means "not found" for whatever entity the method takes.
-            raise LastfmArtistNotFoundError(artist) from None
+        payload = await self._get_artist("artist.getsimilar", artist, limit=limit)
         return [
             _parse_similar_artist(entry) for entry in _as_list(payload["similarartists"], "artist")
         ]
+
+    async def get_artist_info(self, artist: str) -> LastfmArtistInfo:
+        """An artist's profile: canonical url, global listening stats, and
+        top tags ordered by prominence."""
+        payload = await self._get_artist("artist.getinfo", artist)
+        return _parse_artist_info(payload["artist"])
+
+    async def _get_artist(self, method: str, artist: str, **params: int) -> dict:
+        try:
+            return await self._get({"method": method, "artist": artist, "autocorrect": 1, **params})
+        except LastfmUserNotFoundError:
+            # Error 6 means "not found" for whatever entity the method takes.
+            raise LastfmArtistNotFoundError(artist) from None
 
     async def _get(self, params: dict) -> dict:
         params = {**params, "api_key": self._api_key, "format": "json"}
@@ -202,6 +245,18 @@ def _parse_artist_top_track(track: dict) -> LastfmArtistTopTrack:
         title=track["name"],
         rank=_int_or_none(track.get("@attr", {}).get("rank")),
         playcount=_int_or_none(track.get("playcount")),
+    )
+
+
+def _parse_artist_info(artist: dict) -> LastfmArtistInfo:
+    stats = artist.get("stats") or {}
+    return LastfmArtistInfo(
+        name=artist["name"],
+        url=_text_or_none(artist.get("url")),
+        mbid=_text_or_none(artist.get("mbid")),
+        listeners=_int_or_none(stats.get("listeners")),
+        playcount=_int_or_none(stats.get("playcount")),
+        tags=[tag["name"] for tag in _as_list(artist.get("tags") or {}, "tag")],
     )
 
 

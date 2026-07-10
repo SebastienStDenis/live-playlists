@@ -76,10 +76,15 @@ def _summarize_artists(result: ArtistSyncResult) -> str:
 def _summarize_suggestions(result: SuggestionSyncResult) -> str:
     failed = f", {result.seeds_failed} failed" if result.seeds_failed > 0 else ""
     seeds = f"{_plural(result.seeds_total, 'seed')} ({result.seeds_skipped} fresh{failed})"
+    enrich_failed = (
+        f" · {result.artists_enrich_failed} artist infos failed"
+        if result.artists_enrich_failed > 0
+        else ""
+    )
     return (
         f"Scored {result.candidates_scored} candidates from {seeds} · "
         f"{result.suggestions_created} artists suggested, "
-        f"{result.suggestions_kept} kept, {result.suggestions_removed} removed"
+        f"{result.suggestions_kept} kept, {result.suggestions_removed} removed{enrich_failed}"
     )
 
 

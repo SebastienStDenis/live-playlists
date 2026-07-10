@@ -72,6 +72,8 @@ SUGGESTION_RESULT = SuggestionSyncResult(
     suggestions_created=10,
     suggestions_kept=5,
     suggestions_removed=1,
+    artists_enriched=12,
+    artists_enrich_failed=0,
 )
 
 EVENT_RESULT = EventSyncResult(
