@@ -74,12 +74,12 @@ export function SuggestedArtistsPanel({
                   </p>
                 )}
                 {userArtist.listeners != null && (
-                  <p className="mt-1.5 text-xs text-gray-500 italic">
+                  <p className="mt-1 text-xs text-gray-500 italic">
                     {listenersFormat.format(userArtist.listeners)} listeners
                   </p>
                 )}
                 {(userArtist.tags ?? []).length > 0 && (
-                  <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                  <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
                     {(userArtist.tags ?? []).map((tag) => (
                       <span
                         key={tag}
