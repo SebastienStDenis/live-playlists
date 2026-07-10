@@ -25,6 +25,7 @@ from app.models import (
 )
 from app.suggestion_sync import (
     CONSENSUS_BONUS,
+    INFO_FETCH_LIMIT,
     KNOWN_PLAYCOUNT_FLOOR,
     SUGGESTION_BUDGET,
     Candidate,
@@ -372,6 +373,22 @@ async def test_enrich_treats_unknown_artist_as_durable_empty() -> None:
     assert row.info_synced_at == NOW
     assert row.tags == []
     assert row.url == "https://www.last.fm/music/Obscure"  # absent fields never erase
+
+
+async def test_enrich_caps_fetches_per_sync() -> None:
+    rows = [make_seed(f"Artist {i:03}") for i in range(INFO_FETCH_LIMIT + 5)]
+    session = make_session()
+    session.execute.return_value = result_with_scalars(rows)
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(name)
+
+    enriched, failed = await _enrich_artist_info(
+        session, lastfm, {row.artist_id for row in rows}, NOW
+    )
+
+    assert (enriched, failed) == (INFO_FETCH_LIMIT, 0)
+    assert lastfm.get_artist_info.await_count == INFO_FETCH_LIMIT
+    assert sum(1 for row in rows if row.info_synced_at is None) == 5
 
 
 async def test_enrich_leaves_timestamp_untouched_on_failure() -> None:

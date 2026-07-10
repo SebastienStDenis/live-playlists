@@ -1,6 +1,8 @@
 import asyncio
+import json
 import math
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -41,6 +43,7 @@ from app.schemas import SuggestionSyncResult
 SIMILAR_TTL = timedelta(days=30)
 INFO_TTL = timedelta(days=30)
 SIMILAR_FETCH_LIMIT = 100
+INFO_FETCH_LIMIT = 200
 FETCH_CONCURRENCY = 4
 
 # A lastfm_top_artist interest counts toward the known classification only
@@ -347,14 +350,22 @@ async def _refresh_seed_edges(
 async def _fetch_similar(
     lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
 ) -> list[LastfmSimilarArtistData] | None:
+    return await _guarded_fetch(
+        lambda: lastfm.get_similar_artists(name, limit=SIMILAR_FETCH_LIMIT), [], semaphore
+    )
+
+
+async def _guarded_fetch[T](
+    fetch: Callable[[], Awaitable[T]], not_found: T, semaphore: asyncio.Semaphore
+) -> T | None:
     """None means a transient failure that should not stamp the freshness
-    timestamp; an artist unknown to Last.fm is a durable empty result."""
+    timestamp; an artist unknown to Last.fm durably yields not_found."""
     async with semaphore:
         try:
-            return await lastfm.get_similar_artists(name, limit=SIMILAR_FETCH_LIMIT)
+            return await fetch()
         except LastfmArtistNotFoundError:
-            return []
-        except LastfmApiError, httpx.HTTPError:
+            return not_found
+        except LastfmApiError, httpx.HTTPError, json.JSONDecodeError:
             return None
 
 
@@ -370,11 +381,14 @@ async def _enrich_artist_info(
     result = await session.execute(
         select(LastfmArtist).where(LastfmArtist.artist_id.in_(artist_ids))
     )
-    rows = [
+    stale = [
         row
         for row in result.scalars()
         if row.info_synced_at is None or now - row.info_synced_at >= INFO_TTL
     ]
+    # A cold registry can make this the sync's biggest fan-out; the cap bounds
+    # one run, and the rows left stale complete over the following syncs.
+    rows = stale[:INFO_FETCH_LIMIT]
     semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
     outcomes = await asyncio.gather(*(_fetch_info(lastfm, row.name, semaphore) for row in rows))
 
@@ -399,17 +413,10 @@ async def _enrich_artist_info(
 async def _fetch_info(
     lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
 ) -> LastfmArtistInfo | None:
-    """None means a transient failure that should not stamp the freshness
-    timestamp; an artist unknown to Last.fm is a durable empty result."""
-    async with semaphore:
-        try:
-            return await lastfm.get_artist_info(name)
-        except LastfmArtistNotFoundError:
-            return LastfmArtistInfo(
-                name=name, url=None, mbid=None, listeners=None, playcount=None, tags=[]
-            )
-        except LastfmApiError, httpx.HTTPError:
-            return None
+    empty = LastfmArtistInfo(
+        name=name, url=None, mbid=None, listeners=None, playcount=None, tags=[]
+    )
+    return await _guarded_fetch(lambda: lastfm.get_artist_info(name), empty, semaphore)
 
 
 async def _blocked_name_keys(lastfm: LastfmClient, username: str) -> set[str]:

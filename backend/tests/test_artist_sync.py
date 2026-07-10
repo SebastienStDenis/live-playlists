@@ -354,10 +354,14 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     )
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([boc]),
+        result_with_rows([(boc, None)]),
         result_with_rows(
             [
-                (interest(autechre, "lastfm_loved_tracks", {"track_count": 3}), autechre),
+                (
+                    interest(autechre, "lastfm_loved_tracks", {"track_count": 3}),
+                    autechre,
+                    autechre_info,
+                ),
                 (
                     interest(
                         autechre,
@@ -365,16 +369,17 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
                         {"rank": 1, "playcount": 321, "period": "12month"},
                     ),
                     autechre,
+                    autechre_info,
                 ),
                 (
                     interest(
                         boc, "lastfm_top_artist", {"rank": 2, "playcount": 210, "period": "12month"}
                     ),
                     boc,
+                    None,
                 ),
             ]
         ),
-        result_with_scalars([autechre_info]),
     ]
 
     response = await request("GET", "/me/artists", session, user=user())
@@ -406,7 +411,7 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([boc]),
+        result_with_rows([(boc, None)]),
         result_with_rows(
             [
                 (
@@ -420,10 +425,10 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
                         updated_at=now,
                     ),
                     autechre,
+                    None,
                 )
             ]
         ),
-        result_with_scalars([]),
     ]
 
     response = await request("GET", "/me/artists", session, user=user())

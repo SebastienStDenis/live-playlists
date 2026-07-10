@@ -26,12 +26,14 @@ export type Interest = {
   updated_at: string;
 };
 
+// tags and listeners are optional so a newer frontend tolerates responses
+// from a backend deployed before they existed.
 export type UserArtist = {
   artist: Artist;
   interests: Interest[];
   excluded: boolean;
-  tags: string[];
-  listeners: number | null;
+  tags?: string[];
+  listeners?: number | null;
 };
 
 const numberFormat = new Intl.NumberFormat("en-US");

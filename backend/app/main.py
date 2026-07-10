@@ -490,33 +490,25 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
     show and undo the exclusion - even when the exclusion outlived every
     interest row (a hidden suggestion loses its interest immediately)."""
     result = await session.execute(
-        select(Artist)
+        select(Artist, LastfmArtist)
         .join(UserArtistExclusion, UserArtistExclusion.artist_id == Artist.id)
+        .outerjoin(LastfmArtist, LastfmArtist.artist_id == Artist.id)
         .where(UserArtistExclusion.user_id == user.id)
     )
-    excluded_artists = list(result.scalars())
-    excluded_ids = {artist.id for artist in excluded_artists}
+    excluded_rows = result.all()
+    excluded_ids = {artist.id for artist, _ in excluded_rows}
 
     result = await session.execute(
-        select(UserArtistInterest, Artist)
+        select(UserArtistInterest, Artist, LastfmArtist)
         .join(Artist, UserArtistInterest.artist_id == Artist.id)
+        .outerjoin(LastfmArtist, LastfmArtist.artist_id == Artist.id)
         .where(UserArtistInterest.user_id == user.id)
         .order_by(func.lower(Artist.name), UserArtistInterest.kind)
     )
-    rows = result.all()
-
-    lastfm_result = await session.execute(
-        select(LastfmArtist).where(
-            LastfmArtist.artist_id.in_({artist.id for _, artist in rows} | excluded_ids)
-        )
-    )
-    info_by_artist = {row.artist_id: row for row in lastfm_result.scalars()}
-
     grouped: dict[uuid.UUID, UserArtistRead] = {}
-    for interest, artist in rows:
+    for interest, artist, info in result.all():
         entry = grouped.get(artist.id)
         if entry is None:
-            info = info_by_artist.get(artist.id)
             entry = UserArtistRead(
                 artist=ArtistRead.model_validate(artist),
                 interests=[],
@@ -526,9 +518,8 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
             )
             grouped[artist.id] = entry
         entry.interests.append(ArtistInterestRead.model_validate(interest))
-    for artist in excluded_artists:
+    for artist, info in excluded_rows:
         if artist.id not in grouped:
-            info = info_by_artist.get(artist.id)
             grouped[artist.id] = UserArtistRead(
                 artist=ArtistRead.model_validate(artist),
                 interests=[],

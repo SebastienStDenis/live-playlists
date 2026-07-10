@@ -65,7 +65,7 @@ export function SuggestedArtistsPanel({
                   <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
                     score {scoreOf(userArtist).toFixed(2)}
                   </span>
-                  {userArtist.tags.map((tag) => (
+                  {(userArtist.tags ?? []).map((tag) => (
                     <span
                       key={tag}
                       className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"

@@ -161,36 +161,14 @@ class LastfmClient:
         self, artist: str, limit: int = 10
     ) -> list[LastfmArtistTopTrack]:
         """An artist's tracks ranked by global playcount, best first."""
-        try:
-            payload = await self._get(
-                {
-                    "method": "artist.gettoptracks",
-                    "artist": artist,
-                    "autocorrect": 1,
-                    "limit": limit,
-                }
-            )
-        except LastfmUserNotFoundError:
-            # Error 6 means "not found" for whatever entity the method takes.
-            raise LastfmArtistNotFoundError(artist) from None
+        payload = await self._get_artist("artist.gettoptracks", artist, limit=limit)
         return [_parse_artist_top_track(track) for track in _as_list(payload["toptracks"], "track")]
 
     async def get_similar_artists(
         self, artist: str, limit: int = 100
     ) -> list[LastfmSimilarArtistData]:
         """Artists similar to the given one, with Last.fm's 0-1 match score."""
-        try:
-            payload = await self._get(
-                {
-                    "method": "artist.getsimilar",
-                    "artist": artist,
-                    "autocorrect": 1,
-                    "limit": limit,
-                }
-            )
-        except LastfmUserNotFoundError:
-            # Error 6 means "not found" for whatever entity the method takes.
-            raise LastfmArtistNotFoundError(artist) from None
+        payload = await self._get_artist("artist.getsimilar", artist, limit=limit)
         return [
             _parse_similar_artist(entry) for entry in _as_list(payload["similarartists"], "artist")
         ]
@@ -198,14 +176,15 @@ class LastfmClient:
     async def get_artist_info(self, artist: str) -> LastfmArtistInfo:
         """An artist's profile: canonical url, global listening stats, and
         top tags ordered by prominence."""
+        payload = await self._get_artist("artist.getinfo", artist)
+        return _parse_artist_info(payload["artist"])
+
+    async def _get_artist(self, method: str, artist: str, **params: int) -> dict:
         try:
-            payload = await self._get(
-                {"method": "artist.getinfo", "artist": artist, "autocorrect": 1}
-            )
+            return await self._get({"method": method, "artist": artist, "autocorrect": 1, **params})
         except LastfmUserNotFoundError:
             # Error 6 means "not found" for whatever entity the method takes.
             raise LastfmArtistNotFoundError(artist) from None
-        return _parse_artist_info(payload["artist"])
 
     async def _get(self, params: dict) -> dict:
         params = {**params, "api_key": self._api_key, "format": "json"}
@@ -270,7 +249,7 @@ def _parse_artist_top_track(track: dict) -> LastfmArtistTopTrack:
 
 
 def _parse_artist_info(artist: dict) -> LastfmArtistInfo:
-    stats = artist.get("stats", {})
+    stats = artist.get("stats") or {}
     return LastfmArtistInfo(
         name=artist["name"],
         url=_text_or_none(artist.get("url")),
