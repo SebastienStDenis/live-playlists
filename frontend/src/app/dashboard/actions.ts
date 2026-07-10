@@ -130,20 +130,20 @@ export async function setIncludeKnownArtists(
   );
 }
 
-export async function setArtistIgnored(
+export async function setArtistHidden(
   artistId: string,
-  ignored: boolean,
+  hidden: boolean,
 ): Promise<ActionState> {
   // Unlike callApi, never surface the response's detail: the row has no room
   // for prose, and a stale backend answers with an unhelpful route-miss
   // "Not Found".
   const failure = {
-    error: ignored ? "Failed to ignore." : "Failed to stop ignoring.",
+    error: hidden ? "Failed to hide." : "Failed to unhide.",
   };
   let res: Response;
   try {
     res = await apiFetch(`/me/artists/${artistId}/exclusion`, {
-      method: ignored ? "PUT" : "DELETE",
+      method: hidden ? "PUT" : "DELETE",
     });
   } catch (e) {
     unstable_rethrow(e);

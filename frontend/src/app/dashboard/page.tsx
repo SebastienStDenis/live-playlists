@@ -45,8 +45,8 @@ export default async function DashboardPage() {
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
   );
-  // A suggestion interest can briefly survive its artist's exclusion (an
-  // ignore landing mid-sync); never render those as suggestions.
+  // A suggestion interest can briefly survive its artist's exclusion (a
+  // hide landing mid-sync); never render those as suggestions.
   const suggestedArtists = userArtists.filter(
     (userArtist) =>
       !userArtist.excluded &&

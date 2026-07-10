@@ -441,9 +441,9 @@ async def sync_lastfm_artists_for_user(
 @app.get("/me/artists", response_model=list[UserArtistRead])
 async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[UserArtistRead]:
     """List the user's artists of interest, grouped by artist with all reasons.
-    Excluded (ignored) artists stay in the listing, flagged, so the UI can
+    Excluded (hidden) artists stay in the listing, flagged, so the UI can
     show and undo the exclusion - even when the exclusion outlived every
-    interest row (an ignored suggestion loses its interest immediately)."""
+    interest row (a hidden suggestion loses its interest immediately)."""
     result = await session.execute(
         select(Artist)
         .join(UserArtistExclusion, UserArtistExclusion.artist_id == Artist.id)
@@ -479,7 +479,7 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
 
 @app.put("/me/artists/{artist_id}/exclusion", status_code=204)
 async def exclude_artist(user: CurrentUserDep, artist_id: uuid.UUID, session: SessionDep) -> None:
-    """Ignore the artist: never suggest, never seed, never match (see
+    """Hide the artist: never suggest, never seed, never match (see
     docs/design/2026-07-07-ignoring-plan.md). Idempotent. Any standing
     suggestion for the pair is dropped immediately rather than waiting for
     the next suggestion sync to prune it."""
@@ -505,7 +505,7 @@ async def exclude_artist(user: CurrentUserDep, artist_id: uuid.UUID, session: Se
 
 @app.delete("/me/artists/{artist_id}/exclusion", status_code=204)
 async def unexclude_artist(user: CurrentUserDep, artist_id: uuid.UUID, session: SessionDep) -> None:
-    """Stop ignoring the artist. Idempotent. A formerly suggested artist
+    """Unhide the artist. Idempotent. A formerly suggested artist
     re-enters as an ordinary candidate at the next sync (no standing claim
     to its old hysteresis advantage)."""
     await session.execute(

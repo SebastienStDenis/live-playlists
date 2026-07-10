@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { setArtistIgnored } from "./actions";
+import { setArtistHidden } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 
 export type Artist = {
@@ -88,7 +88,7 @@ function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
-function IgnoreIcon({ ignored }: { ignored: boolean }) {
+function HideIcon({ hidden }: { hidden: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -100,7 +100,7 @@ function IgnoreIcon({ ignored }: { ignored: boolean }) {
       className="h-4 w-4"
       aria-hidden
     >
-      {ignored ? (
+      {hidden ? (
         <>
           <path d="M9 14 4 9l5-5" />
           <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
@@ -130,10 +130,10 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
     return () => clearTimeout(timer);
   }, [error]);
 
-  function toggleIgnored() {
+  function toggleHidden() {
     setError(null);
     startTransition(async () => {
-      const result = await setArtistIgnored(artist.id, !excluded);
+      const result = await setArtistHidden(artist.id, !excluded);
       setError(result.error);
     });
   }
@@ -163,11 +163,11 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
         {error && <span className="text-xs text-red-600">{error}</span>}
         <button
           type="button"
-          onClick={toggleIgnored}
+          onClick={toggleHidden}
           disabled={pending}
-          title={excluded ? "Stop ignoring" : "Ignore artist"}
+          title={excluded ? "Unhide" : "Hide artist"}
           aria-label={
-            excluded ? `Stop ignoring ${artist.name}` : `Ignore ${artist.name}`
+            excluded ? `Unhide ${artist.name}` : `Hide ${artist.name}`
           }
           className={`rounded p-1 text-gray-400 transition-opacity hover:text-foreground focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-40 ${
             // Hidden-until-hover only where hovering exists; touch devices
@@ -176,7 +176,7 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
             excluded ? "" : "pointer-fine:opacity-0 group-hover:opacity-100"
           }`}
         >
-          <IgnoreIcon ignored={excluded} />
+          <HideIcon hidden={excluded} />
         </button>
       </span>
     </li>
@@ -229,7 +229,7 @@ export function TastePanel({
             ))}
           </ul>
           <p className="mt-2 text-xs text-gray-500 italic">
-            Ignored artists are not used to suggest artists or find concerts.
+            Hidden artists are not used to suggest artists or find concerts.
           </p>
         </>
       )}
