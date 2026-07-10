@@ -1,8 +1,8 @@
 """add info_synced_at to lastfm_artists
 
-Revision ID: dca22ef5e6e3
-Revises: 01343f3d13b3
-Create Date: 2026-07-10 18:02:53.637893
+Revision ID: d5b929ae1174
+Revises: 0762875a2f29
+Create Date: 2026-07-10 19:46:48.621887
 
 """
 
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "dca22ef5e6e3"
-down_revision: str | Sequence[str] | None = "01343f3d13b3"
+revision: str = "d5b929ae1174"
+down_revision: str | Sequence[str] | None = "0762875a2f29"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
