@@ -54,35 +54,39 @@ export function SuggestedArtistsPanel({
         )
       ) : (
         <>
-          <ul className="space-y-3">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {sortedArtists.map((userArtist) => (
               <li
                 key={userArtist.artist.id}
-                className="border-l border-gray-300 pl-2 text-sm dark:border-gray-700"
+                className="flex flex-col rounded border border-gray-300 p-3 text-sm dark:border-gray-700"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span>{userArtist.artist.name}</span>
-                  <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium">{userArtist.artist.name}</span>
+                  <span className="shrink-0 rounded-full border border-gray-300 px-2 py-0.5 text-xs whitespace-nowrap text-gray-500 dark:border-gray-700">
                     score {scoreOf(userArtist).toFixed(2)}
                   </span>
-                  {(userArtist.tags ?? []).map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {userArtist.listeners != null && (
-                    <span className="text-xs text-gray-500">
-                      {listenersFormat.format(userArtist.listeners)} listeners
-                    </span>
-                  )}
                 </div>
-                {reasonOf(userArtist) && (
+                {userArtist.listeners != null && (
                   <p className="mt-0.5 text-xs text-gray-500">
+                    {listenersFormat.format(userArtist.listeners)} listeners
+                  </p>
+                )}
+                {reasonOf(userArtist) && (
+                  <p className="mt-1 text-xs text-gray-500">
                     {reasonOf(userArtist)}
                   </p>
+                )}
+                {(userArtist.tags ?? []).length > 0 && (
+                  <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                    {(userArtist.tags ?? []).map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </li>
             ))}
