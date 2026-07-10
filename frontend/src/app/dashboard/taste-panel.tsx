@@ -235,7 +235,8 @@ export function TastePanel({
             ))}
           </ul>
           <p className="mt-2 text-xs text-gray-500 italic">
-            Hidden artists are not used to suggest artists or find concerts.
+            Hidden artists are skipped when suggesting artists and finding
+            concerts.
           </p>
         </>
       )}

@@ -73,7 +73,7 @@ Keep these exactly as written:
 - Playlists tab: "Spotify playlists tracking suggested concerts in your
   cities. Tracklists are automatically updated every day as your listening
   history and upcoming concerts change."
-- Listening History footnote: "Hidden artists are not used to suggest
-  artists or find concerts."
+- Listening History footnote: "Hidden artists are skipped when suggesting
+  artists and finding concerts."
 - Confirmation email: "... and start discovering live music through
   listening."
