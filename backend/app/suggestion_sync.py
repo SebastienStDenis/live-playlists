@@ -18,6 +18,7 @@ from app.artist_sync import (
 )
 from app.lastfm import (
     LastfmApiError,
+    LastfmArtistInfo,
     LastfmArtistNotFoundError,
     LastfmClient,
     LastfmSimilarArtistData,
@@ -38,6 +39,7 @@ from app.models import (
 from app.schemas import SuggestionSyncResult
 
 SIMILAR_TTL = timedelta(days=30)
+INFO_TTL = timedelta(days=30)
 SIMILAR_FETCH_LIMIT = 100
 FETCH_CONCURRENCY = 4
 
@@ -174,6 +176,9 @@ async def sync_user_suggestions(
         session, user.id, SIMILAR_ARTIST_KIND, signal_by_artist, source=Source.INTERNAL, prune=True
     )
 
+    enrich_ids = {interest.artist_id for interest in interests} | set(signal_by_artist)
+    enriched, enrich_failed = await _enrich_artist_info(session, lastfm, enrich_ids, now)
+
     return SuggestionSyncResult(
         synced_at=now,
         seeds_total=len(seeds),
@@ -184,6 +189,8 @@ async def sync_user_suggestions(
         suggestions_created=written.interests_created,
         suggestions_kept=len(kept) - written.interests_created,
         suggestions_removed=written.interests_removed,
+        artists_enriched=enriched,
+        artists_enrich_failed=enrich_failed,
     )
 
 
@@ -347,6 +354,60 @@ async def _fetch_similar(
             return await lastfm.get_similar_artists(name, limit=SIMILAR_FETCH_LIMIT)
         except LastfmArtistNotFoundError:
             return []
+        except LastfmApiError, httpx.HTTPError:
+            return None
+
+
+async def _enrich_artist_info(
+    session: AsyncSession,
+    lastfm: LastfmClient,
+    artist_ids: set[uuid.UUID],
+    now: datetime,
+) -> tuple[int, int]:
+    """Fill url, listening stats, and tags for interest artists whose info is
+    missing or stale. The registry is global, so one user's sync serves every
+    user reading the same artist."""
+    result = await session.execute(
+        select(LastfmArtist).where(LastfmArtist.artist_id.in_(artist_ids))
+    )
+    rows = [
+        row
+        for row in result.scalars()
+        if row.info_synced_at is None or now - row.info_synced_at >= INFO_TTL
+    ]
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+    outcomes = await asyncio.gather(*(_fetch_info(lastfm, row.name, semaphore) for row in rows))
+
+    # Failed fetches keep their old info and their stale info_synced_at, so
+    # the next sync retries them.
+    enriched = 0
+    for row, info in zip(rows, outcomes, strict=True):
+        if info is None:
+            continue
+        if info.url:
+            row.url = info.url
+        if info.mbid:
+            row.mbid = info.mbid
+        row.listeners = info.listeners
+        row.playcount = info.playcount
+        row.tags = info.tags
+        row.info_synced_at = now
+        enriched += 1
+    return enriched, len(rows) - enriched
+
+
+async def _fetch_info(
+    lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
+) -> LastfmArtistInfo | None:
+    """None means a transient failure that should not stamp the freshness
+    timestamp; an artist unknown to Last.fm is a durable empty result."""
+    async with semaphore:
+        try:
+            return await lastfm.get_artist_info(name)
+        except LastfmArtistNotFoundError:
+            return LastfmArtistInfo(
+                name=name, url=None, mbid=None, listeners=None, playcount=None, tags=[]
+            )
         except LastfmApiError, httpx.HTTPError:
             return None
 

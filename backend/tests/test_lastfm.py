@@ -16,10 +16,12 @@ from app.lastfm import (
     LastfmUserInfo,
     LastfmUserNotFoundError,
     _as_list,
+    _parse_artist_info,
     _parse_artist_top_track,
     _parse_loved_track,
     _parse_top_artist,
     _parse_user_info,
+    visible_tags,
 )
 from app.models import LastfmAccount, User
 from tests.helpers import make_session, request, result_returning
@@ -257,6 +259,46 @@ def test_parse_artist_top_track_treats_placeholders_as_none() -> None:
     assert track.playcount is None
 
 
+def test_parse_artist_info() -> None:
+    info = _parse_artist_info(
+        {
+            "name": "Autechre",
+            "url": "https://www.last.fm/music/Autechre",
+            "mbid": "410c9baf-5469-44f6-9852-826524b80c61",
+            "stats": {"listeners": "700000", "playcount": "9000000"},
+            "tags": {
+                "tag": [
+                    {"name": "electronic", "url": "https://www.last.fm/tag/electronic"},
+                    {"name": "idm", "url": "https://www.last.fm/tag/idm"},
+                ]
+            },
+        }
+    )
+
+    assert info.name == "Autechre"
+    assert info.url == "https://www.last.fm/music/Autechre"
+    assert info.mbid == "410c9baf-5469-44f6-9852-826524b80c61"
+    assert info.listeners == 700_000
+    assert info.playcount == 9_000_000
+    assert info.tags == ["electronic", "idm"]
+
+
+def test_parse_artist_info_treats_placeholders_as_none() -> None:
+    info = _parse_artist_info({"name": "Obscure", "url": "", "mbid": "", "tags": ""})
+
+    assert info.url is None
+    assert info.mbid is None
+    assert info.listeners is None
+    assert info.playcount is None
+    assert info.tags == []
+
+
+def test_visible_tags_drops_meta_tags_case_insensitively() -> None:
+    tags = ["electronic", "Seen Live", "idm", "female vocalists", "FAVORITES"]
+
+    assert visible_tags(tags) == ["electronic", "idm"]
+
+
 def test_as_list_wraps_single_object() -> None:
     assert _as_list({"artist": {"name": "Solo"}}, "artist") == [{"name": "Solo"}]
 
@@ -381,6 +423,34 @@ async def test_get_similar_artists_raises_on_unknown_artist(
 
     with pytest.raises(LastfmArtistNotFoundError):
         await LastfmClient("key").get_similar_artists("nope")
+
+
+async def test_get_artist_info_parses_single_tag(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(
+        monkeypatch,
+        {
+            "artist": {
+                "name": "Autechre",
+                "url": "https://www.last.fm/music/Autechre",
+                "stats": {"listeners": "700000", "playcount": "9000000"},
+                "tags": {"tag": {"name": "electronic"}},
+            }
+        },
+    )
+
+    info = await LastfmClient("key").get_artist_info("Autechre")
+
+    assert info.tags == ["electronic"]
+    assert info.listeners == 700_000
+
+
+async def test_get_artist_info_raises_on_unknown_artist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_lastfm_api(monkeypatch, {"error": 6, "message": "The artist could not be found"})
+
+    with pytest.raises(LastfmArtistNotFoundError):
+        await LastfmClient("key").get_artist_info("nope")
 
 
 async def test_refresh_when_not_linked() -> None:

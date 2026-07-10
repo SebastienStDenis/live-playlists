@@ -1,6 +1,6 @@
 import math
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -8,6 +8,7 @@ import pytest
 from app.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND, name_key
 from app.lastfm import (
     LastfmApiError,
+    LastfmArtistInfo,
     LastfmArtistNotFoundError,
     LastfmClient,
     LastfmSimilarArtistData,
@@ -27,6 +28,7 @@ from app.suggestion_sync import (
     KNOWN_PLAYCOUNT_FLOOR,
     SUGGESTION_BUDGET,
     Candidate,
+    _enrich_artist_info,
     _refresh_seed_edges,
     known_artist_ids,
     score_candidates,
@@ -314,6 +316,84 @@ async def test_refresh_leaves_timestamp_untouched_on_failure() -> None:
     assert healthy.similar_synced_at == NOW
 
 
+def artist_info(name: str, **overrides) -> LastfmArtistInfo:
+    fields: dict = {
+        "name": name,
+        "url": f"https://www.last.fm/music/{name.replace(' ', '+')}",
+        "mbid": None,
+        "listeners": 700_000,
+        "playcount": 9_000_000,
+        "tags": ["electronic", "seen live"],
+    }
+    return LastfmArtistInfo(**{**fields, **overrides})
+
+
+async def test_enrich_fills_info_and_stamps_freshness() -> None:
+    row = make_seed("Autechre")
+    session = make_session()
+    session.execute.return_value = result_with_scalars([row])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.return_value = artist_info("Autechre")
+
+    enriched, failed = await _enrich_artist_info(session, lastfm, {row.artist_id}, NOW)
+
+    assert (enriched, failed) == (1, 0)
+    assert row.url == "https://www.last.fm/music/Autechre"
+    assert row.listeners == 700_000
+    assert row.playcount == 9_000_000
+    assert row.tags == ["electronic", "seen live"]  # stored raw, filtered at read time
+    assert row.info_synced_at == NOW
+
+
+async def test_enrich_skips_fresh_rows() -> None:
+    row = make_seed("Autechre")
+    row.info_synced_at = NOW - timedelta(days=1)
+    session = make_session()
+    session.execute.return_value = result_with_scalars([row])
+    lastfm = AsyncMock(spec=LastfmClient)
+
+    enriched, failed = await _enrich_artist_info(session, lastfm, {row.artist_id}, NOW)
+
+    assert (enriched, failed) == (0, 0)
+    lastfm.get_artist_info.assert_not_awaited()
+
+
+async def test_enrich_treats_unknown_artist_as_durable_empty() -> None:
+    row = make_seed("Obscure")
+    row.url = "https://www.last.fm/music/Obscure"
+    session = make_session()
+    session.execute.return_value = result_with_scalars([row])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = LastfmArtistNotFoundError("Obscure")
+
+    enriched, failed = await _enrich_artist_info(session, lastfm, {row.artist_id}, NOW)
+
+    assert (enriched, failed) == (1, 0)
+    assert row.info_synced_at == NOW
+    assert row.tags == []
+    assert row.url == "https://www.last.fm/music/Obscure"  # absent fields never erase
+
+
+async def test_enrich_leaves_timestamp_untouched_on_failure() -> None:
+    failing = make_seed("Failing")
+    healthy = make_seed("Healthy")
+    session = make_session()
+    session.execute.return_value = result_with_scalars([failing, healthy])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = [
+        LastfmApiError(8, "Operation failed"),
+        artist_info("Healthy"),
+    ]
+
+    enriched, failed = await _enrich_artist_info(
+        session, lastfm, {failing.artist_id, healthy.artist_id}, NOW
+    )
+
+    assert (enriched, failed) == (1, 1)
+    assert failing.info_synced_at is None
+    assert healthy.info_synced_at == NOW
+
+
 def make_account() -> LastfmAccount:
     return LastfmAccount(id=uuid.uuid7(), username="rj")
 
@@ -333,11 +413,13 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
         result_with_rows([]),  # upsert: insert conflicts
         result_with_scalars([]),  # exclusions re-read before the write
         result_with_scalars([]),  # reconcile: no existing suggestion interests
+        result_with_scalars([seed]),  # enrichment: rows needing info
     ]
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.return_value = [
         LastfmTopArtist(name="Autechre", url=None, mbid=None, playcount=100, rank=1)
     ]
+    lastfm.get_artist_info.return_value = artist_info("Autechre")
 
     response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
@@ -348,6 +430,8 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
     assert body["candidates_scored"] == 1
     assert body["suggestions_created"] == 1
     assert (body["suggestions_kept"], body["suggestions_removed"]) == (0, 0)
+    assert (body["artists_enriched"], body["artists_enrich_failed"]) == (1, 0)
+    lastfm.get_artist_info.assert_awaited_once_with("Autechre")
     lastfm.get_similar_artists.assert_not_awaited()
     lastfm.get_top_artists.assert_awaited_once_with("rj", period="overall", limit=1000)
     assert [artist.name for artist in added_objects(session, Artist)] == ["Boards of Canada"]

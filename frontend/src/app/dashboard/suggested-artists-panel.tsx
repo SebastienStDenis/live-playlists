@@ -15,6 +15,10 @@ function scoreOf(userArtist: UserArtist): number {
   return suggestionOf(userArtist)?.weight ?? 0;
 }
 
+const listenersFormat = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+});
+
 function reasonOf(userArtist: UserArtist): string | null {
   const seeds = suggestionOf(userArtist)
     ?.evidence.paths?.map((path) => path.seed_name)
@@ -61,6 +65,19 @@ export function SuggestedArtistsPanel({
                   <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
                     score {scoreOf(userArtist).toFixed(2)}
                   </span>
+                  {userArtist.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {userArtist.listeners != null && (
+                    <span className="text-xs text-gray-500">
+                      {listenersFormat.format(userArtist.listeners)} listeners
+                    </span>
+                  )}
                 </div>
                 {reasonOf(userArtist) && (
                   <p className="mt-0.5 text-xs text-gray-500">

@@ -345,6 +345,13 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
 
     autechre = Artist(id=uuid.uuid7(), name="Autechre")
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
+    autechre_info = LastfmArtist(
+        artist_id=autechre.id,
+        name="Autechre",
+        name_key="autechre",
+        listeners=700_000,
+        tags=["electronic", "seen live", "idm"],
+    )
     session = make_session()
     session.execute.side_effect = [
         result_with_scalars([boc]),
@@ -367,6 +374,7 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
                 ),
             ]
         ),
+        result_with_scalars([autechre_info]),
     ]
 
     response = await request("GET", "/me/artists", session, user=user())
@@ -382,6 +390,8 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     assert body[0]["interests"][0]["evidence"] == {"track_count": 3}
     assert body[0]["interests"][0]["source"] == "lastfm"
     assert body[0]["excluded"] is False
+    assert body[0]["tags"] == ["electronic", "idm"]  # meta tags filtered out
+    assert body[0]["listeners"] == 700_000
     assert body[1]["artist"] == {"id": str(boc.id), "name": "Boards of Canada"}
     assert len(body[1]["interests"]) == 1
     assert body[1]["excluded"] is True
@@ -413,6 +423,7 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
                 )
             ]
         ),
+        result_with_scalars([]),
     ]
 
     response = await request("GET", "/me/artists", session, user=user())
@@ -424,6 +435,8 @@ async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> 
         ("Boards of Canada", True),
     ]
     assert body[1]["interests"] == []
+    assert body[1]["tags"] == []
+    assert body[1]["listeners"] is None
 
 
 async def test_list_user_artists_requires_authentication() -> None:

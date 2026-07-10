@@ -74,6 +74,8 @@ class UserArtistRead(BaseModel):
     artist: ArtistRead
     interests: list[ArtistInterestRead]
     excluded: bool
+    tags: list[str] = []
+    listeners: int | None = None
 
 
 class EventRead(BaseModel):
@@ -132,6 +134,8 @@ class SuggestionSyncResult(BaseModel):
     suggestions_created: int
     suggestions_kept: int
     suggestions_removed: int
+    artists_enriched: int
+    artists_enrich_failed: int
 
 
 class PlaylistTrackRead(BaseModel):

@@ -30,6 +30,8 @@ export type UserArtist = {
   artist: Artist;
   interests: Interest[];
   excluded: boolean;
+  tags: string[];
+  listeners: number | null;
 };
 
 const numberFormat = new Intl.NumberFormat("en-US");

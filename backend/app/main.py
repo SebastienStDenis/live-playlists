@@ -35,6 +35,7 @@ from app.lastfm import (
     LastfmPrivateDataError,
     LastfmUserInfo,
     LastfmUserNotFoundError,
+    visible_tags,
 )
 from app.matching import (
     EVENT_MATCH_RADIUS_KM,
@@ -50,6 +51,7 @@ from app.models import (
     Event,
     EventArtist,
     LastfmAccount,
+    LastfmArtist,
     LastfmConnection,
     Playlist,
     PlaylistTrack,
@@ -501,21 +503,38 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
         .where(UserArtistInterest.user_id == user.id)
         .order_by(func.lower(Artist.name), UserArtistInterest.kind)
     )
+    rows = result.all()
+
+    lastfm_result = await session.execute(
+        select(LastfmArtist).where(
+            LastfmArtist.artist_id.in_({artist.id for _, artist in rows} | excluded_ids)
+        )
+    )
+    info_by_artist = {row.artist_id: row for row in lastfm_result.scalars()}
+
     grouped: dict[uuid.UUID, UserArtistRead] = {}
-    for interest, artist in result.all():
+    for interest, artist in rows:
         entry = grouped.get(artist.id)
         if entry is None:
+            info = info_by_artist.get(artist.id)
             entry = UserArtistRead(
                 artist=ArtistRead.model_validate(artist),
                 interests=[],
                 excluded=artist.id in excluded_ids,
+                tags=visible_tags(info.tags) if info and info.tags else [],
+                listeners=info.listeners if info else None,
             )
             grouped[artist.id] = entry
         entry.interests.append(ArtistInterestRead.model_validate(interest))
     for artist in excluded_artists:
         if artist.id not in grouped:
+            info = info_by_artist.get(artist.id)
             grouped[artist.id] = UserArtistRead(
-                artist=ArtistRead.model_validate(artist), interests=[], excluded=True
+                artist=ArtistRead.model_validate(artist),
+                interests=[],
+                excluded=True,
+                tags=visible_tags(info.tags) if info and info.tags else [],
+                listeners=info.listeners if info else None,
             )
     return sorted(grouped.values(), key=lambda entry: entry.artist.name.casefold())
 
