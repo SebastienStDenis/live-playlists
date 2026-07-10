@@ -115,6 +115,8 @@ function HideIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
+// Must match the animate-fade-in-out duration: the animation ends at
+// opacity 0 and this timeout unmounts the message.
 const ERROR_DISMISS_MS = 4000;
 
 function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
@@ -160,7 +162,11 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
           </span>
         ))}
       <span className="ml-auto flex items-center gap-2">
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && (
+          <span className="animate-fade-in-out text-xs text-red-600">
+            {error}
+          </span>
+        )}
         <button
           type="button"
           onClick={toggleHidden}

@@ -138,7 +138,7 @@ export async function setArtistHidden(
   // for prose, and a stale backend answers with an unhelpful route-miss
   // "Not Found".
   const failure = {
-    error: hidden ? "Failed to hide." : "Failed to unhide.",
+    error: hidden ? "Failed to hide" : "Failed to unhide",
   };
   let res: Response;
   try {
