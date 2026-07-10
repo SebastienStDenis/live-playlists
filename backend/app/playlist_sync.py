@@ -406,19 +406,23 @@ async def _sync_playlist(
     )
     current_rows = list(result.scalars())
 
-    # One replace per sync: atomic, idempotent, and self-healing against any
-    # manual edits on the Spotify side. Surviving tracks keep their added_at
-    # (verified, app.spotify_verify), so "Date added" still reads as "newly
-    # announced concerts first". Skipped only when a just-created playlist has
-    # nothing to write.
-    if not (created and not desired):
+    # One full replace per changed tracklist: atomic, and surviving tracks
+    # keep their added_at (verified, app.spotify_verify), so "Date added"
+    # still reads as "newly announced concerts first". An unchanged tracklist
+    # skips the write: the stored rows mirror the last committed replace, so
+    # equality means the remote matches too, short of out-of-band divergence
+    # (bot-account edits, a replace whose commit rolled back) that the next
+    # real tracklist change overwrites.
+    current_track_ids = [row.spotify_track_id for row in current_rows]
+    desired_track_ids = [track.spotify_track_id for track in desired]
+    if current_track_ids != desired_track_ids:
         snapshot = await spotify.replace_playlist_items(
-            spotify_playlist_id, [track_uri(track.spotify_track_id) for track in desired]
+            spotify_playlist_id, [track_uri(track_id) for track_id in desired_track_ids]
         )
         playlist.snapshot_id = snapshot or playlist.snapshot_id
 
-    current_ids = {row.spotify_track_id for row in current_rows}
-    desired_ids = {track.spotify_track_id for track in desired}
+    current_ids = set(current_track_ids)
+    desired_ids = set(desired_track_ids)
     current_state = [(row.spotify_track_id, row.artist_id, row.event_id) for row in current_rows]
     desired_state = [(track.spotify_track_id, track.artist_id, track.event_id) for track in desired]
     if current_state != desired_state:
