@@ -21,7 +21,11 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
   // the pin action's revalidated payload delivers the real row.
   const [adding, setAdding] = useState<City | null>(null);
 
-  const atCap = pinned.length >= PINNED_PLAYLIST_CAP;
+  // The in-flight pin counts toward the cap so the search box flips to the
+  // remove-a-pin message as soon as the last slot is taken, not once the
+  // revalidated payload lands.
+  const pinnedCount = pinned.length + (pending && adding ? 1 : 0);
+  const atCap = pinnedCount >= PINNED_PLAYLIST_CAP;
 
   function pin(city: City) {
     setAdding(city);
