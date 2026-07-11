@@ -54,7 +54,8 @@ function LinkForm() {
           name="username"
           placeholder="Last.fm username"
           required
-          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm dark:border-gray-700"
+          disabled={pending}
+          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
         />
         <button
           type="submit"
