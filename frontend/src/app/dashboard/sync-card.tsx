@@ -70,6 +70,7 @@ export function SyncCard({
   // the last-synced line slides in.
   const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
 
@@ -199,95 +200,100 @@ export function SyncCard({
 
   return (
     <div>
-      {/* The button uses regular padding. Each state's first line is nudged
-          down (pt-1) to line up with the button, so the button holds its
-          position between the active steps and the finished status line;
-          extra step lines just grow downward. */}
-      <div className="flex flex-col">
-        <div
-          className="flex items-start gap-3"
+      {/* The status column reserves the two-line height of a step display
+          (min-h-9) and everything centers within the row, so the button holds
+          its place across states and stays centered next to the last-run line
+          even when that line wraps. The expanded step list renders below the
+          row (not inside the status column) so opening it never re-centers
+          the button. */}
+      <div className="flex items-center gap-3">
+        <span
+          className="order-last shrink-0"
+          title={missingNote ?? undefined}
         >
-          <span
-            className="order-last shrink-0"
-            title={missingNote ?? undefined}
+          <button
+            type="button"
+            onClick={onSync}
+            disabled={starting || busy || !canSync}
+            className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
           >
-            <button
-              type="button"
-              onClick={onSync}
-              disabled={starting || busy || !canSync}
-              className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
-            >
-              {/* Kept in the layout (just hidden) while busy so the button holds
-                  the same width as when it reads "Sync". */}
-              <span className={busy ? "invisible" : undefined}>Sync</span>
-              {busy && (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <Spinner />
-                </span>
-              )}
-            </button>
-          </span>
-          <div className="min-w-0 flex-1">
-            {showSteps && status ? (
-              <div className="animate-fade-in pt-1">
-                <CurrentStep
-                  key={runSeq}
-                  steps={status.steps}
-                  finished={!running}
-                  onSettled={() => {
-                    setSettling(false);
-                    setLeaving(true);
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="relative pt-1">
-                {leaving && status && (
-                  <div className="absolute inset-x-0 top-0 animate-slide-out-up">
-                    <LastStepLine steps={status.steps} />
-                  </div>
-                )}
-                {status && finalOutcome !== "none" && (
-                  <details className="group animate-slide-in-up">
-                    <summary
-                      className={`flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden ${
-                        finalOutcome === "failed"
-                          ? "text-foreground"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      <span
-                        className={
-                          finalOutcome === "failed"
-                            ? "text-red-600"
-                            : "text-green-600 dark:text-green-500"
-                        }
-                      >
-                        <StepMark status={finalOutcome} />
-                      </span>
-                      <span>
-                        {finalOutcome === "failed"
-                          ? "Last sync failed"
-                          : "Last synced"}
-                        {finishedAt && ` ${finishedAt}`}.
-                      </span>
-                      <ExpandToggleMark />
-                    </summary>
-                    <div className="mt-2">
-                      <StepList steps={status.steps} />
-                    </div>
-                  </details>
-                )}
-                {finalOutcome === "none" && !statusLoading && (
-                  <p className="text-sm text-gray-500">
-                    Run a sync (requires Last.fm and home city)
-                  </p>
-                )}
-              </div>
+            {/* Kept in the layout (just hidden) while busy so the button holds
+                the same width as when it reads "Sync". */}
+            <span className={busy ? "invisible" : undefined}>Sync</span>
+            {busy && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <Spinner />
+              </span>
             )}
-          </div>
+          </button>
+        </span>
+        <div className="flex min-h-9 min-w-0 flex-1 items-center">
+          {showSteps && status ? (
+            <div className="min-w-0 flex-1 animate-fade-in">
+              <CurrentStep
+                key={runSeq}
+                steps={status.steps}
+                finished={!running}
+                onSettled={() => {
+                  setSettling(false);
+                  setLeaving(true);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="relative min-w-0 flex-1">
+              {leaving && status && (
+                <div className="absolute inset-x-0 top-0 animate-slide-out-up">
+                  <LastStepLine steps={status.steps} />
+                </div>
+              )}
+              {status && finalOutcome !== "none" && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((open) => !open)}
+                  aria-expanded={expanded}
+                  className={`group flex animate-slide-in-up cursor-pointer items-start gap-1.5 text-left text-sm ${
+                    finalOutcome === "failed"
+                      ? "text-foreground"
+                      : "text-gray-500"
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 ${
+                      finalOutcome === "failed"
+                        ? "text-red-600"
+                        : "text-green-600 dark:text-green-500"
+                    }`}
+                  >
+                    <StepMark status={finalOutcome} />
+                  </span>
+                  <span>
+                    {finalOutcome === "failed"
+                      ? "Last sync failed"
+                      : "Last synced"}
+                    {finishedAt && ` ${finishedAt}`}.
+                  </span>
+                  {/* flex so the mark's inline span blockifies; block svgs
+                      inside an inline box would add an empty line above. */}
+                  <span className="mt-0.5 flex">
+                    <ExpandToggleMark />
+                  </span>
+                </button>
+              )}
+              {finalOutcome === "none" && !statusLoading && (
+                <p className="text-sm text-gray-500">
+                  Run a sync (requires Last.fm and home city)
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+      {expanded && !showSteps && status && finalOutcome !== "none" && (
+        <div className="mt-2">
+          <StepList steps={status.steps} />
+        </div>
+      )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );

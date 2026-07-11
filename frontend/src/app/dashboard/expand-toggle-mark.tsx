@@ -1,12 +1,12 @@
 // Unfold marker: chevrons point away from each other when collapsed (expand)
-// and toward each other when open (collapse). Toggled by the parent
-// <details className="group"> via the group-open state.
+// and toward each other when open (collapse). Toggled by the parent "group":
+// an open <details> or a control with aria-expanded.
 export function ExpandToggleMark() {
   return (
     <span className="ml-0.5 text-gray-400 dark:text-gray-600">
       <svg
         viewBox="0 0 16 16"
-        className="h-3.5 w-3.5 group-open:hidden"
+        className="h-3.5 w-3.5 group-open:hidden group-aria-expanded:hidden"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.5}
@@ -19,7 +19,7 @@ export function ExpandToggleMark() {
       </svg>
       <svg
         viewBox="0 0 16 16"
-        className="hidden h-3.5 w-3.5 group-open:block"
+        className="hidden h-3.5 w-3.5 group-open:block group-aria-expanded:block"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.5}
