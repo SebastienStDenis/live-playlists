@@ -105,7 +105,6 @@ export default async function DashboardPage() {
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
                   synced={syncStepCompleted(sync, "suggestions")}
-                  syncEnabled={!syncDisabled}
                 />
               ),
             },
@@ -117,7 +116,6 @@ export default async function DashboardPage() {
                 <EventsPanel
                   city={city}
                   synced={syncStepCompleted(sync, "events")}
-                  syncEnabled={!syncDisabled}
                   artistRelations={artistRelations}
                   events={events}
                 />

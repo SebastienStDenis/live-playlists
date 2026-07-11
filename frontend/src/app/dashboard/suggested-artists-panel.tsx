@@ -41,11 +41,9 @@ function reasonOf(userArtist: UserArtist): string | null {
 export function SuggestedArtistsPanel({
   suggestedArtists,
   synced,
-  syncEnabled,
 }: {
   suggestedArtists: UserArtist[];
   synced: boolean;
-  syncEnabled: boolean;
 }) {
   const sortedArtists = [...suggestedArtists].sort(
     (a, b) =>
@@ -61,7 +59,7 @@ export function SuggestedArtistsPanel({
             Last.fm to capture future listening history.
           </EmptyState>
         ) : (
-          <RunSyncMessage action="suggest artists" syncEnabled={syncEnabled} />
+          <RunSyncMessage action="suggest artists" />
         )
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -73,7 +71,10 @@ export function SuggestedArtistsPanel({
                     {userArtist.artist.name}
                   </CardTitle>
                   <CardAction>
-                    <Badge variant="outline" className="text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="px-1.5 text-muted-foreground"
+                    >
                       <span
                         className="size-1.5 rounded-full bg-primary"
                         aria-hidden
