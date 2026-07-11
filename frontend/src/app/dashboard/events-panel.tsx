@@ -150,12 +150,15 @@ export function EventsPanel({
       )}
     </span>
   ) : (
-    <span className="flex min-w-0 items-center gap-1.5 border-b border-dotted border-gray-400 pb-0.5 dark:border-gray-600">
+    // The dotted underline is a background gradient rather than
+    // border-dotted, which spaces its first dots unevenly; -mb-0.5 gives the
+    // pb-0.5 underline room back so the text stays level with its siblings.
+    <span className="-mb-0.5 flex min-w-0 items-center gap-1.5 bg-bottom bg-no-repeat pb-0.5 [background-image:repeating-linear-gradient(90deg,var(--color-gray-400)_0_1px,transparent_1px_4px)] [background-size:100%_1px] dark:[background-image:repeating-linear-gradient(90deg,var(--color-gray-600)_0_1px,transparent_1px_4px)]">
       <button
         type="button"
         onClick={() => setEditingCity(true)}
         title="See concerts in another city"
-        className="flex min-w-0 items-center gap-1.5 hover:text-gray-700 dark:hover:text-gray-300"
+        className="-m-1 flex min-w-0 items-center gap-1.5 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
       >
         <span className="min-w-0">{shownCity?.name ?? "another city"}</span>
         <span className="flex text-gray-500">
@@ -168,7 +171,7 @@ export function EventsPanel({
           onClick={() => setViewCity(null)}
           aria-label={`Back to ${city.name}`}
           title={`Back to ${city.name}`}
-          className="flex text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           <UndoMark />
         </button>
