@@ -39,6 +39,20 @@ shaped the values, and should shape future adjustments:
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
+## Interactive affordances
+
+- **Internal navigation is a button, never an underlined link.** In-app page
+  references - both chrome (the Account and Home buttons) and inline mentions
+  in prose ("Run a sync in Account…", "See About…") - render as buttons with
+  a directional arrow; prose uses the small outline pill in
+  `frontend/src/app/inline-nav.tsx`. Underlined text links are reserved for
+  external targets (Spotify, Last.fm, event pages), which also carry the
+  external-link icon where space allows.
+- **Hover feedback is a background highlight, not a text-color change.**
+  Interactive text (ghost/outline buttons, clickable lines like the
+  get-started nudge) hovers with the muted background wash the button
+  variants provide; a color-only hover on bare text is off-theme.
+
 ## Where the accent shows
 
 The primary token is deliberately present on every logged-in page: the active

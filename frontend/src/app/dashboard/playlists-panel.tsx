@@ -1,7 +1,6 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
 import { ChevronDown, ExternalLink } from "lucide-react";
 
 import {
@@ -16,6 +15,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
@@ -136,13 +136,7 @@ export function PlaylistsPanel({
     return (
       <EmptyState>
         No playlists generated. Set your home city in{" "}
-        <Link
-          href="/dashboard/account"
-          className="underline hover:text-foreground"
-        >
-          Account
-        </Link>
-        .
+        <InlineNav href="/dashboard/account">Account</InlineNav>.
       </EmptyState>
     );
   }

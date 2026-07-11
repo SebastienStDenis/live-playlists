@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
+import { InlineNav } from "../inline-nav";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
@@ -200,13 +200,8 @@ export function EventsPanel({
           </h3>
           <EmptyState className="mt-4">
             Set your home city in{" "}
-            <Link
-              href="/dashboard/account"
-              className="underline hover:text-foreground"
-            >
-              Account
-            </Link>{" "}
-            to see local concerts.
+            <InlineNav href="/dashboard/account">Account</InlineNav> to see
+            local concerts.
           </EmptyState>
         </div>
       ) : (

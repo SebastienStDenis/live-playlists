@@ -270,18 +270,24 @@ export function SyncCard({
                 </CollapsibleTrigger>
               )}
               {finalOutcome === "none" && !statusLoading && canSync && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={onSync}
                   disabled={starting}
-                  className="flex animate-fade-in cursor-pointer items-center gap-2 text-left text-sm text-muted-foreground hover:text-foreground"
+                  // -ml-2.5 cancels the ghost padding so the label stays
+                  // optically aligned with the card content edge; the height
+                  // and whitespace overrides let the label wrap on narrow
+                  // screens.
+                  className="-ml-2.5 h-auto min-h-7 animate-fade-in justify-start text-left whitespace-normal text-muted-foreground"
                 >
                   <span
                     className="size-1.5 shrink-0 rounded-full bg-primary"
                     aria-hidden
                   />
                   Get started by running a manual sync.
-                </button>
+                </Button>
               )}
             </div>
           )}

@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { InlineNav } from "../inline-nav";
 import { EmptyState } from "./empty-state";
 
 // Standard empty state for a tab whose sync step has not completed yet; see
@@ -16,18 +15,12 @@ export function RunSyncMessage({
     <EmptyState>
       {syncEnabled && (
         <span
-          className="mr-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-primary align-middle"
+          className="mr-1 inline-block size-1.5 -translate-y-px rounded-full bg-primary align-middle"
           aria-hidden
         />
       )}
       Run a sync in{" "}
-      <Link
-        href="/dashboard/account"
-        className="underline underline-offset-4 hover:text-foreground"
-      >
-        Account
-      </Link>{" "}
-      to {action}.
+      <InlineNav href="/dashboard/account">Account</InlineNav> to {action}.
     </EmptyState>
   );
 }

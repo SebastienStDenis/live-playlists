@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InlineNav } from "./inline-nav";
 
 export function IntroText({ className }: { className?: string }) {
   return (
@@ -8,12 +8,9 @@ export function IntroText({ className }: { className?: string }) {
       them.
       Playlists update daily as your listening history and upcoming concerts
       change. See{" "}
-      <Link
-        href="/about"
-        className="underline underline-offset-4 hover:text-foreground"
-      >
+      <InlineNav href="/about" className="h-5 px-1.5">
         About
-      </Link>{" "}
+      </InlineNav>{" "}
       for more details.
     </p>
   );
