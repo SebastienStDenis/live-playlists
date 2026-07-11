@@ -49,7 +49,7 @@ export type UserArtist = {
 
 const numberFormat = new Intl.NumberFormat("en-US");
 
-type SortKey = "rank" | "plays" | "loved" | "name";
+type SortKey = "rank" | "plays" | "loved" | "name" | "hidden";
 
 function rankOf(userArtist: UserArtist): number {
   const rank = userArtist.interests.find(
@@ -81,6 +81,10 @@ const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
   rank: (a, b) => rankOf(a) - rankOf(b) || byName(a, b),
   plays: (a, b) => playsOf(b) - playsOf(a) || byName(a, b),
   loved: (a, b) => lovedOf(b) - lovedOf(a) || byName(a, b),
+  hidden: (a, b) =>
+    Number(b.excluded) - Number(a.excluded) ||
+    rankOf(a) - rankOf(b) ||
+    byName(a, b),
 };
 
 function interestLabel(interest: Interest): string {
@@ -212,6 +216,7 @@ export function TastePanel({
                   <SelectItem value="plays">Most plays</SelectItem>
                   <SelectItem value="loved">Most loved tracks</SelectItem>
                   <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="hidden">Hidden first</SelectItem>
                 </SelectContent>
               </Select>
             </div>
