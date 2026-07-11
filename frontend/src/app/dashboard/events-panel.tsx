@@ -169,17 +169,17 @@ export function EventsPanel({
         title="See concerts in another city"
         className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
       >
-        <span className="min-w-0">{shownCity?.name ?? "another city"}</span>
+        {shownCity && <span className="min-w-0">{shownCity.name}</span>}
         <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
       </Button>
-      {viewCity && city && (
+      {viewCity && (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           onClick={() => setViewCity(null)}
-          aria-label={`Back to ${city.name}`}
-          title={`Back to ${city.name}`}
+          aria-label={city ? `Back to ${city.name}` : "Back"}
+          title={city ? `Back to ${city.name}` : "Back"}
           className="text-muted-foreground"
         >
           <Undo2 aria-hidden />
@@ -259,12 +259,13 @@ export function EventsPanel({
                     </CardHeader>
                     <CardContent className="mt-auto flex flex-wrap items-center gap-2">
                       {artists.map((artist) => {
-                        const known = artistRelations[artist.id] === "known";
+                        const suggested =
+                          artistRelations[artist.id] === "suggested";
                         return (
                           <Badge
                             key={artist.id}
-                            variant={known ? "secondary" : "outline"}
-                            className={`max-w-full font-normal ${known ? "" : "text-muted-foreground"}`}
+                            variant={suggested ? "secondary" : "outline"}
+                            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
                           >
                             <span className="truncate">
                               {artistChipLabel(artist, artistRelations)}
