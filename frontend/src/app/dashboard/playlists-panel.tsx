@@ -126,11 +126,11 @@ function PlaylistCard({
 }) {
   return (
     <li className="flex flex-col rounded border border-gray-300 p-3 dark:border-gray-700">
-      {/* gap-y-1 matches the mt-1 below, so a wrapped badge sits as close to
-          the title above as to the Spotify line below. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+      {/* The row never wraps: a long name breaks onto extra lines while the
+          badge keeps its natural width, centered on the right. */}
+      <div className="flex items-center justify-between gap-x-2">
         <span className="min-w-0 font-medium">{playlist.name}</span>
-        <span className="max-w-full rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
+        <span className="max-w-full shrink-0 rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
           {playlist.city
             ? `pinned to ${playlist.city.name}`
             : "follows your home city"}
