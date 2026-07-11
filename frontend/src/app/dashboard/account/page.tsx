@@ -51,8 +51,13 @@ function Section({
               variant="secondary"
               aria-hidden={!alert}
               className={cn(
-                "h-auto min-h-5 max-w-full font-normal whitespace-normal transition-all duration-300",
-                !alert && "max-w-0 border-0 px-0 opacity-0",
+                "font-normal transition-all duration-300",
+                // The wrap overrides apply only while shown: collapsed to
+                // max-w-0, wrapping text would stack one character per line
+                // and blow up the title row's height.
+                alert
+                  ? "h-auto min-h-5 max-w-full whitespace-normal"
+                  : "max-w-0 border-0 px-0 opacity-0",
               )}
             >
               <AttentionDot className="mr-0" />
