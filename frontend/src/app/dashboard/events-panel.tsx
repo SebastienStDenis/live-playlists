@@ -174,7 +174,7 @@ export function EventsPanel({
               </EmptyState>
             )
           ) : (
-            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, distance_km, artists }) => (
                 <li
                   key={event.id}
