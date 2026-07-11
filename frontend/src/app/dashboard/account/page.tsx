@@ -93,10 +93,10 @@ export default async function AccountPage() {
       <IntroText className="mt-1 text-xs text-muted-foreground italic" />
       <div className="mt-6 space-y-6">
         <Section
-          heading="Sync"
+          heading="Daily Sync"
           alert={neverSynced}
           alertText="Get started by running a sync"
-          description="Imports listening history, suggests artists, finds concerts and generates playlists. Re-runs automatically every day."
+          description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
         </Section>
