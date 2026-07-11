@@ -72,6 +72,10 @@ export function SuggestedArtistsPanel({
                   </CardTitle>
                   <CardAction>
                     <Badge variant="outline" className="text-muted-foreground">
+                      <span
+                        className="size-1.5 rounded-full bg-primary"
+                        aria-hidden
+                      />
                       score {scoreOf(userArtist).toFixed(2)}
                     </Badge>
                   </CardAction>

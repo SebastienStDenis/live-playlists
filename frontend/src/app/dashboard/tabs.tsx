@@ -19,7 +19,7 @@ export function Tabs({
 }: {
   tabs: {
     key: string;
-    label: string;
+    label: ReactNode;
     description?: string;
     content: ReactNode;
   }[];

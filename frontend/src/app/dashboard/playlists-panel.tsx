@@ -178,7 +178,13 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
     <li className="flex">
       <Card size="sm" className="flex-1">
         <CardHeader>
-          <CardTitle>{playlist.name}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <span
+              className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
+              aria-hidden
+            />
+            {playlist.name}
+          </CardTitle>
           <CardDescription>
             {playlist.spotify_url ? (
               <a

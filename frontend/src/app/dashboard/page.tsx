@@ -85,7 +85,7 @@ export default async function DashboardPage() {
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/dashboard/account">
             {(lastfm === null || city === null || neverSynced) && (
-              <AttentionDot />
+              <AttentionDot pulse />
             )}
             Account
             <ArrowRight aria-hidden />
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
       </div>
       <section className="mt-6">
         <Tabs
-          defaultTab={lastTab}
+          defaultTab={lastTab ?? "playlists"}
           tabs={[
             {
               key: "suggested",
@@ -123,7 +123,17 @@ export default async function DashboardPage() {
             },
             {
               key: "playlists",
-              label: `Playlists (${linkedPlaylists.length})`,
+              label: (
+                <>
+                  {linkedPlaylists.length > 0 && (
+                    <span
+                      className="size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current"
+                      aria-hidden
+                    />
+                  )}
+                  Playlists ({linkedPlaylists.length})
+                </>
+              ),
               description:
                 "Spotify playlists tracking suggested concerts in your cities.",
               content: (
