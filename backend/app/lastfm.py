@@ -62,9 +62,8 @@ class LastfmArtistNotFoundError(Exception):
 class LastfmPrivateDataError(Exception):
     def __init__(self, username: str | None) -> None:
         super().__init__(
-            f"Last.fm account {username}'s listening data isn't publicly "
-            "visible. Update its visibility in Last.fm's privacy settings, "
-            "then try again."
+            f"{username}'s listening history isn't public. "
+            "Update visibility settings in Last.fm then try again."
         )
         self.username = username
 

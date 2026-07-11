@@ -149,7 +149,7 @@ async def test_link_private_lastfm_account() -> None:
     )
 
     assert response.status_code == 403
-    assert "privacy settings" in response.json()["detail"]
+    assert "visibility settings" in response.json()["detail"]
     session.add.assert_not_called()
     session.commit.assert_not_awaited()
 
@@ -497,7 +497,7 @@ async def test_refresh_private_lastfm_account() -> None:
     response = await request("POST", "/me/lastfm/refresh", session, lastfm, user=user())
 
     assert response.status_code == 403
-    assert "privacy settings" in response.json()["detail"]
+    assert "visibility settings" in response.json()["detail"]
     session.commit.assert_not_awaited()
 
 
