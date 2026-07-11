@@ -7,21 +7,66 @@ import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
+import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
+import { XMark } from "./x-mark";
 
 const PINNED_PLAYLIST_CAP = 2;
 
 export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
+  const [result, setResult] = useState<ActionState>({ error: null });
+  const error = useTransientError(result);
+  const [pending, startTransition] = useTransition();
+  // The city just picked, shown as a placeholder row with a spinner until
+  // the pin action's revalidated payload delivers the real row.
+  const [adding, setAdding] = useState<City | null>(null);
+
+  // The in-flight pin counts toward the cap so the search box flips to the
+  // remove-a-pin message as soon as the last slot is taken, not once the
+  // revalidated payload lands.
+  const pinnedCount = pinned.length + (pending && adding ? 1 : 0);
+  const atCap = pinnedCount >= PINNED_PLAYLIST_CAP;
+
+  function pin(city: City) {
+    setAdding(city);
+    startTransition(async () => {
+      setResult(await createCityPlaylist(city.geonameid));
+    });
+  }
+
   return (
     <div className="space-y-3">
-      {pinned.length > 0 && (
+      {(pinned.length > 0 || (pending && adding)) && (
         <ul className="space-y-1">
           {pinned.map((playlist) => (
             <PinnedCityRow key={playlist.id} playlist={playlist} />
           ))}
+          {pending && adding && (
+            <li className="flex items-center justify-between gap-x-2 text-sm">
+              <span className="min-w-0">{cityLabel(adding)}</span>
+              <span className="flex text-gray-500">
+                <Spinner />
+              </span>
+            </li>
+          )}
         </ul>
       )}
-      <PinCitySearch atCap={pinned.length >= PINNED_PLAYLIST_CAP} />
+      <div className="space-y-2">
+        <CitySearchBox
+          placeholder={
+            atCap
+              ? "Remove an existing pin to add another"
+              : "Add a playlist for another city"
+          }
+          disabled={atCap || pending}
+          onSelect={pin}
+        />
+        {error && !pending && (
+          <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
+            {error.message}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -46,8 +91,12 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
   }
 
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
-      <span>{playlist.city && cityLabel(playlist.city)}</span>
+    // The row never wraps: a long city name breaks onto extra lines inside
+    // its own span while the remove control stays right, centered on them.
+    <li className="flex items-center justify-between gap-x-2 text-sm">
+      <span className="min-w-0">
+        {playlist.city && cityLabel(playlist.city)}
+      </span>
       <span className="flex items-baseline gap-2">
         {error && !pending && (
           <span
@@ -57,46 +106,23 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
             {error.message}
           </span>
         )}
-        <button
-          type="button"
-          onClick={remove}
-          disabled={pending}
-          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-        >
-          {pending ? "Removing..." : "Remove"}
-        </button>
+        {pending ? (
+          <span className="flex self-center text-gray-500">
+            <Spinner />
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={remove}
+            aria-label={`Remove ${playlist.city?.name ?? "pinned city"}`}
+            title="Remove"
+            className="-m-1 flex self-center rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <XMark className="h-4 w-4" />
+          </button>
+        )}
       </span>
     </li>
   );
 }
 
-function PinCitySearch({ atCap }: { atCap: boolean }) {
-  const [result, setResult] = useState<ActionState>({ error: null });
-  const error = useTransientError(result);
-  const [pending, startTransition] = useTransition();
-
-  function select(city: City) {
-    startTransition(async () => {
-      setResult(await createCityPlaylist(city.geonameid));
-    });
-  }
-
-  return (
-    <div className="space-y-2">
-      <CitySearchBox
-        placeholder={
-          atCap
-            ? "Remove an existing pin to add another"
-            : "Add a playlist for another city"
-        }
-        disabled={atCap || pending}
-        onSelect={select}
-      />
-      {error && !pending && (
-        <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
-          {error.message}
-        </p>
-      )}
-    </div>
-  );
-}

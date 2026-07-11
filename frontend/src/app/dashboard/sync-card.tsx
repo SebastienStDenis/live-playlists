@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { startSync } from "./actions";
 import { ExpandToggleMark } from "./expand-toggle-mark";
-import { Spinner } from "./spinner";
+import { Spinner } from "../spinner";
+import { XMark } from "./x-mark";
 
 export type SyncStep = {
   key: string;
@@ -66,10 +67,8 @@ export function SyncCard({
   const [statusLoading, setStatusLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
-  // Briefly true after the run settles: the final step slides up and out while
-  // the last-synced line slides in.
-  const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
 
@@ -129,14 +128,6 @@ export function SyncCard({
     };
   }, [polling, router]);
 
-  useEffect(() => {
-    if (!leaving) {
-      return;
-    }
-    const timer = setTimeout(() => setLeaving(false), 250);
-    return () => clearTimeout(timer);
-  }, [leaving]);
-
   const running = status?.status === "running";
   // The button shows a spinner while checking for an existing run, while one is
   // in progress, and while the step playback is still catching up after the run
@@ -174,7 +165,6 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
-    setLeaving(false);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -199,95 +189,97 @@ export function SyncCard({
 
   return (
     <div>
-      {/* The button uses regular padding. Each state's first line is nudged
-          down (pt-1) to line up with the button, so the button holds its
-          position between the active steps and the finished status line;
-          extra step lines just grow downward. */}
-      <div className="flex flex-col">
-        <div
-          className="flex items-start gap-3"
+      {/* The status column reserves the two-line height of a step display
+          (min-h-9) and everything centers within the row, so the button holds
+          its place across states and stays centered next to the last-run line
+          even when that line wraps. The expanded step list renders below the
+          row (not inside the status column) so opening it never re-centers
+          the button. */}
+      <div className="flex items-center gap-3">
+        <span
+          className="order-last shrink-0"
+          title={missingNote ?? undefined}
         >
-          <span
-            className="order-last shrink-0"
-            title={missingNote ?? undefined}
+          <button
+            type="button"
+            onClick={onSync}
+            disabled={starting || busy || !canSync}
+            aria-label="Sync"
+            title={canSync ? "Sync" : undefined}
+            className="relative -m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
           >
-            <button
-              type="button"
-              onClick={onSync}
-              disabled={starting || busy || !canSync}
-              className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
-            >
-              {/* Kept in the layout (just hidden) while busy so the button holds
-                  the same width as when it reads "Sync". */}
-              <span className={busy ? "invisible" : undefined}>Sync</span>
-              {busy && (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <Spinner />
-                </span>
-              )}
-            </button>
-          </span>
-          <div className="min-w-0 flex-1">
-            {showSteps && status ? (
-              <div className="animate-fade-in pt-1">
-                <CurrentStep
-                  key={runSeq}
-                  steps={status.steps}
-                  finished={!running}
-                  onSettled={() => {
-                    setSettling(false);
-                    setLeaving(true);
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="relative pt-1">
-                {leaving && status && (
-                  <div className="absolute inset-x-0 top-0 animate-slide-out-up">
-                    <LastStepLine steps={status.steps} />
-                  </div>
-                )}
-                {status && finalOutcome !== "none" && (
-                  <details className="group animate-slide-in-up">
-                    <summary
-                      className={`flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden ${
-                        finalOutcome === "failed"
-                          ? "text-foreground"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      <span
-                        className={
-                          finalOutcome === "failed"
-                            ? "text-red-600"
-                            : "text-green-600 dark:text-green-500"
-                        }
-                      >
-                        <StepMark status={finalOutcome} />
-                      </span>
-                      <span>
-                        {finalOutcome === "failed"
-                          ? "Last sync failed"
-                          : "Last synced"}
-                        {finishedAt && ` ${finishedAt}`}.
-                      </span>
-                      <ExpandToggleMark />
-                    </summary>
-                    <div className="mt-2">
-                      <StepList steps={status.steps} />
-                    </div>
-                  </details>
-                )}
-                {finalOutcome === "none" && !statusLoading && (
-                  <p className="text-sm text-gray-500">
-                    Run a sync (requires Last.fm and home city)
-                  </p>
-                )}
-              </div>
+            {/* Kept in the layout (just hidden) while busy so the button
+                holds its size under the spinner. */}
+            <span className={busy ? "invisible flex" : "flex"}>
+              <SyncMark />
+            </span>
+            {busy && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <Spinner />
+              </span>
             )}
-          </div>
+          </button>
+        </span>
+        <div className="flex min-h-9 min-w-0 flex-1 items-center">
+          {showSteps && status ? (
+            <div className="min-w-0 flex-1 animate-fade-in">
+              <CurrentStep
+                key={runSeq}
+                steps={status.steps}
+                finished={!running}
+                onSettled={() => setSettling(false)}
+              />
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1">
+              {status && finalOutcome !== "none" && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((open) => !open)}
+                  aria-expanded={expanded}
+                  className={`group flex animate-slide-in-up cursor-pointer items-center gap-1.5 text-left text-sm ${
+                    finalOutcome === "failed"
+                      ? "text-foreground"
+                      : "text-gray-500"
+                  }`}
+                >
+                  <span
+                    className={
+                      finalOutcome === "failed"
+                        ? "text-red-600"
+                        : "text-green-600 dark:text-green-500"
+                    }
+                  >
+                    <StepMark status={finalOutcome} />
+                  </span>
+                  {/* The mark rides beside the text, hugging it on one line
+                      and centered on the right of both lines when it wraps -
+                      never wrapping onto the second line itself. */}
+                  <span className="min-w-0">
+                    {finalOutcome === "failed"
+                      ? "Last sync failed"
+                      : "Last synced"}
+                    {finishedAt && ` ${finishedAt}`}.
+                  </span>
+                  <span className="flex">
+                    <ExpandToggleMark />
+                  </span>
+                </button>
+              )}
+              {finalOutcome === "none" && !statusLoading && (
+                <p className="text-sm text-gray-500">
+                  Run a sync (requires Last.fm and home city)
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+      {expanded && !showSteps && status && finalOutcome !== "none" && (
+        <div className="mt-2">
+          <StepList steps={status.steps} />
+        </div>
+      )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
@@ -414,34 +406,6 @@ function CurrentStep({
   );
 }
 
-// The final step the playback showed - the furthest-progressed non-pending
-// step (the last completed step, or the failed one). Rendered on its way out
-// as the last-synced line slides in.
-function LastStepLine({ steps }: { steps: SyncStep[] }) {
-  let last = -1;
-  for (let i = 0; i < steps.length; i += 1) {
-    if (steps[i].status !== "pending") {
-      last = i;
-    }
-  }
-  if (last === -1) {
-    return null;
-  }
-  const step = steps[last];
-  return (
-    <StepLine
-      snapshot={{
-        key: String(last),
-        label: step.label,
-        status: step.status,
-        summary: step.summary,
-        position: last + 1,
-      }}
-      total={steps.length}
-    />
-  );
-}
-
 type StepSnapshot = {
   key: string;
   label: string;
@@ -458,8 +422,10 @@ function StepLine({
   total: number;
 }) {
   return (
-    <div className="flex gap-2 text-sm">
-      <span className={`mt-0.5 ${stepMarkClasses[snapshot.status]}`}>
+    // Two grid rows so the mark centers on the label line (or lines, when
+    // the label wraps) without the subtitle row pulling it down.
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 text-sm">
+      <span className={stepMarkClasses[snapshot.status]}>
         <StepMark status={snapshot.status} />
       </span>
       <div className="min-w-0">
@@ -472,18 +438,18 @@ function StepLine({
         <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
           step {snapshot.position} of {total}
         </span>
-        {/* One truncated line so the fixed-height status area never
-            overflows; the post-run step list shows the full text. A running
-            step has no summary yet, so a placeholder keeps the two-line
-            height (and vertical centering) consistent. */}
-        <p
-          key={snapshot.status}
-          className="animate-fade-in truncate text-xs text-gray-500"
-        >
-          {snapshot.summary ??
-            (snapshot.status === "running" ? "In progress" : " ")}
-        </p>
       </div>
+      {/* One truncated line so the fixed-height status area never
+          overflows; the post-run step list shows the full text. A running
+          step has no summary yet, so a placeholder keeps the two-line
+          height (and vertical centering) consistent. */}
+      <p
+        key={snapshot.status}
+        className="col-start-2 animate-fade-in truncate text-xs text-gray-500"
+      >
+        {snapshot.summary ??
+          (snapshot.status === "running" ? "In progress" : " ")}
+      </p>
     </div>
   );
 }
@@ -492,11 +458,14 @@ function StepList({ steps }: { steps: SyncStep[] }) {
   return (
     <ul className="space-y-1.5">
       {steps.map((step) => (
-        <li key={step.key} className="flex gap-2 text-sm">
-          <span className={`mt-0.5 ${stepMarkClasses[step.status]}`}>
+        <li
+          key={step.key}
+          className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 text-sm"
+        >
+          <span className={stepMarkClasses[step.status]}>
             <StepMark status={step.status} />
           </span>
-          <div>
+          <div className="min-w-0">
             <span
               className={
                 step.status === "pending" ? "text-gray-500" : undefined
@@ -507,13 +476,32 @@ function StepList({ steps }: { steps: SyncStep[] }) {
             {step.status === "failed" && (
               <span className="ml-2 text-xs text-red-600">failed</span>
             )}
-            {step.summary && (
-              <p className="text-xs text-gray-500">{step.summary}</p>
-            )}
           </div>
+          {step.summary && (
+            <p className="col-start-2 text-xs text-gray-500">{step.summary}</p>
+          )}
         </li>
       ))}
     </ul>
+  );
+}
+
+// Circular arrow: the run-a-sync action.
+function SyncMark() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M13.75 3v3.5h-3.5" />
+      <path d="M13.4 9.5a5.5 5.5 0 1 1-.9-4.8l1.25 1.55" />
+    </svg>
   );
 }
 
@@ -535,19 +523,7 @@ function StepMark({ status }: { status: SyncStep["status"] }) {
     );
   }
   if (status === "failed") {
-    return (
-      <svg
-        viewBox="0 0 16 16"
-        className="h-3.5 w-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        aria-hidden
-      >
-        <path d="m4.5 4.5 7 7m0-7-7 7" />
-      </svg>
-    );
+    return <XMark />;
   }
   return (
     <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden>

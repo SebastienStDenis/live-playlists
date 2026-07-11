@@ -50,6 +50,46 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 
 const emptySubscribe = () => () => {};
 
+// Playlist cards stack per column (masonry-ish) so an expanded tracklist
+// only pushes down cards in its own column. The column count mirrors the
+// grid breakpoints the other tabs use; ordered by matchMedia specificity.
+const COLUMN_QUERIES: [string, number][] = [
+  ["(min-width: 64rem)", 3],
+  ["(min-width: 40rem)", 2],
+];
+
+function subscribeToColumnCount(onChange: () => void): () => void {
+  const lists = COLUMN_QUERIES.map(([query]) => window.matchMedia(query));
+  for (const list of lists) {
+    list.addEventListener("change", onChange);
+  }
+  return () => {
+    for (const list of lists) {
+      list.removeEventListener("change", onChange);
+    }
+  };
+}
+
+function readColumnCount(): number {
+  for (const [query, count] of COLUMN_QUERIES) {
+    if (window.matchMedia(query).matches) {
+      return count;
+    }
+  }
+  return 1;
+}
+
+// null until hydration: the server can't know the viewport, so the first
+// render uses the breakpoint grid instead (visually identical while all
+// tracklists are collapsed).
+function useColumnCount(): number | null {
+  return useSyncExternalStore(
+    subscribeToColumnCount,
+    readColumnCount,
+    () => null,
+  );
+}
+
 function SyncedAtLabel({ iso }: { iso: string }) {
   // Formats in the viewer's timezone, which the server can't know - render
   // only after hydration so server and client HTML always match.
@@ -68,6 +108,8 @@ export function PlaylistsPanel({
   synced: boolean;
   playlists: Playlist[];
 }) {
+  const columnCount = useColumnCount();
+
   if (!synced) {
     return <RunSyncMessage action="generate playlists" />;
   }
@@ -93,26 +135,36 @@ export function PlaylistsPanel({
     ...playlists.filter((playlist) => playlist.city !== null),
   ];
 
+  if (columnCount === null) {
+    return (
+      <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {ordered.map((playlist) => (
+          <PlaylistCard key={playlist.id} playlist={playlist} />
+        ))}
+      </ul>
+    );
+  }
+
+  const columns = Array.from({ length: columnCount }, (_, column) =>
+    ordered.filter((_, index) => index % columnCount === column),
+  );
   return (
-    <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {ordered.map((playlist) => (
-        <PlaylistCard key={playlist.id} playlist={playlist} />
+    <div className="flex items-start gap-3">
+      {columns.map((column, index) => (
+        <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
+          {column.map((playlist) => (
+            <PlaylistCard key={playlist.id} playlist={playlist} />
+          ))}
+        </ul>
       ))}
-    </ul>
+    </div>
   );
 }
 
 function PlaylistCard({ playlist }: { playlist: Playlist }) {
   return (
     <li className="rounded border border-gray-300 p-3 dark:border-gray-700">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="font-medium">{playlist.name}</span>
-        <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
-          {playlist.city
-            ? `pinned to ${playlist.city.name}`
-            : "follows your home city"}
-        </span>
-      </div>
+      <p className="font-medium">{playlist.name}</p>
       <p className="mt-1 text-sm text-gray-500">
         {playlist.spotify_url ? (
           <a
@@ -157,9 +209,13 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span>{track.title ?? "Unknown title"}</span>
+                    <span className="min-w-0">
+                      {track.title ?? "Unknown title"}
+                    </span>
                     {track.artist && (
-                      <span className="text-gray-500">by {track.artist.name}</span>
+                      <span className="min-w-0 text-gray-500">
+                        by {track.artist.name}
+                      </span>
                     )}
                   </div>
                   {track.event && (

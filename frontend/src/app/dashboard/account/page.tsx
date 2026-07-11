@@ -85,7 +85,7 @@ export default async function AccountPage() {
     <main className="mx-auto w-full max-w-xl p-8">
       <HomeLink />
       <div className="mt-2 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
+        <h1 className="min-w-0 text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />
       </div>
       <IntroText className="mt-1 text-xs text-gray-500 italic" />
@@ -128,7 +128,7 @@ export default async function AccountPage() {
       </Section>
       <Section
         heading="Listening History"
-        description="Your listening history is used to suggest artists and find concerts."
+        description="Your listening history is used to suggest artists and find concerts. Hidden artists are skipped."
         className="mt-8"
       >
         <TastePanel

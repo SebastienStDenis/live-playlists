@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
-import { Spinner } from "./spinner";
+import { PencilMark } from "./pencil-mark";
+import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
+import { XMark } from "./x-mark";
 
 export type LastfmAccount = {
   id: string;
@@ -31,13 +33,33 @@ export function LastfmPanel({
 }: {
   account: LastfmAccount | null;
 }) {
-  if (account === null) {
-    return <LinkForm />;
+  const [editing, setEditing] = useState(false);
+  // A fresh server payload (a successful re-link included) closes the edit
+  // form, same as the city panel.
+  const [prevAccount, setPrevAccount] = useState(account);
+  if (account !== prevAccount) {
+    setPrevAccount(account);
+    setEditing(false);
   }
-  return <AccountCard account={account} />;
+
+  if (account === null || editing) {
+    return (
+      <LinkForm
+        hasAccount={account !== null}
+        onDone={() => setEditing(false)}
+      />
+    );
+  }
+  return <AccountCard account={account} onEdit={() => setEditing(true)} />;
 }
 
-function LinkForm() {
+function LinkForm({
+  hasAccount,
+  onDone,
+}: {
+  hasAccount: boolean;
+  onDone: () => void;
+}) {
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
@@ -45,28 +67,44 @@ function LinkForm() {
 
   return (
     <form action={formAction} className="space-y-2">
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <input
           name="username"
           placeholder="Last.fm username"
           required
           disabled={pending}
-          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
+          autoFocus={hasAccount}
+          className="min-w-0 flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
         />
         <button
           type="submit"
           disabled={pending}
-          className="relative rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+          aria-label="Link account"
+          title="Link"
+          className="relative -m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
         >
           {/* Kept in the layout (just hidden) while pending so the button
-              holds the same width as when it reads "Link". */}
-          <span className={pending ? "invisible" : undefined}>Link</span>
+              holds its size under the spinner. */}
+          <span className={pending ? "invisible flex" : "flex"}>
+            <LinkMark />
+          </span>
           {pending && (
             <span className="absolute inset-0 flex items-center justify-center">
               <Spinner />
             </span>
           )}
         </button>
+        {hasAccount && (
+          <button
+            type="button"
+            onClick={onDone}
+            aria-label="Cancel"
+            title="Cancel"
+            className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <XMark className="h-4 w-4" />
+          </button>
+        )}
       </div>
       {error && !pending && (
         <p
@@ -80,7 +118,33 @@ function LinkForm() {
   );
 }
 
-function AccountCard({ account }: { account: LastfmAccount }) {
+// Chain link: the "connect this account" action.
+function LinkMark() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6.5 9.5 3-3" />
+      <path d="M7.75 4.5 9.25 3a2.475 2.475 0 0 1 3.5 3.5L11.25 8" />
+      <path d="M8.25 11.5 6.75 13a2.475 2.475 0 0 1-3.5-3.5L4.75 8" />
+    </svg>
+  );
+}
+
+function AccountCard({
+  account,
+  onEdit,
+}: {
+  account: LastfmAccount;
+  onEdit: () => void;
+}) {
   const [unlinkState, unlinkAction, unlinkPending] = useActionState(
     unlinkLastfm,
     { error: null },
@@ -89,18 +153,21 @@ function AccountCard({ account }: { account: LastfmAccount }) {
 
   return (
     <div>
-      <div className="flex items-start gap-4">
+      {/* Below 25rem the account details drop to a full-width row under the
+          avatar; squeezed between the avatar and the icon buttons they'd
+          overflow into overlapping columns. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={account.avatar_url}
             alt=""
-            className="h-16 w-16 rounded-full"
+            className="col-start-1 row-start-1 h-16 w-16 rounded-full"
           />
         )}
-        <div>
+        <div className="col-span-full row-start-2 min-w-0 min-[25rem]:col-auto min-[25rem]:row-start-1">
           <p className="font-medium">{account.real_name ?? account.username}</p>
-          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
             <dt className="text-gray-500">Username</dt>
             <dd>
               {account.profile_url ? (
@@ -130,24 +197,33 @@ function AccountCard({ account }: { account: LastfmAccount }) {
             )}
           </dl>
         </div>
-        <form action={unlinkAction} className="ml-auto">
+        <div className="col-start-2 row-start-1 mt-1 flex items-center gap-2 justify-self-end min-[25rem]:col-start-3">
           <button
-            type="submit"
-            disabled={unlinkPending}
-            className="relative rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            type="button"
+            onClick={onEdit}
+            aria-label="Change Last.fm account"
+            title="Change"
+            className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
-            <span className={unlinkPending ? "invisible" : undefined}>
-              Unlink
-            </span>
-            {/* The button's red text would tint the spinner like an error;
-                spin in neutral gray instead. */}
-            {unlinkPending && (
-              <span className="absolute inset-0 flex items-center justify-center text-gray-500">
+            <PencilMark />
+          </button>
+          <form action={unlinkAction} className="flex">
+            {unlinkPending ? (
+              <span className="flex text-gray-500">
                 <Spinner />
               </span>
+            ) : (
+              <button
+                type="submit"
+                aria-label="Unlink Last.fm account"
+                title="Unlink"
+                className="-m-1 flex rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <XMark className="h-4 w-4" />
+              </button>
             )}
-          </button>
-        </form>
+          </form>
+        </div>
       </div>
       {error && !unlinkPending && (
         <p
