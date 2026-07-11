@@ -1,4 +1,3 @@
-import { Separator } from "@/components/ui/separator";
 import { HomeLink } from "../home-link";
 
 export default function AboutPage() {
@@ -16,7 +15,6 @@ export default function AboutPage() {
             playlist of artists worth discovering while they are in town.
           </p>
         </section>
-        <Separator />
         <section>
           <h2 className="text-sm font-medium">How suggested artists work</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
@@ -27,7 +25,6 @@ export default function AboutPage() {
             still be suggested.
           </p>
         </section>
-        <Separator />
         <section>
           <h2 className="text-sm font-medium">Your playlist</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">

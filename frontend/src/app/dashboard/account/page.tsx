@@ -19,7 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   fetchJson,
   fetchOptional,
@@ -135,7 +134,6 @@ export default async function AccountPage() {
             synced={syncStepCompleted(sync, "artists")}
           />
         </Section>
-        <Separator />
         <DeleteAccountButton userName={user.name} />
       </div>
     </main>
