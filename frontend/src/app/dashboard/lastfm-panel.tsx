@@ -4,7 +4,10 @@ import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
 import { Spinner } from "./spinner";
-import { useTransientError } from "./use-transient-error";
+import {
+  SLOW_ERROR_DISMISS_MS,
+  useTransientError,
+} from "./use-transient-error";
 
 export type LastfmAccount = {
   id: string;
@@ -41,7 +44,8 @@ function LinkForm() {
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
-  const error = useTransientError(state);
+  // The privacy error carries instructions; give it more reading time.
+  const error = useTransientError(state, SLOW_ERROR_DISMISS_MS);
 
   return (
     <form action={formAction} className="space-y-2">
@@ -68,7 +72,7 @@ function LinkForm() {
         </button>
       </div>
       {error && (
-        <p className="animate-fade-in-out text-xs text-red-600">{error}</p>
+        <p className="animate-fade-in-out-slow text-xs text-red-600">{error}</p>
       )}
     </form>
   );
@@ -79,7 +83,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
     unlinkLastfm,
     { error: null },
   );
-  const error = useTransientError(unlinkState);
+  const error = useTransientError(unlinkState, SLOW_ERROR_DISMISS_MS);
 
   return (
     <div>
@@ -144,7 +148,9 @@ function AccountCard({ account }: { account: LastfmAccount }) {
         </form>
       </div>
       {error && (
-        <p className="mt-2 animate-fade-in-out text-xs text-red-600">{error}</p>
+        <p className="mt-2 animate-fade-in-out-slow text-xs text-red-600">
+          {error}
+        </p>
       )}
     </div>
   );
