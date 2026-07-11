@@ -72,7 +72,7 @@ function LinkForm() {
           )}
         </button>
       </div>
-      {error && (
+      {error && !pending && (
         <p
           key={error.key}
           className="animate-fade-in-out-slow text-xs text-red-600"
@@ -153,7 +153,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           </button>
         </form>
       </div>
-      {error && (
+      {error && !unlinkPending && (
         <p
           key={error.key}
           className="mt-2 animate-fade-in-out-slow text-xs text-red-600"

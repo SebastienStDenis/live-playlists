@@ -49,7 +49,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
     <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
       <span>{playlist.city && cityLabel(playlist.city)}</span>
       <span className="flex items-baseline gap-2">
-        {error && (
+        {error && !pending && (
           <span
             key={error.key}
             className="animate-fade-in-out text-xs text-red-600"
@@ -92,7 +92,7 @@ function PinCitySearch({ atCap }: { atCap: boolean }) {
         disabled={atCap || pending}
         onSelect={select}
       />
-      {error && (
+      {error && !pending && (
         <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
           {error.message}
         </p>
