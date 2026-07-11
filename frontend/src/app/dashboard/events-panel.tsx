@@ -189,7 +189,7 @@ export function EventsPanel({
                   {/* gap-y-1 matches the mt-1 below, so a wrapped date sits as
                       close to the title above as to the venue line below. */}
                   <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                    <span className="font-medium">
+                    <span className="min-w-0 font-medium">
                       {event.title ??
                         artists.map((artist) => artist.name).join(", ")}
                     </span>
@@ -205,7 +205,7 @@ export function EventsPanel({
                     {artists.map((artist) => (
                       <span
                         key={artist.id}
-                        className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
+                        className="max-w-full rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
                       >
                         {artistChipLabel(artist, artistRelations)}
                       </span>

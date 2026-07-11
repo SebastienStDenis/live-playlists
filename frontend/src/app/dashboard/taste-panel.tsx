@@ -136,9 +136,9 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   return (
     <li className="group flex flex-wrap items-center gap-2 text-sm">
       <span
-        className={
-          excluded ? "text-gray-400 line-through dark:text-gray-600" : undefined
-        }
+        className={`min-w-0 ${
+          excluded ? "text-gray-400 line-through dark:text-gray-600" : ""
+        }`}
       >
         {artist.name}
       </span>

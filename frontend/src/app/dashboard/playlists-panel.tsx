@@ -129,8 +129,8 @@ function PlaylistCard({
       {/* gap-y-1 matches the mt-1 below, so a wrapped badge sits as close to
           the title above as to the Spotify line below. */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-        <span className="font-medium">{playlist.name}</span>
-        <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
+        <span className="min-w-0 font-medium">{playlist.name}</span>
+        <span className="max-w-full rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
           {playlist.city
             ? `pinned to ${playlist.city.name}`
             : "follows your home city"}
@@ -183,9 +183,13 @@ function PlaylistCard({
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span>{track.title ?? "Unknown title"}</span>
+                    <span className="min-w-0">
+                      {track.title ?? "Unknown title"}
+                    </span>
                     {track.artist && (
-                      <span className="text-gray-500">by {track.artist.name}</span>
+                      <span className="min-w-0 text-gray-500">
+                        by {track.artist.name}
+                      </span>
                     )}
                   </div>
                   {track.event && (
