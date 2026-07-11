@@ -116,9 +116,13 @@ function SyncedAtLabel({ iso }: { iso: string }) {
 export function PlaylistsPanel({
   synced,
   playlists,
+  maintained,
 }: {
   synced: boolean;
   playlists: Playlist[];
+  // Whether the nightly sync is keeping these playlists up to date; drives
+  // the pulsing "live" dot on each card.
+  maintained: boolean;
 }) {
   const columnCount = useColumnCount();
 
@@ -151,7 +155,11 @@ export function PlaylistsPanel({
     return (
       <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
+          <PlaylistCard
+            key={playlist.id}
+            playlist={playlist}
+            maintained={maintained}
+          />
         ))}
       </ul>
     );
@@ -165,7 +173,11 @@ export function PlaylistsPanel({
       {columns.map((column, index) => (
         <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
           {column.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} />
+            <PlaylistCard
+              key={playlist.id}
+              playlist={playlist}
+              maintained={maintained}
+            />
           ))}
         </ul>
       ))}
@@ -173,16 +185,24 @@ export function PlaylistsPanel({
   );
 }
 
-function PlaylistCard({ playlist }: { playlist: Playlist }) {
+function PlaylistCard({
+  playlist,
+  maintained,
+}: {
+  playlist: Playlist;
+  maintained: boolean;
+}) {
   return (
     <li className="flex">
       <Card size="sm" className="flex-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <span
-              className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
-              aria-hidden
-            />
+            {maintained && (
+              <span
+                className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
+                aria-hidden
+              />
+            )}
             {playlist.name}
           </CardTitle>
           <CardDescription>
