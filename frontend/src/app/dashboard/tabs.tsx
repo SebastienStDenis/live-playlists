@@ -4,10 +4,18 @@ import { useEffect, type ReactNode } from "react";
 
 import { useSearchParams } from "next/navigation";
 
-const TAB_STORAGE_KEY = "dashboard-tab";
+import {
+  Tabs as TabsRoot,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+
+import { TAB_COOKIE } from "./tab-cookie";
 
 export function Tabs({
   tabs,
+  defaultTab,
 }: {
   tabs: {
     key: string;
@@ -15,31 +23,22 @@ export function Tabs({
     description?: string;
     content: ReactNode;
   }[];
+  defaultTab?: string;
 }) {
   // The URL is the source of truth so the active tab follows browser and
-  // in-app back/forward navigation, not just the value seeded on first render.
+  // in-app back/forward navigation. Without a ?tab= param, defaultTab (the
+  // last selected tab, read from a cookie by the server component) applies -
+  // being available server-side is what lets the page arrive already on the
+  // right tab instead of flashing the first one and switching after mount.
   const tabParam = useSearchParams().get("tab");
+  const requested = tabParam ?? defaultTab;
   const active =
-    tabParam && tabs.some((tab) => tab.key === tabParam)
-      ? tabParam
+    requested && tabs.some((tab) => tab.key === requested)
+      ? requested
       : tabs[0].key;
 
-  // When arriving without a ?tab= param (a plain link to the dashboard, like
-  // the account page's Home link), restore the last active tab into the URL.
-  // Explicit ?tab= links win. Declared before the persist effect below so the
-  // stored value is read before it can be overwritten with the default.
   useEffect(() => {
-    if (tabParam !== null) return;
-    const stored = sessionStorage.getItem(TAB_STORAGE_KEY);
-    if (stored !== null && tabs.some((tab) => tab.key === stored)) {
-      const params = new URLSearchParams(window.location.search);
-      params.set("tab", stored);
-      window.history.replaceState(null, "", `?${params.toString()}`);
-    }
-  }, [tabParam, tabs]);
-
-  useEffect(() => {
-    sessionStorage.setItem(TAB_STORAGE_KEY, active);
+    document.cookie = `${TAB_COOKIE}=${active}; path=/; max-age=31536000; samesite=lax`;
   }, [active]);
 
   const selectTab = (key: string) => {
@@ -52,40 +51,35 @@ export function Tabs({
   };
 
   return (
-    <div>
-      <div
-        role="tablist"
-        className="flex gap-4 border-b border-gray-300 dark:border-gray-700"
-      >
+    <TabsRoot value={active} onValueChange={selectTab}>
+      <TabsList className="w-full sm:w-fit">
         {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={active === tab.key}
-            onClick={() => selectTab(tab.key)}
-            className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
-              active === tab.key
-                ? "border-foreground"
-                : "border-transparent text-gray-500 hover:text-foreground"
-            }`}
-          >
+          <TabsTrigger key={tab.key} value={tab.key}>
             {tab.label}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
-      {/* Inactive tabs stay mounted so their in-progress state (sync
-          summaries, search inputs) survives switching. */}
+      </TabsList>
+      {/* forceMount keeps inactive panels in the DOM so their in-progress
+          state (sync summaries, search inputs) survives switching; the hidden
+          attribute handles visibility instead. */}
       {tabs.map((tab) => (
-        <div key={tab.key} hidden={active !== tab.key} className="mt-2">
+        <TabsContent
+          key={tab.key}
+          value={tab.key}
+          forceMount
+          hidden={active !== tab.key}
+        >
           {tab.description && (
-            <p key="description" className="mb-4 text-xs text-gray-500 italic">
+            <p
+              key="description"
+              className="mb-4 text-xs text-muted-foreground italic"
+            >
               {tab.description}
             </p>
           )}
           <div key="content">{tab.content}</div>
-        </div>
+        </TabsContent>
       ))}
-    </div>
+    </TabsRoot>
   );
 }
