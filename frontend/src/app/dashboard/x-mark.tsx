@@ -1,10 +1,14 @@
 // X mark used for destructive icon buttons and failed states; colored by the
 // parent's text color.
-export function XMark() {
+export function XMark({
+  className = "h-3.5 w-3.5",
+}: {
+  className?: string;
+}) {
   return (
     <svg
       viewBox="0 0 16 16"
-      className="h-3.5 w-3.5"
+      className={className}
       fill="none"
       stroke="currentColor"
       strokeWidth={2}

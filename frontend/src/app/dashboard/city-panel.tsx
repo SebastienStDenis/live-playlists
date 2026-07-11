@@ -67,7 +67,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
           >
             <svg
               viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
+              className="h-4 w-4"
               fill="none"
               stroke="currentColor"
               strokeWidth={1.5}
@@ -90,7 +90,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
                 title="Clear"
                 className="-m-1 flex rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <XMark />
+                <XMark className="h-4 w-4" />
               </button>
             )}
           </form>
@@ -141,16 +141,16 @@ function CitySearch({
           />
         </div>
         {hasCity && (
-          // mt-1.5 centers the icon on the input's height while staying
+          // mt-1 centers the icon on the input's height while staying
           // self-start, so it doesn't move when an error line appears below.
           <button
             type="button"
             onClick={() => onDone()}
             aria-label="Cancel"
             title="Cancel"
-            className="mt-1.5 flex self-start rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="mt-1 flex self-start rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
-            <XMark />
+            <XMark className="h-4 w-4" />
           </button>
         )}
       </div>
