@@ -127,7 +127,9 @@ export function PlaylistsPanel({
   const columnCount = useColumnCount();
 
   if (!synced) {
-    return <RunSyncMessage action="generate playlists" />;
+    return (
+      <RunSyncMessage action="generate playlists" syncEnabled={maintained} />
+    );
   }
 
   if (playlists.length === 0) {

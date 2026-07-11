@@ -277,7 +277,7 @@ export function SyncCard({
                   className="flex animate-fade-in cursor-pointer items-center gap-2 text-left text-sm text-muted-foreground hover:text-foreground"
                 >
                   <span
-                    className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
+                    className="size-1.5 shrink-0 rounded-full bg-primary"
                     aria-hidden
                   />
                   Get started by running a manual sync.

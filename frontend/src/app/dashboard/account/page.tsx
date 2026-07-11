@@ -12,6 +12,7 @@ import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
 import { IntroText } from "../../intro-text";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -45,10 +46,14 @@ function Section({
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h2>{heading}</h2>
-          {alert && alertText && (
+          {alertText && (
             <Badge
               variant="secondary"
-              className="h-auto min-h-5 animate-fade-in font-normal whitespace-normal"
+              aria-hidden={!alert}
+              className={cn(
+                "h-auto min-h-5 max-w-full font-normal whitespace-normal transition-all duration-300",
+                !alert && "max-w-0 border-0 px-0 opacity-0",
+              )}
             >
               <AttentionDot className="mr-0" />
               {alertText}
@@ -101,7 +106,13 @@ export default async function AccountPage() {
         <Section
           heading="Daily Sync"
           alert={missingSyncActions.length > 0}
-          alertText={`Disabled, ${missingSyncActions.join(" and ")}`}
+          alertText={
+            // Falls back to a bare "Disabled" so the pill never carries a
+            // dangling comma while fading out after the last action clears.
+            missingSyncActions.length > 0
+              ? `Disabled, ${missingSyncActions.join(" and ")}`
+              : "Disabled"
+          }
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />

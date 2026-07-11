@@ -73,11 +73,13 @@ function artistChipLabel(
 export function EventsPanel({
   city,
   synced,
+  syncEnabled,
   artistRelations,
   events,
 }: {
   city: City | null;
   synced: boolean;
+  syncEnabled: boolean;
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
@@ -89,7 +91,7 @@ export function EventsPanel({
   const [loading, startTransition] = useTransition();
 
   if (!synced) {
-    return <RunSyncMessage action="find concerts" />;
+    return <RunSyncMessage action="find concerts" syncEnabled={syncEnabled} />;
   }
 
   function selectCity(selected: City) {
