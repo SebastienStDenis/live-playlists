@@ -1,7 +1,6 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -18,7 +17,6 @@ export default function CheckEmailPage() {
           <CardTitle className="text-xl">
             <h1>Check your email</h1>
           </CardTitle>
-          <CardDescription>One more step to go.</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
