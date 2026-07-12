@@ -38,8 +38,8 @@ export function SyncStepNote({
   if (!hydrated || sync === null) {
     return null;
   }
-  const stepStatus =
-    sync.steps.find((step) => step.key === stepKey)?.status ?? "pending";
+  const step = sync.steps.find((candidate) => candidate.key === stepKey);
+  const stepStatus = step?.status ?? "pending";
   // In a failed run, any step short of completed shares the run's fate: an
   // earlier step failing stops the later ones, and a failed run whose step
   // detail couldn't be fetched reports every step pending.
@@ -51,8 +51,11 @@ export function SyncStepNote({
     return null;
   }
   const failed = status === "failed";
-  const finishedAt = sync.finished_at
-    ? syncDateFormat.format(new Date(sync.finished_at))
+  // A step that never ran has no time of its own; the run's end is when its
+  // data stopped moving.
+  const finishedIso = step?.finished_at ?? sync.finished_at;
+  const finishedAt = finishedIso
+    ? syncDateFormat.format(new Date(finishedIso))
     : null;
   return (
     <a

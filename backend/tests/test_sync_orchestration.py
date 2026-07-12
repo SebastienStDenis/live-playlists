@@ -451,6 +451,7 @@ async def test_workflow_runs_all_steps_in_order() -> None:
         "playlists",
     ]
     assert all(step.status == "completed" for step in result.steps)
+    assert all(step.finished_at is not None for step in result.steps)
     assert result.steps[0].summary == "Imported 4 artists · 3 added, 1 updated, 0 removed"
     assert result.steps[3].summary == (
         "Generated 0 playlists · 0 tracks added, 0 removed · "
@@ -488,6 +489,7 @@ async def test_workflow_stops_at_first_failed_step() -> None:
             steps = await handle.query(SyncUserWorkflow.progress)
 
     assert [step.status for step in steps] == ["completed", "failed", "pending", "pending"]
+    assert [step.finished_at is not None for step in steps] == [True, True, False, False]
     assert steps[0].summary is not None
     assert steps[1].summary == "Last.fm exploded"
     assert recorded == []

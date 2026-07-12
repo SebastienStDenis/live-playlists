@@ -11,6 +11,8 @@ export type SyncStep = {
   label: string;
   status: "pending" | "running" | "completed" | "failed";
   summary: string | null;
+  // When the step reached its terminal state; null for steps that never ran.
+  finished_at: string | null;
 };
 
 export type SyncStatus = {

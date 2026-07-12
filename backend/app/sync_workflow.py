@@ -194,10 +194,12 @@ class SyncUserWorkflow:
                 # Later steps consume this one's writes, so stop here; the
                 # remaining steps stay pending and the run fails.
                 step.status = "failed"
+                step.finished_at = workflow.now()
                 if isinstance(exc.cause, FailureError):
                     step.summary = exc.cause.message
                 raise
             step.status = "completed"
+            step.finished_at = workflow.now()
             step.summary = spec.summarize(result)
         # Bookkeeping, not a UI step: the stamp is what lets the nightly
         # dispatch skip users who synced recently, and it only lands when

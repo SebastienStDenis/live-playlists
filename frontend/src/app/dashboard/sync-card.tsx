@@ -152,6 +152,7 @@ export function SyncCard({
         ...step,
         status: "pending" as const,
         summary: null,
+        finished_at: null,
       })),
     });
     startTransition(async () => {
