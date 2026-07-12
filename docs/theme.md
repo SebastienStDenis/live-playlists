@@ -65,10 +65,10 @@ shaped the values, and should shape future adjustments:
   references - both chrome (the Settings and Home buttons) and inline mentions
   in prose ("Run a sync in Settings…", "See About…") - render as buttons;
   prose uses the small outline pill in `frontend/src/app/inline-nav.tsx`.
-  Page navigation carries a directional arrow. The settings dialog opens in
-  place, so its triggers (hash links to `#settings`) drop the arrow; the
-  dashboard header button shows a gear icon instead, and inline pills carry
-  no icon. Underlined text links are reserved for external targets (Spotify,
+  Page navigation carries a trailing directional arrow. The settings dialog
+  opens in place, so its triggers (hash links to `#settings`) swap the arrow
+  for a leading gear icon - the dashboard header button and inline pills
+  alike. Underlined text links are reserved for external targets (Spotify,
   Last.fm, event pages), which also carry the external-link icon where space
   allows.
 - **Hover feedback is a background highlight, not a text-color change.**
