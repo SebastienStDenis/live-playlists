@@ -9,6 +9,7 @@ export type User = {
   name: string;
   include_known_artists: boolean;
   last_synced_at: string | null;
+  first_sync_finished_at: string | null;
 };
 
 export async function loadMe(): Promise<User> {

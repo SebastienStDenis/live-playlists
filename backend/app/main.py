@@ -387,15 +387,6 @@ async def set_user_city(user: CurrentUserDep, payload: CitySet, session: Session
     return city
 
 
-@app.delete("/me/city", status_code=204)
-async def clear_user_city(user: CurrentUserDep, session: SessionDep) -> None:
-    """Remove the user's city; 404 if none is set."""
-    if user.city_id is None:
-        raise HTTPException(status_code=404, detail="No city set")
-    user.city_id = None
-    await session.commit()
-
-
 def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: datetime) -> None:
     account.username = info.username
     account.real_name = info.real_name
@@ -819,19 +810,6 @@ async def delete_playlist(
                 await session.commit()
         except Exception:
             logger.exception("Post-delete playlist cleanup failed; tombstone remains")
-
-
-@app.delete("/me/lastfm", status_code=204)
-async def unlink_lastfm_account(user: CurrentUserDep, session: SessionDep) -> None:
-    """Remove the user's Last.fm link; 404 if none is linked."""
-    result = await session.execute(
-        select(LastfmConnection).where(LastfmConnection.user_id == user.id)
-    )
-    connection = result.scalar_one_or_none()
-    if connection is None:
-        raise HTTPException(status_code=404, detail="No Last.fm account linked")
-    await session.delete(connection)
-    await session.commit()
 
 
 @app.post("/me/sync", response_model=SyncStartResult, status_code=202)

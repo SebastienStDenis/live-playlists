@@ -196,6 +196,18 @@ class SyncUserWorkflow:
                 step.status = "failed"
                 if isinstance(exc.cause, FailureError):
                     step.summary = exc.cause.message
+                # Even a failed run counts as the user's first finished sync
+                # (it gates onboarding); best-effort so a broken stamp can't
+                # mask the step's own failure.
+                try:
+                    await workflow.execute_activity(
+                        "record_sync_finished",
+                        user_id,
+                        schedule_to_close_timeout=timedelta(minutes=1),
+                        retry_policy=RETRY_POLICY,
+                    )
+                except ActivityError:
+                    workflow.logger.exception("Failed to record the finished run")
                 raise
             step.status = "completed"
             step.summary = spec.summarize(result)

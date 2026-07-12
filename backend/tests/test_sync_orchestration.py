@@ -399,6 +399,14 @@ def record_activity(recorded: list[str]):
     return record_sync_completed
 
 
+def finish_activity(finished: list[str]):
+    @activity.defn(name="record_sync_finished")
+    async def record_sync_finished(user_id: str) -> None:
+        finished.append(user_id)
+
+    return record_sync_finished
+
+
 def list_activity(user_ids: list[uuid.UUID]):
     @activity.defn(name="list_users_due_for_sync")
     async def list_users_due_for_sync() -> list[str]:
@@ -461,6 +469,7 @@ async def test_workflow_runs_all_steps_in_order() -> None:
 
 async def test_workflow_stops_at_first_failed_step() -> None:
     recorded: list[str] = []
+    finished: list[str] = []
     async with await WorkflowEnvironment.start_time_skipping(
         data_converter=pydantic_data_converter
     ) as env:
@@ -474,6 +483,7 @@ async def test_workflow_stops_at_first_failed_step() -> None:
                 fake_sync_events,
                 fake_sync_playlists,
                 record_activity(recorded),
+                finish_activity(finished),
             ],
         ):
             handle = await env.client.start_workflow(
@@ -491,10 +501,13 @@ async def test_workflow_stops_at_first_failed_step() -> None:
     assert steps[0].summary is not None
     assert steps[1].summary == "Last.fm exploded"
     assert recorded == []
+    # The failed run still counts as the user's first finished sync.
+    assert finished == [str(USER_ID)]
 
 
 async def test_workflow_does_not_retry_private_lastfm_data() -> None:
     recorded: list[str] = []
+    finished: list[str] = []
     attempts = 0
 
     @activity.defn(name="sync_artists")
@@ -516,6 +529,7 @@ async def test_workflow_does_not_retry_private_lastfm_data() -> None:
                 fake_sync_events,
                 fake_sync_playlists,
                 record_activity(recorded),
+                finish_activity(finished),
             ],
         ):
             handle = await env.client.start_workflow(
@@ -533,6 +547,7 @@ async def test_workflow_does_not_retry_private_lastfm_data() -> None:
     assert [step.status for step in steps] == ["failed", "pending", "pending", "pending"]
     assert steps[0].summary == str(LastfmPrivateDataError("rj"))
     assert recorded == []
+    assert finished == [str(USER_ID)]
 
 
 # --- dispatch ---
@@ -579,6 +594,7 @@ async def test_dispatch_syncs_each_listed_user_in_order() -> None:
 
 async def test_dispatch_isolates_child_failures() -> None:
     recorded: list[str] = []
+    finished: list[str] = []
 
     @activity.defn(name="sync_suggestions")
     async def failing_for_first_user(user_id: str) -> SuggestionSyncResult:
@@ -601,6 +617,7 @@ async def test_dispatch_isolates_child_failures() -> None:
                 fake_sync_events,
                 fake_sync_playlists,
                 record_activity(recorded),
+                finish_activity(finished),
             ],
         ):
             result = await env.client.execute_workflow(
@@ -611,6 +628,7 @@ async def test_dispatch_isolates_child_failures() -> None:
 
     assert result == DispatchSyncsResult(dispatched=2, succeeded=1, failed=1, skipped=0)
     assert recorded == [str(OTHER_USER_ID)]
+    assert finished == [str(USER_ID)]
 
 
 async def test_dispatch_skips_user_whose_sync_is_already_running() -> None:
@@ -756,6 +774,42 @@ async def test_record_sync_completed_activity_stamps_user(
     await make_activities().record_sync_completed(str(USER_ID))
 
     assert user.last_synced_at is not None
+    assert user.first_sync_finished_at == user.last_synced_at
+    session.commit.assert_awaited_once()
+
+
+async def test_record_sync_completed_keeps_first_finished_stamp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = make_session()
+    user = make_user()
+    first = datetime(2026, 7, 1, tzinfo=UTC)
+    user.first_sync_finished_at = first
+    session.get.return_value = user
+    patch_session_factory(monkeypatch, session)
+
+    await make_activities().record_sync_completed(str(USER_ID))
+
+    assert user.first_sync_finished_at == first
+
+
+async def test_record_sync_finished_activity_stamps_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = make_session()
+    user = make_user()
+    session.get.return_value = user
+    patch_session_factory(monkeypatch, session)
+    activities = make_activities()
+
+    await activities.record_sync_finished(str(USER_ID))
+    first = user.first_sync_finished_at
+    assert first is not None
+    session.commit.assert_awaited_once()
+
+    await activities.record_sync_finished(str(USER_ID))
+
+    assert user.first_sync_finished_at == first
     session.commit.assert_awaited_once()
 
 

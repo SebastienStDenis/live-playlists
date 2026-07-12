@@ -22,11 +22,15 @@ field in the settings Account section instead of its own alert-bearing
 section. The Last.fm link is likewise change-only - no unlink control
 anywhere; only deleting the whole account removes it.
 
-"A sync on record" is read from `GET /me/sync`, with `last_synced_at` as a
-fallback: Temporal retention can expire an old run's history, so a stamped
-successful sync also counts, and an unknown status (Temporal unreachable)
-never bounces. The cost of the invariant: a visitor without a Last.fm
-account cannot get past onboarding - accepted, since every dashboard tab is
+"A sync on record" is `users.first_sync_finished_at`: stamped by the
+workflow when a run reaches a terminal state - `record_sync_completed` on
+success, the `record_sync_finished` activity on the failure path - and
+backfilled from `last_synced_at` for pre-existing users. A durable column
+rather than Temporal's own record, which retention expires and outages
+hide; and a *finished* run rather than a started one, so the welcome page
+holds the user through the whole first watch (the dashboard would be empty
+anyway). The cost of the invariant: a visitor without a Last.fm account
+cannot get past onboarding - accepted, since every dashboard tab is
 sync-fed and useless without one.
 
 ## Flow

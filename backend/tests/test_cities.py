@@ -145,26 +145,3 @@ async def test_set_user_city_unknown_city() -> None:
     assert response.status_code == 404
     assert response.json()["detail"] == "City not found"
     session.commit.assert_not_awaited()
-
-
-async def test_clear_user_city() -> None:
-    current = User(id=USER_ID, name="Alice", city_id=6077243)
-    session = make_session()
-
-    response = await request("DELETE", "/me/city", session, user=current)
-
-    assert response.status_code == 204
-    assert current.city_id is None
-    session.commit.assert_awaited_once()
-
-
-async def test_clear_user_city_when_none_set() -> None:
-    session = make_session()
-
-    response = await request(
-        "DELETE", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=None)
-    )
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No city set"
-    session.commit.assert_not_awaited()

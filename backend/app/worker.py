@@ -137,6 +137,7 @@ async def _run_worker(settings: Settings, activities: SyncActivities) -> None:
             activities.sync_events,
             activities.sync_playlists,
             activities.record_sync_completed,
+            activities.record_sync_finished,
             activities.list_users_due_for_sync,
             activities.audit_bot_playlists,
             activities.drain_playlist_tombstones,

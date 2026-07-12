@@ -40,14 +40,12 @@ export default async function DashboardPage() {
       loadSyncStatus(),
       loadEmail(),
     ]);
-  // The dashboard requires a home city and a sync on record (even a failed
-  // one); anyone short of that goes through the welcome flow instead.
-  // Temporal retention can expire an old run, so last_synced_at also counts
-  // as proof a sync ran, and an unknown status (null) never bounces.
-  if (
-    city === null ||
-    (sync?.status === "none" && user.last_synced_at === null)
-  ) {
+  // The dashboard requires a home city and a finished sync run (even a
+  // failed one); anyone short of that goes through the welcome flow
+  // instead. The stamp implies the city (a sync can't start without one,
+  // and cities can't be cleared), but the explicit check covers rows from
+  // before that invariant and narrows the type for the panels.
+  if (city === null || user.first_sync_finished_at === null) {
     redirect("/welcome");
   }
 

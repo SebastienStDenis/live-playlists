@@ -14,6 +14,7 @@ class UserRead(BaseModel):
     name: str
     include_known_artists: bool
     last_synced_at: datetime | None
+    first_sync_finished_at: datetime | None
 
 
 class UserUpdate(BaseModel):

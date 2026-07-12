@@ -61,6 +61,11 @@ class User(Base):
     include_known_artists: Mapped[bool] = mapped_column(default=False, server_default=false())
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the user's first sync run reached a terminal state, failed runs
+    # included - the onboarding gate: the dashboard only resolves once this
+    # is set (docs/design/2026-07-12-welcome-flow-plan.md). last_synced_at
+    # can't serve, as it stamps only full successes.
+    first_sync_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LastfmAccount(Base):

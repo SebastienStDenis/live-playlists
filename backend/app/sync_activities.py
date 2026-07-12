@@ -126,7 +126,19 @@ class SyncActivities:
         async with session_factory() as session:
             user = await _require_user(session, user_id)
             user.last_synced_at = datetime.now(UTC)
+            if user.first_sync_finished_at is None:
+                user.first_sync_finished_at = user.last_synced_at
             await session.commit()
+
+    @activity.defn
+    async def record_sync_finished(self, user_id: str) -> None:
+        """Stamp the failure path: a run that ends without completing still
+        counts as the user's first finished sync (the onboarding gate)."""
+        async with session_factory() as session:
+            user = await _require_user(session, user_id)
+            if user.first_sync_finished_at is None:
+                user.first_sync_finished_at = datetime.now(UTC)
+                await session.commit()
 
     @activity.defn
     async def audit_bot_playlists(self) -> int:
