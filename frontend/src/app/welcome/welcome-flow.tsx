@@ -413,6 +413,7 @@ function LinkForm({
   onLinked: (account: LastfmAccount) => void;
   onCancel?: () => void;
 }) {
+  const [username, setUsername] = useState("");
   const [state, formAction, pending] = useActionState(
     async (_prev: { error: string | null }, formData: FormData) => {
       const username = formData.get("username");
@@ -442,9 +443,16 @@ function LinkForm({
           required
           disabled={pending}
           autoFocus
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           className="flex-1"
         />
-        <Button type="submit" size="sm" disabled={pending} className="shrink-0">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={pending || username.trim() === ""}
+          className="shrink-0"
+        >
           {pending ? <Spinner /> : <Link2 aria-hidden />}
           Link account
         </Button>

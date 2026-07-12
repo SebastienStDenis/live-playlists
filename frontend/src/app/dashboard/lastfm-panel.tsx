@@ -63,6 +63,7 @@ function LinkForm({
   hasAccount: boolean;
   onDone: () => void;
 }) {
+  const [username, setUsername] = useState("");
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
@@ -80,13 +81,15 @@ function LinkForm({
           required
           disabled={pending}
           autoFocus={hasAccount}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           className="flex-1"
         />
         <Button
           type="submit"
           variant="ghost"
           size="icon-sm"
-          disabled={pending}
+          disabled={pending || username.trim() === ""}
           aria-label="Link account"
           title="Link"
           className="text-muted-foreground"
