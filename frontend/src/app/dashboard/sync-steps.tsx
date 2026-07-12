@@ -32,6 +32,13 @@ export const stepMarkClasses: Record<SyncStep["status"], string> = {
   failed: "text-destructive",
 };
 
+export const syncDateFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export async function fetchStatus(): Promise<SyncStatus | null> {
   try {
     const res = await fetch(`/api/me/sync`);

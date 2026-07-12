@@ -13,6 +13,7 @@ import {
   POLL_INTERVAL_MS,
   StepList,
   StepMark,
+  syncDateFormat,
   type SyncStatus,
 } from "./sync-steps";
 import { Button } from "@/components/ui/button";
@@ -22,13 +23,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
-
-const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 export function SyncCard({
   lastfmLinked,
@@ -119,7 +113,7 @@ export function SyncCard({
   // finished behind the scenes (settling).
   const busy = running || statusLoading || settling;
   const finishedAt = status?.finished_at
-    ? syncedAtFormat.format(new Date(status.finished_at))
+    ? syncDateFormat.format(new Date(status.finished_at))
     : null;
   const finalOutcome = status?.status ?? "none";
   // A live run (or its settle animation) always wins the status area, even if a

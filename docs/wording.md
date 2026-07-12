@@ -84,12 +84,18 @@ cleared.
 
 ## Freshness markers
 
-The Artists, Concerts, and Playlists tabs show a green check with the time
-their step last succeeded, right-aligned on the tab's description line. The
-label is the step's action, a middle dot, then the date - "Suggest artists ·
-{date}", "Find concerts · {date}", "Generate playlists · {date}" - never a
-result claim like "Artists suggested", which reads oddly next to an empty
-list. Nothing is shown when the latest run has not completed the step. Each
+The Artists, Concerts, and Playlists tabs show the latest run's outcome for
+their step, right-aligned on the tab's description line. The text is always
+the step's action, a middle dot, then the date - "Suggest artists · {date}",
+"Find concerts · {date}", "Generate playlists · {date}" - never a result
+claim like "Artists suggested", which reads oddly next to an empty list, and
+never error text. The mark alone carries the outcome: a green check when the
+step succeeded (the date is when it succeeded), a red x when the run failed
+(the date is when it failed) - shown on every tab whose step didn't complete,
+since an earlier step failing stops the later ones - or a spinner, with no
+date, while a run is in flight. The marker links to the settings dialog,
+whose Daily Sync card carries the failure detail; a failed marker says "Last
+sync failed" in its tooltip. Nothing is shown when no run is on record. Each
 playlist card also shows its own last write beside its track count as plain
 text - "Synced {date}", no check, since it isn't a sync-step marker.
 Listening History relies on the Daily Sync card above it.
