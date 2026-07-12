@@ -7,7 +7,26 @@
 A new user lands on an empty dashboard and has to discover, via attention
 dots and empty-state nudges, that they must open Settings, link a Last.fm
 account, set a home city, and run a manual sync before anything appears.
-That scattered treasure hunt is replaced by a guided first-login flow.
+That scattered treasure hunt is replaced by a guided first-login flow, and
+the half-set-up states it produced are ruled out entirely.
+
+## Invariant
+
+The dashboard requires a home city and a sync on record - even a failed
+one. Anyone short of that is redirected to the welcome flow; there is no
+skipping. This lets the dashboard and settings drop every "no home city" and
+"never synced" half-state: events are always fetched, the concerts and
+playlists tabs lose their set-a-city empty states, the sync gate reduces to
+"is Last.fm linked", and the home city becomes a quiet, never-clearable
+field in the settings Account section instead of its own alert-bearing
+section.
+
+"A sync on record" is read from `GET /me/sync`, with `last_synced_at` as a
+fallback: Temporal retention can expire an old run's history, so a stamped
+successful sync also counts, and an unknown status (Temporal unreachable)
+never bounces. The cost of the invariant: a visitor without a Last.fm
+account cannot get past onboarding - accepted, since every dashboard tab is
+sync-fed and useless without one.
 
 ## Flow
 
@@ -15,10 +34,10 @@ That scattered treasure hunt is replaced by a guided first-login flow.
 order, one active step at a time with completed steps collapsing to a
 check-marked summary line:
 
-1. **Last.fm** - username input; `PUT /me/lastfm` validates the account and
-   the flow shows the linked username.
-2. **Home City** - the same city search box the settings dialog uses;
+1. **Home City** - the same city search box the settings dialog uses;
    `PUT /me/city`.
+2. **Last.fm** - username input; `PUT /me/lastfm` validates the account and
+   the flow shows the linked username.
 3. **First Sync** - starts automatically once both are set
    (`POST /me/sync`) and shows the four workflow steps live by polling
    `GET /me/sync`, ending in a "Go to dashboard" button (or a retry on
@@ -28,14 +47,9 @@ Copy and step names follow `docs/wording.md` (Welcome flow section).
 
 ## Routing
 
-- The dashboard redirects to `/welcome` when setup is incomplete (no Last.fm
-  link or no home city), the user has never completed a sync
-  (`last_synced_at` null), and the skip cookie is absent. All post-login
-  entry points funnel through the dashboard, so no auth redirect changes.
-- "Skip for now" sets the `welcome-skipped` cookie
-  (`frontend/src/app/welcome/welcome-cookie.ts`, one year) client-side, like
-  the dashboard tab cookie, and returns to the dashboard where the existing
-  settings nudges take over.
+- The dashboard redirects to `/welcome` whenever the invariant fails. All
+  post-login entry points funnel through the dashboard, so no auth redirect
+  changes.
 - `/welcome` itself bounces fully onboarded users (setup complete and a
   completed sync on record) to the dashboard, so the flow stays resumable
   mid-setup or mid-first-sync but never reappears afterwards.

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   useActionState,
   useCallback,
@@ -25,7 +24,6 @@ import {
   type SyncStatus,
 } from "../dashboard/sync-steps";
 import { linkLastfmAccount } from "./actions";
-import { WELCOME_SKIPPED_COOKIE } from "./welcome-cookie";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-type SetupStep = "lastfm" | "city" | "sync";
+type SetupStep = "city" | "lastfm" | "sync";
 
 export function WelcomeFlow({
   initialLastfm,
@@ -44,12 +42,11 @@ export function WelcomeFlow({
   initialCity: City | null;
   initialSync: SyncStatus | null;
 }) {
-  const router = useRouter();
   const [lastfm, setLastfm] = useState(initialLastfm);
   const [city, setCityState] = useState(initialCity);
   const [sync, setSync] = useState(initialSync);
   // A completed setup step reopened for correction; cleared on save.
-  const [editing, setEditing] = useState<"lastfm" | "city" | null>(null);
+  const [editing, setEditing] = useState<"city" | "lastfm" | null>(null);
   const [polling, setPolling] = useState(initialSync?.status === "running");
   const [startFailed, setStartFailed] = useState(false);
   const [starting, startTransition] = useTransition();
@@ -63,7 +60,7 @@ export function WelcomeFlow({
   );
 
   const setupStep: SetupStep =
-    lastfm === null ? "lastfm" : city === null ? "city" : "sync";
+    city === null ? "city" : lastfm === null ? "lastfm" : "sync";
   const step = editing ?? setupStep;
   const outcome = sync?.status ?? "none";
   const syncActive = starting || polling || outcome === "running";
@@ -149,170 +146,151 @@ export function WelcomeFlow({
     });
   }
 
-  function skip() {
-    document.cookie = `${WELCOME_SKIPPED_COOKIE}=1; path=/; max-age=31536000; samesite=lax`;
-    router.push("/dashboard");
-  }
-
   // Corrections are for the setup phase; once the first sync is under way
   // (or done), settings changes belong to the settings dialog.
   const canEdit = !syncActive && outcome !== "completed";
 
   return (
-    <div>
-      <Card>
-        <CardContent className="space-y-5">
-          <SetupRow
-            index={1}
-            title="Last.fm"
-            active={step === "lastfm"}
-            done={lastfm !== null}
-            summary={lastfm?.username}
-            description="Listening history is imported from your Last.fm account."
-            onEdit={
-              lastfm !== null && step !== "lastfm" && canEdit
-                ? () => setEditing("lastfm")
-                : undefined
-            }
-          >
-            <LastfmStep
-              onLinked={(account) => {
-                setLastfm(account);
-                setEditing(null);
-              }}
-              onCancel={
-                editing === "lastfm" ? () => setEditing(null) : undefined
-              }
-            />
-          </SetupRow>
-          <SetupRow
-            index={2}
-            title="Home City"
-            active={step === "city"}
-            done={city !== null}
-            summary={city ? cityLabel(city) : undefined}
-            description="A playlist is generated for concerts in your home city."
-            onEdit={
-              city !== null && step !== "city" && canEdit
-                ? () => setEditing("city")
-                : undefined
-            }
-          >
-            {pendingCity ? (
-              <div className="flex items-center justify-between gap-4">
-                <p className="min-w-0 text-sm font-medium">
-                  {cityLabel(pendingCity)}
-                </p>
-                <span className="flex size-7 items-center justify-center text-muted-foreground">
-                  <Spinner />
-                </span>
+    <Card>
+      <CardContent className="space-y-5">
+        <SetupRow
+          index={1}
+          title="Home City"
+          active={step === "city"}
+          done={city !== null}
+          summary={city ? cityLabel(city) : undefined}
+          description="A playlist is generated for concerts in your home city."
+          onEdit={
+            city !== null && step !== "city" && canEdit
+              ? () => setEditing("city")
+              : undefined
+          }
+        >
+          {pendingCity ? (
+            <div className="flex items-center justify-between gap-4">
+              <p className="min-w-0 text-sm font-medium">
+                {cityLabel(pendingCity)}
+              </p>
+              <span className="flex size-7 items-center justify-center text-muted-foreground">
+                <Spinner />
+              </span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <div className="min-w-0 flex-1">
+                <CitySearchBox
+                  placeholder="Search for a city"
+                  autoFocus
+                  onSelect={pickCity}
+                />
               </div>
-            ) : (
-              <div className="flex gap-2">
-                <div className="min-w-0 flex-1">
-                  <CitySearchBox
-                    placeholder="Search for a city"
-                    autoFocus
-                    onSelect={pickCity}
-                  />
-                </div>
-                {editing === "city" && (
-                  // mt-0.5 centers the icon on the input's height while
-                  // staying self-start, so it doesn't move when the search
-                  // box's error line appears below.
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setEditing(null)}
-                    aria-label="Cancel"
-                    title="Cancel"
-                    className="mt-0.5 self-start text-muted-foreground"
-                  >
-                    <X aria-hidden />
-                  </Button>
-                )}
-              </div>
-            )}
-          </SetupRow>
-          <SetupRow
-            index={3}
-            title="First Sync"
-            active={step === "sync"}
-            done={outcome === "completed"}
-            description="Imports listening history, suggests artists, finds concerts and generates playlists."
-          >
-            <div className="space-y-4">
-              <StepList steps={sync?.steps ?? []} />
-              {outcome === "completed" ? (
-                <div className="animate-slide-in-up space-y-3">
-                  <p className="text-sm">All set. Playlists update daily.</p>
-                  <Button asChild size="sm">
-                    <Link href="/dashboard">
-                      Go to dashboard
-                      <ArrowRight aria-hidden />
-                    </Link>
-                  </Button>
-                </div>
-              ) : (outcome === "failed" || startFailed) && !syncActive ? (
-                <div className="flex flex-wrap items-center gap-2 animate-fade-in">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={begin}
-                  >
-                    <RefreshCw aria-hidden />
-                    Try again
-                  </Button>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground"
-                  >
-                    <Link href="/dashboard">
-                      Go to dashboard
-                      <ArrowRight aria-hidden />
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground italic">
-                    The first sync can take a few minutes. It keeps running if
-                    you leave.
-                  </p>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-2.5 text-muted-foreground"
-                  >
-                    <Link href="/dashboard">
-                      Go to dashboard
-                      <ArrowRight aria-hidden />
-                    </Link>
-                  </Button>
-                </div>
+              {editing === "city" && (
+                // mt-0.5 centers the icon on the input's height while
+                // staying self-start, so it doesn't move when the search
+                // box's error line appears below.
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setEditing(null)}
+                  aria-label="Cancel"
+                  title="Cancel"
+                  className="mt-0.5 self-start text-muted-foreground"
+                >
+                  <X aria-hidden />
+                </Button>
               )}
             </div>
-          </SetupRow>
-        </CardContent>
-      </Card>
-      {setupStep !== "sync" && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={skip}
-          className="mt-4 -ml-2.5 text-muted-foreground"
+          )}
+        </SetupRow>
+        <SetupRow
+          index={2}
+          title="Last.fm"
+          active={step === "lastfm"}
+          done={lastfm !== null}
+          summary={lastfm?.username}
+          description="Listening history is imported from your Last.fm account."
+          onEdit={
+            lastfm !== null && step !== "lastfm" && canEdit
+              ? () => setEditing("lastfm")
+              : undefined
+          }
         >
-          Skip for now
-          <ArrowRight aria-hidden />
-        </Button>
-      )}
-    </div>
+          <LastfmStep
+            onLinked={(account) => {
+              setLastfm(account);
+              setEditing(null);
+            }}
+            onCancel={
+              editing === "lastfm" ? () => setEditing(null) : undefined
+            }
+          />
+        </SetupRow>
+        <SetupRow
+          index={3}
+          title="First Sync"
+          active={step === "sync"}
+          done={outcome === "completed"}
+          description="Imports listening history, suggests artists, finds concerts and generates playlists."
+        >
+          <div className="space-y-4">
+            <StepList steps={sync?.steps ?? []} />
+            {outcome === "completed" ? (
+              <div className="animate-slide-in-up space-y-3">
+                <p className="text-sm">All set. Playlists update daily.</p>
+                <Button asChild size="sm">
+                  <Link href="/dashboard">
+                    Go to dashboard
+                    <ArrowRight aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            ) : (outcome === "failed" || startFailed) && !syncActive ? (
+              <div className="flex flex-wrap items-center gap-2 animate-fade-in">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={begin}
+                >
+                  <RefreshCw aria-hidden />
+                  Try again
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                >
+                  <Link href="/dashboard">
+                    Go to dashboard
+                    <ArrowRight aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground italic">
+                  The first sync can take a few minutes. It keeps running if
+                  you leave.
+                </p>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2.5 text-muted-foreground"
+                >
+                  <Link href="/dashboard">
+                    Go to dashboard
+                    <ArrowRight aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+        </SetupRow>
+      </CardContent>
+    </Card>
   );
 }
 

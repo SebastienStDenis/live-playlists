@@ -66,18 +66,20 @@ cards would use; Listening History and tracklist messages are plain text.
 | Listening History (settings) | Run a sync above to import listening history. | No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will import new listening history as it appears. |
 | Artists tab | Run a sync in [Settings] to suggest artists. | No artists suggested. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will suggest new artists as your listening history changes. |
 | Concerts tab | Run a sync in [Settings] to find concerts. | Home view: "No concerts found near {city}. NextFM will find new concerts as they're announced." Browsing another city: "No concerts found. Try a different city." |
-| Playlists tab | Run a sync in [Settings] to generate playlists. | No playlists generated. Set your home city in [Settings]. (No new-data note - nothing flows in without a home city.) |
+| Playlists tab | Run a sync in [Settings] to generate playlists. | No playlists generated. NextFM will generate them on the next daily sync. |
 
-`[Settings]` opens the settings dialog (`/dashboard#settings`). Three related
+`[Settings]` opens the settings dialog (`/dashboard#settings`). Two related
 fixed messages:
 
-- Concerts tab with no home city set (regardless of sync state): "Set your
-  home city in [Settings] to see local concerts."
 - Concerts hidden by the filter toggles: a card-sized ghost box in the
   concerts grid, after any visible concerts: "{n} concert(s) hidden by
   filters."
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
+
+There is no "no home city" state: the dashboard requires a home city and a
+sync on record (see Welcome flow), and the home city can be changed but
+never cleared.
 
 ## Freshness markers
 
@@ -93,14 +95,14 @@ Listening History relies on the Daily Sync card above it.
 
 ## Welcome flow
 
-A first-run user (Last.fm or home city still unset, no completed sync) is
-redirected from the dashboard to `/welcome`: a guided flow that links
-Last.fm, sets the home city, then runs the first sync and shows its steps
-live (see `docs/design/2026-07-12-welcome-flow-plan.md`). "Skip for now"
-returns to the dashboard, where the settings nudges take over. Step headings
-reuse the settings section names and descriptions, except the sync step: in
-the flow it is **First Sync** (the guided one-off; the daily schedule takes
-over afterwards). Two fixed sentences:
+The dashboard requires a home city and a sync on record (even a failed
+one); anyone short of that is redirected to `/welcome`, a guided,
+non-skippable flow that sets the home city, links Last.fm, then runs the
+first sync and shows its steps live (see
+`docs/design/2026-07-12-welcome-flow-plan.md`). Step headings reuse the
+settings vocabulary, except the sync step: in the flow it is **First Sync**
+(the guided one-off; the daily schedule takes over afterwards). Two fixed
+sentences:
 
 - While the run plays: "The first sync can take a few minutes. It keeps
   running if you leave."
@@ -110,9 +112,11 @@ over afterwards). Two fixed sentences:
 
 - Dashboard tabs: **Artists**, **Concerts**, **Playlists** (each label carries
   a live count, e.g. "Artists (12)").
-- Settings sections: **Daily Sync**, **Last.fm**, **Home City**,
-  **Pinned Cities**, **Options**, **Listening History**, **Account**.
-- Welcome flow steps: **Last.fm**, **Home City**, **First Sync**.
+- Settings sections: **Daily Sync**, **Last.fm**, **Pinned Cities**,
+  **Options**, **Listening History**, **Account** (the home city lives in
+  Account as a quiet field - onboarding guarantees it, so it no longer earns
+  its own section).
+- Welcome flow steps: **Home City**, **Last.fm**, **First Sync**.
 
 ## Canonical sentences
 

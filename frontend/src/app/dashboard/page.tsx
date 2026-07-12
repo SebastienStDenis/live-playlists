@@ -2,7 +2,6 @@ import { Settings as SettingsIcon } from "lucide-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { WELCOME_SKIPPED_COOKIE } from "../welcome/welcome-cookie";
 import { Button } from "@/components/ui/button";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
@@ -30,8 +29,7 @@ import {
 
 export default async function DashboardPage() {
   const user = await loadMe();
-  const cookieStore = await cookies();
-  const lastTab = cookieStore.get(TAB_COOKIE)?.value;
+  const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
 
   const [lastfm, city, userArtists, playlists, sync, email] =
     await Promise.all([
@@ -42,30 +40,28 @@ export default async function DashboardPage() {
       loadSyncStatus(),
       loadEmail(),
     ]);
-  // Also gates the "continually updated" pulse on playlists: a missing
-  // Last.fm link or home city is what stops the nightly sync from
-  // maintaining them.
-  const syncDisabled = lastfm === null || city === null;
-
-  // First-run users get the guided welcome flow instead of an empty
-  // dashboard, unless they dismissed it.
+  // The dashboard requires a home city and a sync on record (even a failed
+  // one); anyone short of that goes through the welcome flow instead.
+  // Temporal retention can expire an old run, so last_synced_at also counts
+  // as proof a sync ran, and an unknown status (null) never bounces.
   if (
-    syncDisabled &&
-    user.last_synced_at === null &&
-    !cookieStore.has(WELCOME_SKIPPED_COOKIE)
+    city === null ||
+    (sync?.status === "none" && user.last_synced_at === null)
   ) {
     redirect("/welcome");
   }
 
+  // Also gates the "continually updated" pulse on playlists: with a home
+  // city guaranteed, a missing Last.fm link is the one thing that stops the
+  // nightly sync from maintaining them.
+  const syncDisabled = lastfm === null;
+
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
-  const events =
-    city !== null
-      ? await fetchJson<UserEvent[]>(
-          "/me/events?include_known_artists=true",
-          "events",
-        )
-      : [];
+  const events = await fetchJson<UserEvent[]>(
+    "/me/events?include_known_artists=true",
+    "events",
+  );
 
   // The lists overlap on purpose: an artist can hold a known-kind interest
   // below the engine's playcount floor and still be an active suggestion.

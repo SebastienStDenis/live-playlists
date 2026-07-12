@@ -90,16 +90,6 @@ export async function setCity(geonameid: number): Promise<ActionState> {
   );
 }
 
-export async function clearCity(): Promise<ActionState> {
-  return callApi(
-    `/me/city`,
-    { method: "DELETE" },
-    "Failed to clear city.",
-    `/dashboard`,
-    "layout",
-  );
-}
-
 export async function startSync(): Promise<ActionState> {
   let res: Response;
   try {

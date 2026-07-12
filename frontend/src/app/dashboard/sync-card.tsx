@@ -35,13 +35,7 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-export function SyncCard({
-  lastfmLinked,
-  citySet,
-}: {
-  lastfmLinked: boolean;
-  citySet: boolean;
-}) {
+export function SyncCard({ lastfmLinked }: { lastfmLinked: boolean }) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   // True until the first status fetch resolves: we don't yet know whether a
@@ -131,18 +125,13 @@ export function SyncCard({
   // requirement looks unmet - never replace an active run with the setup hint.
   const showSteps = (running || settling) && status !== null;
 
-  // Client-side gate only (no backend change yet): a sync needs both a linked
-  // Last.fm account and a city, both set from sections below.
-  const missing = [
-    !lastfmLinked && "link Last.fm account",
-    !citySet && "set home city",
-  ].filter((item): item is string => item !== false);
-  const canSync = missing.length === 0;
+  // Client-side gate only (no backend change yet): with a home city
+  // guaranteed by onboarding, a sync just needs a linked Last.fm account,
+  // set from the section below.
+  const canSync = lastfmLinked;
   const missingNote = canSync
     ? null
-    : `${missing.join(" and ")} below to enable sync.`.replace(/^./, (c) =>
-        c.toUpperCase(),
-      );
+    : "Link Last.fm account below to enable sync.";
 
   function onSync() {
     if (!canSync) {
