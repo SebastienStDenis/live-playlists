@@ -86,8 +86,9 @@ label is the step's action, a middle dot, then the date - "Suggest artists ·
 {date}", "Find concerts · {date}", "Generate playlists · {date}" - never a
 result claim like "Artists suggested", which reads oddly next to an empty
 list. Nothing is shown when the latest run has not completed the step. Each
-playlist card also shows its own "Synced · {date}" with the check, beside
-its track count. Listening History relies on the Daily Sync card above it.
+playlist card also shows its own last write beside its track count as plain
+text - "Synced {date}", no check, since it isn't a sync-step marker.
+Listening History relies on the Daily Sync card above it.
 
 ## Section and tab names
 

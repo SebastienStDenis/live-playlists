@@ -18,7 +18,7 @@ Relevant places are:
 Never hide data for being stale. If there is data, show it. Doing otherwise leans toward lying to the user, which is bad. If data is stale, it's because the user's daily sync is disabled, and therefore a red dot is shown at the top of the page, so the user is already aware of the issue. No need to let them know elsewhere as well by degrading the existing experience.
 
 In each section, show a date with the latest successful single relevant step (only consider the single relevant step type for each section; in practice, `GET /me/sync` reports the latest run only, so this means the step completed in the latest run, dated by that run's finish time). If there is no successful single relevant step, then show nothing in place of it. Style it with a green checkmark and a date, keep it minimal, right-aligned on the tab's description line. A few notes:
-- Dashboard - Playlists tab - list of playlists: show the top-level date like the other tabs; each playlist card also keeps its own last sync date, shown with the checkmark on the track-count line
+- Dashboard - Playlists tab - list of playlists: show the top-level date like the other tabs; each playlist card also keeps its own last sync date on the track-count line, as plain text without the checkmark (it's not a sync-step marker)
 - Account - Listening History: don't show anything here, user can scroll up to see the latest state in the Daily Sync section.
 
 # Missing Data

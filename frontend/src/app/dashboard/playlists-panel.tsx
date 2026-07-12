@@ -19,7 +19,6 @@ import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
-import { SyncedNote } from "./synced-note";
 
 export type Playlist = {
   id: string;
@@ -53,6 +52,35 @@ const showDateFormat = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   timeZone: "UTC",
 });
+
+const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const emptySubscribe = () => () => {};
+
+// The playlist's own last write, distinct from the step markers on the tab
+// description line - plain text, no check (see docs/wording.md). Formats in
+// the viewer's timezone, which the server can't know - renders only after
+// hydration so server and client HTML always match.
+function SyncedAtLabel({ iso }: { iso: string }) {
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  if (!hydrated) {
+    return null;
+  }
+  return (
+    <span className="animate-fade-in text-xs text-muted-foreground">
+      Synced {syncedAtFormat.format(new Date(iso))}
+    </span>
+  );
+}
 
 // Playlist cards stack per column (masonry-ish) so an expanded tracklist
 // only pushes down cards in its own column. The column count mirrors the
@@ -207,7 +235,7 @@ function PlaylistCard({
                 />
               </CollapsibleTrigger>
               {playlist.last_synced_at && (
-                <SyncedNote label="Synced" iso={playlist.last_synced_at} />
+                <SyncedAtLabel iso={playlist.last_synced_at} />
               )}
             </div>
             <CollapsibleContent>
