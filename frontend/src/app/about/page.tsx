@@ -40,7 +40,8 @@ export default function AboutPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Tracks are ordered by concert date, soonest first, and the playlist
             is capped at 100 tracks. To catch new concerts fastest, sort the
-            playlist by “Date added” in Spotify: newly announced
+            playlist by <b className="font-medium">Date added</b> in Spotify:
+            newly announced
             concerts and newly suggested artists will appear at the top.
           </p>
         </section>

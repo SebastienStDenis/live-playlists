@@ -47,8 +47,11 @@ shaped the values, and should shape future adjustments:
   italic`, so it reads as a quiet aside rather than body copy.
 - **Quoted phrases use `<q>`.** Genuine quotations in prose (e.g. the sample
   suggestion reason on the about page) are marked up with the `q` element; the
-  base layer in `globals.css` supplies curly quote marks and italics. Names of
-  UI labels ("Date added") stay as plain text with literal curly quotes.
+  base layer in `globals.css` supplies curly quote marks and italics.
+- **UI label names are medium-weight, not quoted.** When prose refers to a
+  control by name (Spotify's "Date added" sort), set it in
+  `<b className="font-medium">` - no quote marks. Full bold would shout;
+  medium matches the section headings.
 
 ## Interactive affordances
 
