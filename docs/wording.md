@@ -65,10 +65,13 @@ things change\>."
 | Concerts tab | Run a sync in [Account] to find concerts. | Home view: "No concerts found near {city}. NextFM will find new concerts as they're announced." Browsing another city: "No concerts found. Try a different city." |
 | Playlists tab | Run a sync in [Account] to generate playlists. | No playlists generated. Set your home city in [Account]. (No new-data note - nothing flows in without a home city.) |
 
-`[Account]` links to the account page. Two related fixed messages:
+`[Account]` links to the account page. Three related fixed messages:
 
 - Concerts tab with no home city set (regardless of sync state): "Set your
   home city in [Account] to see local concerts."
+- Concerts hidden by the filter toggles: a card-sized ghost box in the
+  concerts grid, after any visible concerts: "{n} concert(s) hidden by
+  filters."
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
 

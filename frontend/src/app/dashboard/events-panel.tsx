@@ -237,14 +237,12 @@ export function EventsPanel({
               Artists you listen to
             </Toggle>
           </div>
-          {visibleEvents.length === 0 ? (
-            hiddenCount === 0 && (
-              <EmptyState className="mt-4">
-                {viewCity
-                  ? "No concerts found. Try a different city."
-                  : `No concerts found near ${city?.name}. NextFM will find new concerts as they're announced.`}
-              </EmptyState>
-            )
+          {visibleEvents.length === 0 && hiddenCount === 0 ? (
+            <EmptyState className="mt-4">
+              {viewCity
+                ? "No concerts found. Try a different city."
+                : `No concerts found near ${city?.name}. NextFM will find new concerts as they're announced.`}
+            </EmptyState>
           ) : (
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, artists }) => (
@@ -298,13 +296,17 @@ export function EventsPanel({
                   </Card>
                 </li>
               ))}
+              {/* Filtered-out concerts keep a slot in the grid: a ghost cell
+                  sized like the cards it stands in for. */}
+              {hiddenCount > 0 && (
+                <li className="flex">
+                  <EmptyState className="flex flex-1 items-center justify-center">
+                    {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
+                    hidden by filters.
+                  </EmptyState>
+                </li>
+              )}
             </ul>
-          )}
-          {hiddenCount > 0 && (
-            <p className="mt-3 text-xs text-muted-foreground italic">
-              {hiddenCount} {hiddenCount === 1 ? "concert is" : "concerts are"}{" "}
-              hidden by filters.
-            </p>
           )}
         </>
       )}

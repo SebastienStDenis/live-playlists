@@ -23,7 +23,7 @@ In each section, show a date with the latest successful single relevant step (on
 
 # Missing Data
 
-As mentioned earlier: if there is data then show it, end of story. Even on the concerts tab, if there are no suggested artists events and only known artists events (which are hidden by the default filter selection), just show the '<n> concerts hidden by filters' alongside an empty list, and that's it. Only proceed if there is truly no data to show.
+As mentioned earlier: if there is data then show it, end of story. Even on the concerts tab, if there are no suggested artists events and only known artists events (which are hidden by the default filter selection), just show a '<n> concerts hidden by filters' ghost box in the concerts grid, sized like the concert cards (it takes the slot after any visible concerts), and that's it. Only proceed if there is truly no data to show.
 
 In all cases, if there is no data to show, then show the ghost card with a relevant message in it. Exceptions:
 - Dashboard - Playlists tab - tracklists within a playlist: show the 0 tracks dropdown with the error message within the dropdown, no card since it's already in a card.
