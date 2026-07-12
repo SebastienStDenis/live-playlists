@@ -68,7 +68,10 @@ export default async function WelcomePage() {
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
         </Section>
       </div>
-      {user.last_synced_at !== null && (
+      {/* Synced alone isn't enough: a user bounced back here (say, an
+          unlinked Last.fm) has a sync on record but an open step, and the
+          dashboard would only bounce them again. */}
+      {activeStep === null && synced && (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-slide-in-up">
           <p className="text-sm">All set. Playlists update daily.</p>
           <Button asChild size="sm">
