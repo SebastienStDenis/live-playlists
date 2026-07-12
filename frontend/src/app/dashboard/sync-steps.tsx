@@ -11,6 +11,8 @@ export type SyncStep = {
   label: string;
   status: "pending" | "running" | "completed" | "failed";
   summary: string | null;
+  // When the step reached its terminal state; null for steps that never ran.
+  finished_at: string | null;
 };
 
 export type SyncStatus = {
@@ -31,6 +33,13 @@ export const stepMarkClasses: Record<SyncStep["status"], string> = {
   completed: "text-green-600 dark:text-green-500",
   failed: "text-destructive",
 };
+
+export const syncDateFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 export async function fetchStatus(): Promise<SyncStatus | null> {
   try {

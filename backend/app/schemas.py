@@ -193,6 +193,9 @@ class SyncStepProgress(BaseModel):
     label: str
     status: Literal["pending", "running", "completed", "failed"]
     summary: str | None = None
+    # When the step reached its terminal state (completed or failed); never
+    # set for steps that never got to run.
+    finished_at: datetime | None = None
 
 
 class SyncRunResult(BaseModel):
