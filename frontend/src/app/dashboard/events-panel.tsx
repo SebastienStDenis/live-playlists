@@ -20,6 +20,7 @@ import { CitySearchBox } from "./city-search-box";
 import { InlineNav } from "../inline-nav";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SyncedNote } from "./synced-note";
 
 export type UserEvent = {
   event: {
@@ -73,11 +74,13 @@ function artistChipLabel(
 export function EventsPanel({
   city,
   synced,
+  syncedAt,
   artistRelations,
   events,
 }: {
   city: City | null;
   synced: boolean;
+  syncedAt: string | null;
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
@@ -88,7 +91,9 @@ export function EventsPanel({
   const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
 
-  if (!synced) {
+  // Existing data always shows (even if the latest run didn't complete the
+  // events step); the run-a-sync hint is only for a truly empty panel.
+  if (events.length === 0 && !synced) {
     return <RunSyncMessage action="find concerts" />;
   }
 
@@ -208,6 +213,11 @@ export function EventsPanel({
             <span>Upcoming concerts in</span>
             {cityField}
             <span>({visibleEvents.length})</span>
+            {syncedAt && (
+              <span className="ml-auto">
+                <SyncedNote label="Concerts found" iso={syncedAt} />
+              </span>
+            )}
           </h3>
           <div className="mt-3 flex flex-wrap gap-2">
             <Toggle
@@ -232,7 +242,7 @@ export function EventsPanel({
               <EmptyState className="mt-4">
                 {viewCity
                   ? "No concerts found. Try a different city."
-                  : `No concerts found near ${city?.name}.`}
+                  : `No concerts found near ${city?.name}. NextFM will find new concerts as they're announced.`}
               </EmptyState>
             )
           ) : (

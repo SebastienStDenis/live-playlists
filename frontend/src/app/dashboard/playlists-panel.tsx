@@ -126,16 +126,16 @@ export function PlaylistsPanel({
 }) {
   const columnCount = useColumnCount();
 
-  if (!synced) {
-    return <RunSyncMessage action="generate playlists" />;
-  }
-
+  // Existing playlists always show (even if the latest run didn't complete
+  // the playlists step); the run-a-sync hint is only for a truly empty panel.
   if (playlists.length === 0) {
-    return (
+    return synced ? (
       <EmptyState>
         No playlists generated. Set your home city in{" "}
         <InlineNav href="/dashboard/account">Account</InlineNav>.
       </EmptyState>
+    ) : (
+      <RunSyncMessage action="generate playlists" />
     );
   }
 
@@ -199,7 +199,7 @@ function PlaylistCard({
             {playlist.name}
           </CardTitle>
           <CardDescription>
-            {playlist.spotify_url ? (
+            {playlist.spotify_url && (
               <a
                 href={playlist.spotify_url}
                 target="_blank"
@@ -209,8 +209,6 @@ function PlaylistCard({
                 Open in Spotify
                 <ExternalLink className="size-3.5" aria-hidden />
               </a>
-            ) : (
-              "Not on Spotify yet - sync to generate it."
             )}
             {playlist.last_synced_at && (
               <SyncedAtLabel iso={playlist.last_synced_at} />

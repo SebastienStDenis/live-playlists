@@ -189,7 +189,7 @@ export function TastePanel({
         // just the centered empty-state text.
         <p className="px-6 py-8 text-center text-sm text-muted-foreground">
           {synced
-            ? "No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history."
+            ? "No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will import new listening history as it appears."
             : "Run a sync above to import listening history."}
         </p>
       ) : (

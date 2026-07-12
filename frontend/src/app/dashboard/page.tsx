@@ -20,6 +20,7 @@ import {
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
+  syncStepCompletedAt,
 } from "./user-api";
 
 export default async function DashboardPage() {
@@ -105,6 +106,7 @@ export default async function DashboardPage() {
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
                   synced={syncStepCompleted(sync, "suggestions")}
+                  syncedAt={syncStepCompletedAt(sync, "suggestions")}
                 />
               ),
             },
@@ -116,6 +118,7 @@ export default async function DashboardPage() {
                 <EventsPanel
                   city={city}
                   synced={syncStepCompleted(sync, "events")}
+                  syncedAt={syncStepCompletedAt(sync, "events")}
                   artistRelations={artistRelations}
                   events={events}
                 />
