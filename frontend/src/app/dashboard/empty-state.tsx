@@ -34,9 +34,10 @@ export function EmptyStateCell({
 }) {
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3", className)}>
-      <EmptyState className="flex items-center justify-center">
-        {children}
-      </EmptyState>
+      {/* content-center, not flex: a flex container would split the message
+          around inline elements (the Account pill) and swallow the spaces
+          between them. */}
+      <EmptyState className="content-center">{children}</EmptyState>
     </div>
   );
 }

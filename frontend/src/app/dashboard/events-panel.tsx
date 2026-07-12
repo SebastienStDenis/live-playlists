@@ -292,7 +292,7 @@ export function EventsPanel({
                   sized like the cards it stands in for. */}
               {hiddenCount > 0 && (
                 <li className="flex">
-                  <EmptyState className="flex flex-1 items-center justify-center">
+                  <EmptyState className="flex-1 content-center">
                     {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
                     hidden by filters.
                   </EmptyState>
