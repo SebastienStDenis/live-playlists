@@ -269,12 +269,6 @@ export function SyncCard({
                   // screens.
                   className="-ml-2.5 h-auto min-h-7 animate-fade-in justify-start text-left whitespace-normal text-muted-foreground"
                 >
-                  {canSync && (
-                    <span
-                      className="size-1.5 shrink-0 rounded-full bg-primary"
-                      aria-hidden
-                    />
-                  )}
                   Get started by running a manual sync.
                 </Button>
               )}
