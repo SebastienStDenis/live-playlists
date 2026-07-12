@@ -18,6 +18,13 @@ export function InlineNav({
   className?: string;
   children: ReactNode;
 }) {
+  const content = (
+    <>
+      {children}
+      <ArrowRight aria-hidden="true" />
+    </>
+  );
+
   return (
     <Button
       asChild
@@ -25,10 +32,14 @@ export function InlineNav({
       size="xs"
       className={cn("h-5 px-1.5 align-middle", className)}
     >
-      <Link href={href}>
-        {children}
-        <ArrowRight aria-hidden="true" />
-      </Link>
+      {href.startsWith("#") ? (
+        // Hash targets (the settings dialog) need a native anchor: Link's
+        // client-side navigation doesn't fire the hashchange event the
+        // dialog listens for.
+        <a href={href}>{content}</a>
+      ) : (
+        <Link href={href}>{content}</Link>
+      )}
     </Button>
   );
 }
