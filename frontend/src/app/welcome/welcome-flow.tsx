@@ -66,7 +66,7 @@ export function WelcomeFlow({
   const [, startCityTransition] = useTransition();
 
   const setupStep: SetupStep =
-    city === null ? "city" : lastfm === null ? "lastfm" : "sync";
+    lastfm === null ? "lastfm" : city === null ? "city" : "sync";
   const step = editing ?? setupStep;
   const outcome = sync?.status ?? "none";
   const syncActive = starting || polling || outcome === "running";
@@ -169,6 +169,28 @@ export function WelcomeFlow({
   return (
     <div className="space-y-6">
       <StepSection
+        heading="Last.fm"
+        state={lastfmState}
+        description="Listening history is imported from your Last.fm account."
+      >
+        {lastfmState === "done" ? (
+          <LinkedAccount
+            account={lastfm!}
+            onEdit={canEdit ? () => setEditing("lastfm") : undefined}
+          />
+        ) : (
+          <LinkForm
+            onLinked={(account) => {
+              setLastfm(account);
+              setEditing(null);
+            }}
+            onCancel={
+              editing === "lastfm" ? () => setEditing(null) : undefined
+            }
+          />
+        )}
+      </StepSection>
+      <StepSection
         heading="Home City"
         state={cityState}
         description="A playlist is generated for concerts in your home city."
@@ -223,28 +245,6 @@ export function WelcomeFlow({
               </Button>
             )}
           </div>
-        )}
-      </StepSection>
-      <StepSection
-        heading="Last.fm"
-        state={lastfmState}
-        description="Listening history is imported from your Last.fm account."
-      >
-        {lastfmState === "done" ? (
-          <LinkedAccount
-            account={lastfm!}
-            onEdit={canEdit ? () => setEditing("lastfm") : undefined}
-          />
-        ) : (
-          <LinkForm
-            onLinked={(account) => {
-              setLastfm(account);
-              setEditing(null);
-            }}
-            onCancel={
-              editing === "lastfm" ? () => setEditing(null) : undefined
-            }
-          />
         )}
       </StepSection>
       <StepSection

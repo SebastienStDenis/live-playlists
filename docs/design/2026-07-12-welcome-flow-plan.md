@@ -36,10 +36,10 @@ description, content): the active step carries the pulsing attention dot,
 completed ones a green check with the settings' own value display (city
 row, Last.fm avatar card), and steps not yet reached are dimmed:
 
-1. **Home City** - the same city search box the settings dialog uses;
-   `PUT /me/city`.
-2. **Last.fm** - the settings link form (input, ghost link button);
+1. **Last.fm** - the settings link form with a labeled link button;
    `PUT /me/lastfm` validates the account and the flow shows it.
+2. **Home City** - the same city search box the settings dialog uses;
+   `PUT /me/city`.
 3. **First Sync** - a deliberate "Start first sync" button (not automatic:
    pressing it is what teaches that playlists come from a sync) fires
    `POST /me/sync`, then the steps play back one line at a time (the sync

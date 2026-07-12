@@ -97,7 +97,7 @@ Listening History relies on the Daily Sync card above it.
 
 The dashboard requires a home city and a sync on record (even a failed
 one); anyone short of that is redirected to `/welcome`, a guided,
-non-skippable flow that sets the home city, links Last.fm, then has the
+non-skippable flow that links Last.fm, sets the home city, then has the
 user start the first sync and watch its steps live (see
 `docs/design/2026-07-12-welcome-flow-plan.md`). Step headings reuse the
 settings vocabulary, except the sync step: in the flow it is **First Sync**
@@ -116,7 +116,7 @@ settings vocabulary, except the sync step: in the flow it is **First Sync**
   **Options**, **Listening History**, **Account** (the home city lives in
   Account as a quiet field - onboarding guarantees it, so it no longer earns
   its own section).
-- Welcome flow steps: **Home City**, **Last.fm**, **First Sync**.
+- Welcome flow steps: **Last.fm**, **Home City**, **First Sync**.
 
 ## Canonical sentences
 
