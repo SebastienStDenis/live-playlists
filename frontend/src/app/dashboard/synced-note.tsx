@@ -32,7 +32,7 @@ export function SyncedNote({ label, iso }: { label: string; iso: string }) {
         strokeWidth={2.5}
         aria-hidden
       />
-      {label} {dateFormat.format(new Date(iso))}
+      {label} · {dateFormat.format(new Date(iso))}
     </span>
   );
 }

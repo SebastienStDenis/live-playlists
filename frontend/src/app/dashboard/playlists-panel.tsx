@@ -195,7 +195,7 @@ function PlaylistCard({
         </CardHeader>
         <CardContent>
           <Collapsible>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
                 <span>
                   {playlist.tracks.length}{" "}

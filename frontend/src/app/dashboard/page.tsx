@@ -107,7 +107,7 @@ export default async function DashboardPage() {
               description:
                 "Artists you might like based on your listening history.",
               note: suggestionsSyncedAt && (
-                <SyncedNote label="Artists suggested" iso={suggestionsSyncedAt} />
+                <SyncedNote label="Suggest artists" iso={suggestionsSyncedAt} />
               ),
               content: (
                 <SuggestedArtistsPanel
@@ -121,7 +121,7 @@ export default async function DashboardPage() {
               label: `Concerts (${suggestedEventCount})`,
               description: "Upcoming concerts near you by suggested artists.",
               note: eventsSyncedAt && (
-                <SyncedNote label="Concerts found" iso={eventsSyncedAt} />
+                <SyncedNote label="Find concerts" iso={eventsSyncedAt} />
               ),
               content: (
                 <EventsPanel
@@ -147,7 +147,7 @@ export default async function DashboardPage() {
               description:
                 "Spotify playlists tracking suggested concerts in your cities.",
               note: playlistsSyncedAt && (
-                <SyncedNote label="Playlists generated" iso={playlistsSyncedAt} />
+                <SyncedNote label="Generate playlists" iso={playlistsSyncedAt} />
               ),
               content: (
                 <PlaylistsPanel

@@ -81,11 +81,13 @@ cards would use; Listening History and tracklist messages are plain text.
 ## Freshness markers
 
 The Artists, Concerts, and Playlists tabs show a green check with the time
-their step last succeeded, right-aligned on the tab's description line:
-"Artists suggested {date}", "Concerts found {date}", "Playlists generated
-{date}"; nothing is shown when the latest run has not completed the step. Each playlist card also shows its own
-"Synced {date}" with the check, beside its track count. Listening History
-relies on the Daily Sync card above it.
+their step last succeeded, right-aligned on the tab's description line. The
+label is the step's action, a middle dot, then the date - "Suggest artists ·
+{date}", "Find concerts · {date}", "Generate playlists · {date}" - never a
+result claim like "Artists suggested", which reads oddly next to an empty
+list. Nothing is shown when the latest run has not completed the step. Each
+playlist card also shows its own "Synced · {date}" with the check, beside
+its track count. Listening History relies on the Daily Sync card above it.
 
 ## Section and tab names
 
