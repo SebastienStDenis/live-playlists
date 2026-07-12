@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { Settings as SettingsIcon } from "lucide-react";
 import { cookies } from "next/headers";
 
 import { Button } from "@/components/ui/button";
@@ -99,8 +99,8 @@ export default async function DashboardPage() {
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <a href={SETTINGS_HASH}>
             {syncDisabled && <AttentionDot pulse />}
+            <SettingsIcon aria-hidden />
             Settings
-            <ArrowRight aria-hidden />
           </a>
         </Button>
       </div>
