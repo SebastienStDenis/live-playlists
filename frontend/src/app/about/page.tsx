@@ -9,10 +9,10 @@ export default function AboutPage() {
         <section>
           <h2 className="text-sm font-medium">What NextFM does</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            NextFM finds live music you would love but don&rsquo;t know yet. Your
+            NextFM finds live music you would love but don’t know yet. Your
             Last.fm listening history tells NextFM what you like, concert
             listings tell it who is playing near you, and the overlap becomes
-            a Spotify playlist of artists worth discovering while they&rsquo;re in
+            a Spotify playlist of artists worth discovering while they’re in
             town.
           </p>
         </section>
@@ -21,8 +21,8 @@ export default function AboutPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             NextFM looks at who sounds similar to the artists you listen to
             most and keeps the strongest matches - each one shows its reason, like
-            &ldquo;because you listen to DIIV&rdquo;. Artists you already
-            know are left out, but an artist you&rsquo;ve only played a few times can
+            <q>because you listen to DIIV</q>. Artists you already
+            know are left out, but an artist you’ve only played a few times can
             still be suggested.
           </p>
         </section>
@@ -40,7 +40,8 @@ export default function AboutPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Tracks are ordered by concert date, soonest first, and the playlist
             is capped at 100 tracks. To catch new concerts fastest, sort the
-            playlist by &ldquo;Date added&rdquo; in Spotify: newly announced
+            playlist by <b className="font-medium">Date added</b> in Spotify:
+            newly announced
             concerts and newly suggested artists will appear at the top.
           </p>
         </section>
