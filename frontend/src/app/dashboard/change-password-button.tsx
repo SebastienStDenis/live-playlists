@@ -20,6 +20,9 @@ import { Spinner } from "@/components/ui/spinner";
 
 export function ChangePasswordButton() {
   const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
       const result = await changePassword(prev, formData);
@@ -32,8 +35,21 @@ export function ChangePasswordButton() {
     { error: null },
   );
 
+  const mismatch = confirmation !== "" && confirmation !== password;
+  const valid =
+    currentPassword !== "" && password.length >= 6 && confirmation === password;
+
+  const onOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setCurrentPassword("");
+      setPassword("");
+      setConfirmation("");
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -58,6 +74,8 @@ export function ChangePasswordButton() {
               type="password"
               required
               autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
@@ -69,12 +87,31 @@ export function ChangePasswordButton() {
               required
               minLength={6}
               autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              At least 6 characters.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="confirm-password">Confirm new password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              required
+              autoComplete="new-password"
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
             />
           </div>
+          {mismatch && (
+            <p className="text-sm text-destructive">Passwords do not match.</p>
+          )}
           {state.error && (
             <p className="text-sm text-destructive">{state.error}</p>
           )}
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || !valid}>
             {pending && <Spinner />}
             Change password
           </Button>

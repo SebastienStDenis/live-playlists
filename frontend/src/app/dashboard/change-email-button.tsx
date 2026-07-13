@@ -18,17 +18,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function ChangeEmailButton() {
   const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
   // The address the confirmation links went to; set on success, swaps the
   // form for the check-your-inboxes note.
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
-      const email = formData.get("email");
+      const submitted = formData.get("email");
       const result = await changeEmail(prev, formData);
-      if (!result.error && typeof email === "string") {
-        setSentTo(email);
+      if (!result.error && typeof submitted === "string") {
+        setSentTo(submitted);
       }
       return result;
     },
@@ -38,6 +41,7 @@ export function ChangeEmailButton() {
   const onOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (nextOpen) {
+      setEmail("");
       setSentTo(null);
     }
   };
@@ -78,12 +82,14 @@ export function ChangeEmailButton() {
                 type="email"
                 required
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             {state.error && (
               <p className="text-sm text-destructive">{state.error}</p>
             )}
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || !EMAIL_SHAPE.test(email)}>
               {pending && <Spinner />}
               Send confirmation links
             </Button>

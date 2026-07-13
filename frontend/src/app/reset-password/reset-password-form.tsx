@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { resetPassword } from "./actions";
 
 export function ResetPasswordForm() {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [state, formAction, pending] = useActionState(resetPassword, {
     error: null,
   });
+
+  const mismatch = confirmation !== "" && confirmation !== password;
+  const valid = password.length >= 6 && confirmation === password;
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -24,12 +29,29 @@ export function ResetPasswordForm() {
           required
           minLength={6}
           autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">At least 6 characters.</p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="confirm-password">Confirm new password</Label>
+        <Input
+          id="confirm-password"
+          type="password"
+          required
+          autoComplete="new-password"
+          value={confirmation}
+          onChange={(e) => setConfirmation(e.target.value)}
         />
       </div>
+      {mismatch && (
+        <p className="text-sm text-destructive">Passwords do not match.</p>
+      )}
       {state.error && (
         <p className="text-sm text-destructive">{state.error}</p>
       )}
-      <Button type="submit" disabled={pending} className="w-full">
+      <Button type="submit" disabled={pending || !valid} className="w-full">
         {pending && <Spinner />}
         Set new password
       </Button>
