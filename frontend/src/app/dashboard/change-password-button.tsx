@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 export function ChangePasswordButton() {
   const [open, setOpen] = useState(false);
@@ -96,13 +97,14 @@ export function ChangePasswordButton() {
               onChange={(e) => setPassword(e.target.value)}
             />
             <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              {password.length >= 6 && (
-                <Check
-                  aria-hidden
-                  className="size-3 animate-fade-in text-green-600 dark:text-green-500"
-                  strokeWidth={2.5}
-                />
-              )}
+              <Check
+                aria-hidden
+                className={cn(
+                  "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+                  password.length >= 6 ? "opacity-100" : "opacity-0",
+                )}
+                strokeWidth={2.5}
+              />
               At least 6 characters.
             </p>
           </div>
