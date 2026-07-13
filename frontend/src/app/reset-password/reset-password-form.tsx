@@ -11,11 +11,15 @@ import { resetPassword } from "./actions";
 export function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  // Punish late: the mismatch hint waits for the confirm field's first
+  // blur, then revalidates live so it clears as soon as the fields agree.
+  const [confirmationTouched, setConfirmationTouched] = useState(false);
   const [state, formAction, pending] = useActionState(resetPassword, {
     error: null,
   });
 
-  const mismatch = confirmation !== "" && confirmation !== password;
+  const mismatch =
+    confirmationTouched && confirmation !== "" && confirmation !== password;
   const valid = password.length >= 6 && confirmation === password;
 
   return (
@@ -43,6 +47,7 @@ export function ResetPasswordForm() {
           autoComplete="new-password"
           value={confirmation}
           onChange={(e) => setConfirmation(e.target.value)}
+          onBlur={() => setConfirmationTouched(true)}
         />
         {mismatch && (
           <p className="text-xs text-destructive">Passwords do not match.</p>
