@@ -69,7 +69,7 @@ export function ChangeEmailButton() {
           <div className="grid gap-4">
             <DialogHeader>
               <DialogTitle>Change email</DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-xs italic">
                 Confirmation links are sent to both the current and the new
                 address. The change applies once both are confirmed.
               </DialogDescription>
