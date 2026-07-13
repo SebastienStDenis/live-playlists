@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, RedirectType, unstable_rethrow } from "next/navigation";
-import type { AuthError } from "@supabase/supabase-js";
 
 import { apiFetch } from "@/lib/api";
+import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionState = {
@@ -14,39 +14,6 @@ export type ActionState = {
 async function errorMessage(res: Response, fallback: string): Promise<string> {
   const body = await res.json().catch(() => null);
   return typeof body?.detail === "string" ? body.detail : fallback;
-}
-
-// Supabase auth errors carry a stable `code`; their human `message` can be
-// blank or a raw JSON blob (auth-js falls back to JSON.stringify, which shows
-// up as "{}"), so key off the code and fall back to our own copy instead of
-// ever surfacing the raw message.
-const AUTH_ERROR_COPY: Record<string, string> = {
-  over_request_rate_limit: "Too many attempts. Wait a moment and try again.",
-  over_email_send_rate_limit:
-    "Too many emails sent. Wait a moment and try again.",
-  session_not_found: "Your session expired. Sign in again.",
-  session_expired: "Your session expired. Sign in again.",
-  bad_jwt: "Your session expired. Sign in again.",
-  no_authorization: "Your session expired. Sign in again.",
-  same_password: "Your new password must be different from your current one.",
-  weak_password: "Choose a stronger password (at least 6 characters).",
-};
-
-function authError(
-  error: AuthError,
-  fallback: string,
-  overrides?: Record<string, string>,
-): string {
-  const code = error.code;
-  if (code) {
-    if (overrides && code in overrides) {
-      return overrides[code];
-    }
-    if (code in AUTH_ERROR_COPY) {
-      return AUTH_ERROR_COPY[code];
-    }
-  }
-  return fallback;
 }
 
 async function callApi(
@@ -245,7 +212,7 @@ export async function changePassword(
     current_password: currentPassword,
   });
   if (error) {
-    return { error: authError(error, "Failed to change password.") };
+    return { error: authErrorMessage(error, "Failed to change password.") };
   }
   return { error: null };
 }
@@ -265,7 +232,7 @@ export async function changeEmail(
   const { error } = await supabase.auth.updateUser({ email });
   if (error) {
     return {
-      error: authError(error, "Failed to change email.", {
+      error: authErrorMessage(error, "Failed to change email.", {
         email_exists: "That email is already in use.",
         validation_failed: "Enter a valid email address.",
         email_address_invalid: "Enter a valid email address.",

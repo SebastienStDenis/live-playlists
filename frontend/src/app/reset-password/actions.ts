@@ -2,6 +2,7 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
 import type { AuthState } from "../login/actions";
@@ -20,7 +21,7 @@ export async function resetPassword(
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
-    return { error: error.message };
+    return { error: authErrorMessage(error, "Failed to reset your password.") };
   }
   redirect("/dashboard", RedirectType.replace);
 }
