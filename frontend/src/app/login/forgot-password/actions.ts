@@ -2,6 +2,7 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
 import type { AuthState } from "../actions";
@@ -20,7 +21,12 @@ export async function requestPasswordReset(
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email);
   if (error) {
-    return { error: error.message };
+    return {
+      error: authErrorMessage(error, "Failed to send the reset email.", {
+        validation_failed: "Enter a valid email address.",
+        email_address_invalid: "Enter a valid email address.",
+      }),
+    };
   }
   redirect("/login/forgot-password/check-email", RedirectType.replace);
 }

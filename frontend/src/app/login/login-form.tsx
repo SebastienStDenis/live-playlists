@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { FormError } from "../form-error";
 import { logIn } from "./actions";
 
 export function LoginForm() {
@@ -36,7 +37,7 @@ export function LoginForm() {
       </div>
       <div className="grid">
         <Collapse show={state.error !== null}>
-          <p className="pb-3 text-sm text-destructive">{state.error}</p>
+          <FormError className="pb-3">{state.error}</FormError>
         </Collapse>
         <Button type="submit" disabled={pending} className="w-full">
           {pending && <Spinner />}

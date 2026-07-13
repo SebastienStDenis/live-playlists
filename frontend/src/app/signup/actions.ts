@@ -2,6 +2,7 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
 import type { AuthState } from "../login/actions";
@@ -32,7 +33,14 @@ export async function signUp(
     options: { data: { display_name: name.trim() } },
   });
   if (error) {
-    return { error: error.message };
+    return {
+      error: authErrorMessage(error, "Failed to create your account.", {
+        email_exists: "That email is already registered. Try logging in.",
+        validation_failed: "Enter a valid email address.",
+        email_address_invalid: "Enter a valid email address.",
+        signup_disabled: "New sign-ups are currently disabled.",
+      }),
+    };
   }
   // With email confirmation on, Supabase does not error on a duplicate email
   // (to prevent enumeration); it returns a fake user with no identities. Surface

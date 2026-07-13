@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { deleteAccount } from "./actions";
 import { Collapse } from "../collapse";
+import { FormError } from "../form-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +59,7 @@ export function DeleteAccountButton({ userName }: { userName: string }) {
         </AlertDialogContent>
       </AlertDialog>
       <Collapse show={state.error !== null}>
-        <p className="pt-2 text-sm text-destructive">{state.error}</p>
+        <FormError className="pt-2">{state.error}</FormError>
       </Collapse>
     </div>
   );
