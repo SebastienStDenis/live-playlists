@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect, RedirectType, unstable_rethrow } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionState = {
@@ -202,9 +203,16 @@ export async function changePassword(
     return { error: "Current password is incorrect." };
   }
 
-  const { error } = await supabase.auth.updateUser({ password });
+  // Passing current_password satisfies GoTrue's secure-password-change gate
+  // (Security.UpdatePasswordRequireCurrentPassword) when it is on; when it is
+  // off the field is ignored and the signInWithPassword check above still
+  // guards the change.
+  const { error } = await supabase.auth.updateUser({
+    password,
+    current_password: currentPassword,
+  });
   if (error) {
-    return { error: error.message };
+    return { error: authErrorMessage(error, "Failed to change password.") };
   }
   return { error: null };
 }
@@ -223,7 +231,14 @@ export async function changeEmail(
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ email });
   if (error) {
-    return { error: error.message };
+    return {
+      error: authErrorMessage(error, "Failed to change email.", {
+        email_exists: "That email is already in use.",
+        validation_failed: "Enter a valid email address.",
+        email_address_invalid: "Enter a valid email address.",
+        email_address_not_authorized: "That email address isn't allowed.",
+      }),
+    };
   }
   return { error: null };
 }
