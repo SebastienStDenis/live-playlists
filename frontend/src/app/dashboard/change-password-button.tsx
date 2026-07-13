@@ -2,10 +2,10 @@
 
 import { useActionState, useState } from "react";
 import { Check, Pencil } from "lucide-react";
-import { toast } from "sonner";
 
 import { changePassword } from "./actions";
 import type { ActionState } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import { Collapse } from "../collapse";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,12 +29,14 @@ export function ChangePasswordButton() {
   // confirm field's first blur, then tracks every edit until resolved.
   // An empty field shows nothing - it makes no mismatch claim yet.
   const [confirmationTouched, setConfirmationTouched] = useState(false);
+  // On success the dialog stays open and swaps the form for a confirmation
+  // panel instead of closing and firing a toast.
+  const [succeeded, setSucceeded] = useState(false);
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
       const result = await changePassword(prev, formData);
       if (!result.error) {
-        setOpen(false);
-        toast.success("Password changed.");
+        setSucceeded(true);
       }
       return result;
     },
@@ -53,6 +55,7 @@ export function ChangePasswordButton() {
       setPassword("");
       setConfirmation("");
       setConfirmationTouched(false);
+      setSucceeded(false);
     }
   };
 
@@ -73,72 +76,85 @@ export function ChangePasswordButton() {
         <DialogHeader>
           <DialogTitle>Change password</DialogTitle>
         </DialogHeader>
-        <form action={formAction} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="current-password">Current password</Label>
-            <Input
-              id="current-password"
-              name="currentPassword"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="new-password">New password</Label>
-            <Input
-              id="new-password"
-              name="password"
-              type="password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              At least 6 characters.
+        <AnimatedHeight>
+          {succeeded ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm">
               <Check
                 aria-hidden
-                className={cn(
-                  "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
-                  password.length >= 6 ? "opacity-100" : "opacity-0",
-                )}
+                className="size-3.5 text-green-600 dark:text-green-500"
                 strokeWidth={2.5}
               />
-            </p>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="confirm-password">Confirm new password</Label>
-            <div>
-              <Input
-                id="confirm-password"
-                type="password"
-                required
-                autoComplete="new-password"
-                value={confirmation}
-                onChange={(e) => setConfirmation(e.target.value)}
-                onBlur={() => setConfirmationTouched(true)}
-              />
-              <Collapse show={mismatch}>
-                <p className="pt-2 text-xs text-destructive">
-                  Passwords do not match.
-                </p>
-              </Collapse>
+              Password changed
             </div>
-          </div>
-          <div className="grid">
-            <Collapse show={state.error !== null}>
-              <p className="pb-3 text-sm text-destructive">{state.error}</p>
-            </Collapse>
-            <Button type="submit" disabled={pending || !valid}>
-              {pending && <Spinner />}
-              Change password
-            </Button>
-          </div>
-        </form>
+          ) : (
+            <form action={formAction} className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="current-password">Current password</Label>
+                <Input
+                  id="current-password"
+                  name="currentPassword"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-password">New password</Label>
+                <Input
+                  id="new-password"
+                  name="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  At least 6 characters.
+                  <Check
+                    aria-hidden
+                    className={cn(
+                      "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+                      password.length >= 6 ? "opacity-100" : "opacity-0",
+                    )}
+                    strokeWidth={2.5}
+                  />
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="confirm-password">Confirm new password</Label>
+                <div>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    required
+                    autoComplete="new-password"
+                    value={confirmation}
+                    onChange={(e) => setConfirmation(e.target.value)}
+                    onBlur={() => setConfirmationTouched(true)}
+                  />
+                  <Collapse show={mismatch}>
+                    <p className="pt-2 text-xs text-destructive">
+                      Passwords do not match.
+                    </p>
+                  </Collapse>
+                </div>
+              </div>
+              <div className="grid">
+                <Collapse show={state.error !== null}>
+                  <p className="pb-3 text-sm text-destructive">{state.error}</p>
+                </Collapse>
+                <Button type="submit" disabled={pending || !valid}>
+                  {pending && <Spinner />}
+                  Change password
+                </Button>
+              </div>
+            </form>
+          )}
+        </AnimatedHeight>
       </DialogContent>
     </Dialog>
   );
