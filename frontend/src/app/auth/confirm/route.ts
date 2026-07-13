@@ -13,7 +13,15 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next");
-  const redirectTo = next?.startsWith("/") ? next : "/dashboard";
+  // Resolve `next` against our own origin and only accept a same-origin path;
+  // a protocol-relative value like "//evil.com" would otherwise send the user
+  // off-site after a successful verify.
+  const origin = new URL(request.url).origin;
+  const resolvedNext = next ? new URL(next, origin) : null;
+  const redirectTo =
+    resolvedNext && resolvedNext.origin === origin
+      ? resolvedNext.pathname + resolvedNext.search
+      : "/dashboard";
 
   if (tokenHash && type) {
     const supabase = await createClient();
