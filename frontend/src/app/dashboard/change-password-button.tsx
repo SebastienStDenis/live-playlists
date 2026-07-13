@@ -26,8 +26,9 @@ export function ChangePasswordButton() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   // Punish late, revalidate eagerly: the requirement mark and mismatch hint
-  // wait for their field's first blur, then track every edit until resolved.
-  // An empty field shows nothing - it makes no claim yet.
+  // wait for their field's first blur with content, then track every edit
+  // until resolved. Blurring an empty field makes no claim, so it leaves the
+  // grace period intact instead of spending it while passing through.
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmationTouched, setConfirmationTouched] = useState(false);
   // On success the dialog stays open and swaps the form for a confirmation
@@ -115,7 +116,9 @@ export function ChangePasswordButton() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onBlur={() => setPasswordTouched(true)}
+                  onBlur={() => {
+                    if (password !== "") setPasswordTouched(true);
+                  }}
                 />
                 <p className="flex items-center gap-1 text-xs text-muted-foreground">
                   At least 6 characters.
@@ -151,7 +154,9 @@ export function ChangePasswordButton() {
                     autoComplete="new-password"
                     value={confirmation}
                     onChange={(e) => setConfirmation(e.target.value)}
-                    onBlur={() => setConfirmationTouched(true)}
+                    onBlur={() => {
+                      if (confirmation !== "") setConfirmationTouched(true);
+                    }}
                   />
                   <Collapse show={mismatch}>
                     <p className="pt-2 text-xs text-destructive">
