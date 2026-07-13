@@ -44,6 +44,16 @@ export function ChangePasswordButton() {
         </DialogHeader>
         <form action={formAction} className="grid gap-4">
           <div className="grid gap-2">
+            <Label htmlFor="current-password">Current password</Label>
+            <Input
+              id="current-password"
+              name="currentPassword"
+              type="password"
+              required
+              autoComplete="current-password"
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="new-password">New password</Label>
             <Input
               id="new-password"
