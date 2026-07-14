@@ -55,13 +55,41 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const contentRef = React.useRef<HTMLDivElement>(null)
+
+  // Keep the dialog centered in the *visual* viewport, not the layout
+  // viewport, so the mobile keyboard slides it up instead of covering it.
+  // The vertical offset drives a CSS var consumed by the `top` below.
+  React.useEffect(() => {
+    const vv = window.visualViewport
+    const el = contentRef.current
+    if (!vv || !el) return
+
+    const reposition = () => {
+      const center = vv.offsetTop + vv.height / 2
+      // Clamp so a dialog taller than the visible band keeps its top on
+      // screen rather than centering off the top edge.
+      const top = Math.max(vv.offsetTop + el.offsetHeight / 2, center)
+      el.style.setProperty("--dialog-top", `${top}px`)
+    }
+
+    reposition()
+    vv.addEventListener("resize", reposition)
+    vv.addEventListener("scroll", reposition)
+    return () => {
+      vv.removeEventListener("resize", reposition)
+      vv.removeEventListener("scroll", reposition)
+    }
+  }, [])
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={contentRef}
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-(--dialog-top) left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] [--dialog-top:50%] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
