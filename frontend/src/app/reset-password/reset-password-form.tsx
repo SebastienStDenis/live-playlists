@@ -28,7 +28,7 @@ export function ResetPasswordForm() {
   const valid = password.length >= 6 && confirmation === password;
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} noValidate className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor="password">New password</Label>
         <Input

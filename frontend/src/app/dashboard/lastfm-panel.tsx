@@ -74,7 +74,7 @@ function LinkForm({
   });
 
   return (
-    <form action={formAction} className="animate-fade-in space-y-2">
+    <form action={formAction} noValidate className="animate-fade-in space-y-2">
       <div className="flex items-center gap-2">
         <Label htmlFor="lastfm-username" className="sr-only">
           Last.fm username

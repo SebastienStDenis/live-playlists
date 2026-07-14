@@ -8,9 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { EMAIL_SHAPE } from "@/lib/validation";
 import { requestPasswordReset } from "./actions";
-
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -22,7 +21,7 @@ export function ForgotPasswordForm() {
   });
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} noValidate className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor="email">Email</Label>
         <div>
