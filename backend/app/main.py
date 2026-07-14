@@ -201,7 +201,11 @@ async def get_temporal_client() -> TemporalClient:
         try:
             _temporal_client = await connect_temporal(get_settings())
         except (RPCError, OSError, RuntimeError) as exc:
-            raise HTTPException(status_code=503, detail=f"Temporal is unavailable: {exc}") from None
+            logger.warning("Temporal connection failed", exc_info=exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Sync is temporarily unavailable. Please try again in a moment.",
+            ) from None
     return _temporal_client
 
 
@@ -227,34 +231,66 @@ async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> 
     return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
+# These upstreams can fail with raw driver/HTTP text; the user sees a safe,
+# actionable line while the real message stays in the logs.
 @app.exception_handler(LastfmApiError)
 async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Last.fm API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "Last.fm isn't responding right now. Please try again in a moment."},
+    )
 
 
 @app.exception_handler(BandsintownApiError)
 async def bandsintown_api_error(request: Request, exc: BandsintownApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Bandsintown API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={
+            "detail": "We couldn't reach Bandsintown right now. Please try again in a moment."
+        },
+    )
 
 
 @app.exception_handler(SpotifyAuthError)
 async def spotify_auth_error(request: Request, exc: SpotifyAuthError) -> JSONResponse:
-    return JSONResponse(status_code=503, content={"detail": str(exc)})
+    logger.warning("Spotify authorization error", exc_info=exc)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Spotify is temporarily unavailable. Please try again later."},
+    )
 
 
 @app.exception_handler(SpotifyApiError)
 async def spotify_api_error(request: Request, exc: SpotifyApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Spotify API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "We couldn't reach Spotify right now. Please try again in a moment."},
+    )
 
 
 @app.exception_handler(MusicBrainzApiError)
 async def musicbrainz_api_error(request: Request, exc: MusicBrainzApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("MusicBrainz API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={
+            "detail": (
+                "A music data service isn't responding right now. Please try again in a moment."
+            )
+        },
+    )
 
 
 @app.exception_handler(SupabaseAdminError)
 async def supabase_admin_error(request: Request, exc: SupabaseAdminError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Supabase admin API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "Something went wrong on our end. Please try again."},
+    )
 
 
 @app.get("/health")
@@ -858,7 +894,11 @@ async def start_user_sync(
             id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
         )
     except RPCError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from None
+        logger.warning("Failed to start sync workflow", exc_info=exc)
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't start your sync. Please try again in a moment.",
+        ) from None
     return SyncStartResult(workflow_id=handle.id)
 
 
@@ -884,7 +924,11 @@ async def get_user_sync_status(
     except RPCError as exc:
         if exc.status == RPCStatusCode.NOT_FOUND:
             return SyncStatusResult(status="none", steps=pending_steps())
-        raise HTTPException(status_code=502, detail=str(exc)) from None
+        logger.warning("Failed to read sync status", exc_info=exc)
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't load your sync status. Please try again in a moment.",
+        ) from None
 
     status = _SYNC_STATUS_BY_EXECUTION.get(description.status, "failed")
     if status == "completed":
