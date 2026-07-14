@@ -35,7 +35,7 @@ export default async function Home() {
         <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
       </Haze>
       <Haze>
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5">
           <p className="max-w-md text-center text-lg text-muted-foreground">
             Live-music discovery through listening.
           </p>

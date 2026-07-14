@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -67,11 +67,19 @@ function ChangeNameForm({
   onDone: () => void;
 }) {
   const [name, setName] = useState(currentName);
+  // The name at the moment of a successful save. changeName revalidates the
+  // tree that feeds `currentName`; that refresh rides the action's transition,
+  // which React cancels if this form unmounts first. Closing on success (as
+  // this used to) tore the form down mid-transition, so the refresh landed only
+  // about half the time - and with it the name display and the re-run-sync
+  // warning. Keep the dialog mounted until `currentName` reflects the save
+  // (below), then close.
+  const [savedFrom, setSavedFrom] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
       const result = await changeName(prev, formData);
       if (!result.error) {
-        onDone();
+        setSavedFrom(currentName);
         toast.success("Name updated.");
       }
       return result;
@@ -79,8 +87,15 @@ function ChangeNameForm({
     { error: null },
   );
 
+  useEffect(() => {
+    if (savedFrom !== null && currentName !== savedFrom) {
+      onDone();
+    }
+  }, [savedFrom, currentName, onDone]);
+
   const trimmed = name.trim();
   const unchanged = trimmed === currentName;
+  const saving = pending || savedFrom !== null;
 
   return (
     // Drive the action manually rather than via the form's `action` prop: on a
@@ -113,8 +128,8 @@ function ChangeNameForm({
         <Collapse show={state.error !== null}>
           <FormError className="pb-3">{state.error}</FormError>
         </Collapse>
-        <Button type="submit" disabled={pending || trimmed === "" || unchanged}>
-          {pending && <Spinner />}
+        <Button type="submit" disabled={saving || trimmed === "" || unchanged}>
+          {saving && <Spinner />}
           Save
         </Button>
       </div>
