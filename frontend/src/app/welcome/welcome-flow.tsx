@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -37,30 +37,42 @@ export function WelcomeFlow({
   // longer replaying steps. Gates both the footer and the Daily Sync section's
   // green check, so the two appear together once the simulation reads as done.
   const settled = revealed || !active;
+  const showFooter = ready && settled;
+
+  // On a phone the setup can already fill the screen, so the footer lands
+  // below the fold with no cue to scroll (#244). Once it has slid in (a touch
+  // past the 250ms reveal), scroll the page down to bring the button into view.
+  useEffect(() => {
+    if (!showFooter) return;
+    const timer = setTimeout(() => {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [showFooter]);
 
   return (
     <SyncActivityProvider value={report}>
       <SyncSettledProvider value={settled}>
         {children}
-        {/* The grow-in wrapper opens up the footer's room gradually; without
-            it the centered page re-centers in one frame and visibly jumps.
-            Held back until the sync card has finished replaying each step, so
-            the "go to dashboard" prompt lands after the run reads as done. */}
-        {ready && settled && (
-          <div className="grid animate-grow-in grid-rows-[1fr]">
-            <div className="min-h-0 overflow-hidden">
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-fade-in-delayed">
-                <p className="text-sm">All set. Playlists update daily.</p>
-                <Button asChild size="sm">
-                  {/* Lands on the Playlists tab and drops a session cue for the
-                      one-shot save-to-library tip on the leading playlist. */}
-                  <Link href="/dashboard?tab=playlists" onClick={cueSavePlaylistTip}>
-                    Go to dashboard
-                    <ArrowRight aria-hidden />
-                  </Link>
-                </Button>
-              </div>
-            </div>
+        {/* The footer slides in (rather than growing its grid row open, which
+            collapses to nothing when the setup already overflows the viewport
+            and there is no free space to animate into). Held back until the
+            sync card has finished replaying each step, so the "go to dashboard"
+            prompt lands after the run reads as done. */}
+        {showFooter && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-slide-in-up">
+            <p className="text-sm">All set. Playlists update daily.</p>
+            <Button asChild size="sm">
+              {/* Lands on the Playlists tab and drops a session cue for the
+                  one-shot save-to-library tip on the leading playlist. */}
+              <Link href="/dashboard?tab=playlists" onClick={cueSavePlaylistTip}>
+                Go to dashboard
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
           </div>
         )}
       </SyncSettledProvider>
