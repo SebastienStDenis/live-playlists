@@ -88,6 +88,7 @@ function ChangeNameForm({
     // controlled fields at the DOM level. Since the dialog stays mounted for its
     // close animation, that blanked form would flash before it dismisses.
     <form
+      noValidate
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
