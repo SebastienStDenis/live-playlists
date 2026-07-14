@@ -11,7 +11,7 @@ const GRID_GAP = 20;
 const BASE_ALPHA = 0.16;
 const PULSE_SPEED = 0.85; // px per ms - the wavefront races outward
 const RING_SIGMA = 34; // wavefront thickness
-const AMPLITUDE = 12; // outward dot displacement at full strength
+const AMPLITUDE = 8; // outward dot displacement at full strength
 const MIN_GAP = 240; // ms between pulses (min)
 const GAP_JITTER = 900; // ms of extra random spacing
 
@@ -76,8 +76,8 @@ export function SoundwaveDots() {
           const offset = (energy * AMPLITUDE) / dist;
           const x = gx + dx * offset;
           const y = gy + dy * offset;
-          const radius = 1 + energy * 2.6;
-          ctx.globalAlpha = BASE_ALPHA + energy * 0.5;
+          const radius = 1 + energy * 1.3;
+          ctx.globalAlpha = BASE_ALPHA + energy * 0.28;
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.fill();
