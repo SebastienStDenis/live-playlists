@@ -11,15 +11,14 @@ import { cn } from "@/lib/utils";
 // no pop and no sideways nudge of the heading. Client-side (like
 // AnimatedHeight) on purpose: the swap has to run as an in-place React update
 // for the opacity transition to fire - applied straight through a server
-// re-render it commits in one shot and snaps. The slot slides open the first
-// time it appears - its width grows from zero, nudging the heading right to
-// expose the dot rather than flashing it into place.
+// re-render it commits in one shot and snaps. The slot fades in the first
+// time it appears.
 export function StepStatusMark({ state }: { state?: "active" | "done" }) {
   if (!state) {
     return null;
   }
   return (
-    <span className="relative flex size-3.5 shrink-0 overflow-hidden animate-mark-reveal motion-reduce:animate-none">
+    <span className="relative flex size-3.5 shrink-0 animate-fade-in">
       <span
         aria-hidden={state !== "active"}
         className={cn(

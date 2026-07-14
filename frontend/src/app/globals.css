@@ -54,7 +54,6 @@
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
   --animate-grow-in: grow-in 250ms ease-out;
-  --animate-mark-reveal: mark-reveal 250ms ease-out;
   /* Delayed by grow-in's duration: content inside a growing wrapper waits
      for the room to finish opening, then fades in exactly where it lands. */
   --animate-fade-in-delayed: fade-in 250ms ease-out 250ms backwards;
@@ -87,15 +86,6 @@
   @keyframes grow-in {
     from {
       grid-template-rows: 0fr;
-    }
-  }
-
-  /* No `to` frame: the slot opens from zero to its own width, so the heading
-     slides right to make room and exposes the dot instead of snapping to it. */
-  @keyframes mark-reveal {
-    from {
-      width: 0;
-      opacity: 0;
     }
   }
 
