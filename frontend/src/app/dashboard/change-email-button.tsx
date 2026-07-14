@@ -19,8 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_SHAPE } from "@/lib/validation";
 
 export function ChangeEmailButton() {
   const [open, setOpen] = useState(false);
@@ -85,6 +84,7 @@ function ChangeEmailForm({ onDone }: { onDone: () => void }) {
     // controlled fields at the DOM level. Since the dialog stays mounted for its
     // close animation, that blanked form would flash before it dismisses.
     <form
+      noValidate
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
@@ -103,7 +103,9 @@ function ChangeEmailForm({ onDone }: { onDone: () => void }) {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
+            onBlur={() => {
+              if (email !== "") setEmailTouched(true);
+            }}
           />
           <Collapse
             show={emailTouched && email !== "" && !EMAIL_SHAPE.test(email)}
