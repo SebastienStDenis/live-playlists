@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { IntroText } from "./intro-text";
+import { SoundwaveDots } from "./soundwave-dots";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -16,6 +17,7 @@ export default async function Home() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
+      <SoundwaveDots />
       <h1 className="text-3xl font-semibold tracking-tight">
         NextFM
       </h1>
