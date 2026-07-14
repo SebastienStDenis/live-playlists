@@ -242,10 +242,9 @@ function PlaylistCard({
   playlist: Playlist;
   tip?: SavePlaylistTip;
 }) {
-  const linkRef = useRef<HTMLAnchorElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const spotifyLink = playlist.spotify_url && (
     <a
-      ref={linkRef}
       href={playlist.spotify_url}
       target="_blank"
       rel="noreferrer"
@@ -259,7 +258,7 @@ function PlaylistCard({
 
   return (
     <li className="flex">
-      <Card size="sm" className="flex-1">
+      <Card ref={cardRef} tabIndex={-1} size="sm" className="flex-1 outline-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span className="shrink-0 animate-fade-in" aria-hidden>
@@ -275,12 +274,15 @@ function PlaylistCard({
                   side="right"
                   align="start"
                   sideOffset={8}
-                  collisionPadding={12}
+                  // Stay pinned to the right of the link; without this Radix
+                  // flips the tip to the far left of the screen on very narrow
+                  // widths where the right side can't fit it.
+                  avoidCollisions={false}
                   // Don't pull focus onto the dismiss button when the tip
-                  // opens; keep it on the card's link the tip points at.
+                  // opens; put it on the card the tip is about.
                   onOpenAutoFocus={(event) => {
                     event.preventDefault();
-                    linkRef.current?.focus();
+                    cardRef.current?.focus();
                   }}
                   onInteractOutside={(event) => event.preventDefault()}
                   onEscapeKeyDown={(event) => event.preventDefault()}
