@@ -132,7 +132,8 @@ The bot accounts' profile pictures (`brand/`) are an `N` in Geist on
 on shell in dark. Both sit over the faint perforation field that the
 "magnesium grille" half of the palette is named for, either at rest (`grille`)
 or with a wavefront caught crossing it (`wave`), borrowing the displacement the
-landing-page soundwave field animates. Like the email templates they carry
+landing-page soundwave field animates and firing from the centre as that field
+does - the mark sits where the cone would. Like the email templates they carry
 their own copy of the palette rather than importing `globals.css` (they render
 outside the app), so a meaningful token change means regenerating them: see
 `brand/README.md`.
