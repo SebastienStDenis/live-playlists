@@ -137,3 +137,20 @@ in-app restraint antialiases away to nothing at that size. Like the email
 templates they carry their own copy of the palette rather than importing
 `globals.css` (they render outside the app), so a meaningful token change means
 regenerating them: see `brand/README.md`.
+
+## Favicon
+
+`frontend/src/app/icon.svg` is the same mark at tab size, and carries the same
+palette copy again - the browser rasterizes it outside the app, so it can't
+reach the tokens either. It is vector rather than a scaled avatar: a favicon is
+seen at 16-32px, where the grille has already antialiased away to a faint tint
+and only the `N` still reads.
+
+The two modes are a `prefers-color-scheme: dark` media query inside the file,
+not two files swapped by a `media` attribute on the `<link>` - Firefox has
+ignored that attribute since 2019. Safari honors neither and always shows the
+light variant; that stays legible because the mark is an opaque tile rather
+than a transparent glyph, so the miss is off-theme, not invisible. Deriving the
+mark by hand would drift from `brand/avatar.html`, so the palette is sampled
+from the rendered avatars and the path is Geist `N` at wght 560 pulled from
+`brand/geist-latin.woff2`; re-derive from there if either changes.
