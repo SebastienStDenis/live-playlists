@@ -18,10 +18,6 @@ const MIN_GAP = 240; // ms between automatic pulses (min)
 const GAP_JITTER = 900; // ms of extra random spacing
 const CLICK_INTENSITY = 1.15;
 const IDLE_RESUME = 2000; // ms of no clicks before automatic pulses return
-const CARD = '[data-slot="card"]';
-// Marks the pages where clicks play the field, so the stylesheet can keep the
-// copy under the pointer from highlighting. Paired with `CARD` in globals.css.
-const INTERACTIVE_CLASS = "soundwave-interactive";
 
 type Pulse = {
   start: number;
@@ -146,15 +142,25 @@ export function SoundwaveDots() {
       frame = requestAnimationFrame(loop);
     };
 
-    // A card is its own surface sitting above the field: clicking one is
-    // ordinary UI, not a strike on the instrument, so it neither fires a wave
-    // nor holds off the ambient ones.
+    // Only bare page plays the field: the layout shells the dots show through,
+    // and nothing else. A click that lands on anything with content on it -
+    // text, a button, a card - is ordinary UI and leaves the field alone.
+    const isBackground = (target: EventTarget | null) =>
+      target === document.body ||
+      (target instanceof HTMLElement && target.tagName === "MAIN");
+
     const handleClick = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof Element && target.closest(CARD)) return;
+      if (!isBackground(event.target)) return;
       const time = performance.now();
       lastClick = time;
       spawn(time, event.clientX, event.clientY, CLICK_INTENSITY);
+    };
+
+    // Thumping the field means double-clicking bare page, where the browser
+    // would otherwise snap a highlight onto the nearest word. Only repeat
+    // clicks on the background are suppressed, so all copy stays selectable.
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.detail > 1 && isBackground(event.target)) event.preventDefault();
     };
 
     const paintStill = () => {
@@ -171,7 +177,7 @@ export function SoundwaveDots() {
     } else {
       frame = requestAnimationFrame(loop);
       window.addEventListener("click", handleClick);
-      document.body.classList.add(INTERACTIVE_CLASS);
+      window.addEventListener("mousedown", handleMouseDown);
     }
 
     window.addEventListener("resize", resize);
@@ -187,7 +193,7 @@ export function SoundwaveDots() {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("click", handleClick);
-      document.body.classList.remove(INTERACTIVE_CLASS);
+      window.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("resize", resize);
       themeObserver.disconnect();
     };

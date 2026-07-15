@@ -231,22 +231,6 @@ body {
   margin-top: 2px;
 }
 
-/* Where clicks fire soundwave pulses, thumping out waves would otherwise
-   highlight whatever copy sits under the pointer. A card is exempt because
-   clicks there don't play the field, so it stays ordinary UI; fields are exempt
-   on top of that, since browsers disagree on whether an editable element
-   inherits a `none` ancestor. */
-.soundwave-interactive {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.soundwave-interactive
-  :is([data-slot="card"], input, textarea, [contenteditable]) {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
