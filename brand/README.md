@@ -20,9 +20,9 @@ the headphones the palette is modeled on.
 The `wave` pair catches a wavefront crossing the grille, the same displacement
 the landing-page field animates. It fires from the centre, where that field's
 own pulses spawn, so the mark sits where the speaker cone would: the front
-blooms out from behind the N and fades toward the corners. Both pairs read as
-texture at profile size and collapse to a soft tint in small list avatars,
-where the mark carries on its own.
+expands out from behind the N. Both pairs read as texture at profile size and
+thin out in small list avatars, where the mark carries on its own - the
+resting grille goes to a soft tint first, the front holds a little longer.
 
 Both services crop avatars to a circle; the mark is sized to clear the
 inscribed circle with margin, so the square and circle crops both work.
@@ -39,9 +39,12 @@ in headless Chrome. `geist-latin.woff2` is the same Geist subset the site
 serves, vendored so the mark stays identical if `node_modules` is not built.
 
 The wave geometry is overridable by query param (`ox`, `oy`, `r`, `sigma`,
-`amp`, `boost`) - open `avatar.html` directly to reframe it. The one real
-constraint is `sigma`: it has to stay well clear of the grid pitch, or the
-front aliases into scatter instead of reading as a swell.
+`amp`, `boost`), as is the field itself (`cols`, `dot`) - open `avatar.html`
+directly to reframe it. How sharp the front can get is a property of the
+lattice, not the front: much tighter than the grid pitch and it staircases
+along the rows instead of resolving into a ring. That is the trade behind the
+column count - a coarser grille has more presence once the avatar is small,
+but cannot carry a front this narrow.
 
 The palette is duplicated as literals in `avatar.html` rather than imported
 from `globals.css`; if the tokens there change meaningfully, re-derive and
