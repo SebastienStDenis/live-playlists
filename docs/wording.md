@@ -100,6 +100,12 @@ playlist card also shows its own last write beside its track count as plain
 text - "Synced {date}", no check, since it isn't a sync-step marker.
 Listening History relies on the Daily Sync card above it.
 
+The settings dialog header carries its own freshness line under the title:
+"Last synced {date}", muted. While any setting differs from its value at the
+last sync, the line cross-fades to a warning - "Run a manual sync to apply
+updates now, or wait for the next daily sync." - and back once a sync applies
+the changes or the setting is reverted.
+
 ## Welcome flow
 
 The dashboard requires a linked Last.fm account, a home city and a

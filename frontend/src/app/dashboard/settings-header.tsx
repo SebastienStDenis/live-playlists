@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Triangle, XIcon } from "lucide-react";
 
+import { syncDateFormat } from "./sync-steps";
 import { Button } from "@/components/ui/button";
 import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 
@@ -18,12 +19,11 @@ import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 // replaying its steps for a beat after; `syncActive` stays true through that
 // playback, so the clear is held until the simulated run reads as done.
 //
-// The warning takes no layout space: it hangs off the header's bottom edge,
-// over the scroll body, and only its opacity animates. Any height change
-// here would reflow the scroll body and shift its content mid-interaction,
-// and scroll compensation can't fully cancel that at low scroll offsets
-// (#233). The dialog's own background keeps it opaque, so body content
-// scrolls underneath it like under the header itself.
+// The line under the title is never empty: it shows the last synced date and
+// cross-fades to the warning, the two stacked in one grid cell so the header's
+// height never changes. Any height change here would reflow the scroll body
+// and shift its content mid-interaction, and scroll compensation can't fully
+// cancel that at low scroll offsets (#233).
 export function SettingsHeader({
   signature,
   lastSyncedAt,
@@ -46,7 +46,7 @@ export function SettingsHeader({
   }
   const changed = signature !== baseline;
   return (
-    <div className="relative flex-none px-4 pt-4 pb-2">
+    <div className="flex-none px-4 pt-4 pb-2">
       <div className="flex items-center gap-3">
         <DialogTitle className="text-lg">Settings</DialogTitle>
         <DialogClose asChild>
@@ -60,21 +60,32 @@ export function SettingsHeader({
           </Button>
         </DialogClose>
       </div>
-      <p
-        aria-hidden={!changed}
-        className={`pointer-events-none absolute inset-x-0 top-full z-10 flex items-start gap-1.5 bg-popover px-4 pb-2 text-xs text-foreground transition-opacity duration-250 ease-out motion-reduce:transition-none ${
-          changed ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <Triangle
-          aria-hidden
-          className="mt-px size-3.5 shrink-0 text-warning"
-        />
-        <span>
-          Run a manual sync to apply updates now, or wait for the next daily
-          sync.
-        </span>
-      </p>
+      <div className="grid pt-2 text-xs">
+        <p
+          aria-hidden={changed}
+          className={`col-start-1 row-start-1 text-muted-foreground transition-opacity duration-250 ease-out motion-reduce:transition-none ${
+            changed ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          {lastSyncedAt !== null &&
+            `Last synced ${syncDateFormat.format(new Date(lastSyncedAt))}`}
+        </p>
+        <p
+          aria-hidden={!changed}
+          className={`col-start-1 row-start-1 flex items-start gap-1.5 text-foreground transition-opacity duration-250 ease-out motion-reduce:transition-none ${
+            changed ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <Triangle
+            aria-hidden
+            className="mt-px size-3.5 shrink-0 text-warning"
+          />
+          <span>
+            Run a manual sync to apply updates now, or wait for the next daily
+            sync.
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
