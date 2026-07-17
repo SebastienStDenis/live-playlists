@@ -1,14 +1,24 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { Haze } from "./haze";
-import { HomeNotice } from "./home-notice";
 import { IntroText } from "./intro-text";
+import { RedirectNotice } from "./redirect-notice";
 
-export default async function Home() {
+// Deleting an account signs the user out and lands here, which is exactly
+// where signing out lands too; the notice is what tells the two apart.
+const NOTICES: Record<string, string> = {
+  "account-deleted": "Account deleted.",
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { notice } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,9 +29,11 @@ export default async function Home() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
-      <Suspense>
-        <HomeNotice />
-      </Suspense>
+      {typeof notice === "string" && NOTICES[notice] && (
+        <RedirectNotice param="notice" variant="success" className="max-w-md">
+          {NOTICES[notice]}
+        </RedirectNotice>
+      )}
       <Haze>
         <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
       </Haze>

@@ -1,14 +1,12 @@
 import { Settings as SettingsIcon } from "lucide-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 
+import { RedirectNotice } from "../redirect-notice";
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { type City } from "./city-panel";
-import { ConfirmErrorNotice } from "./confirm-error-notice";
-import { DashboardNotice } from "./dashboard-notice";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
@@ -28,12 +26,20 @@ import {
   syncStepCompleted,
 } from "./user-api";
 
+const NOTICES: Record<string, string> = {
+  "password-reset": "Password changed. You're signed in.",
+  "email-changed": "Email changed.",
+};
+const ERRORS: Record<string, string> = {
+  confirm: "That email link is invalid or has expired.",
+};
+
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { error } = await searchParams;
+  const { notice, error } = await searchParams;
   const user = await loadMe();
   const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
 
@@ -116,10 +122,16 @@ export default async function DashboardPage({
 
   return (
     <main className="mx-auto w-full max-w-5xl p-8">
-      {error === "confirm" && <ConfirmErrorNotice />}
-      <Suspense>
-        <DashboardNotice />
-      </Suspense>
+      {typeof notice === "string" && NOTICES[notice] && (
+        <RedirectNotice param="notice" variant="success" className="mb-6">
+          {NOTICES[notice]}
+        </RedirectNotice>
+      )}
+      {typeof error === "string" && ERRORS[error] && (
+        <RedirectNotice param="error" variant="error" className="mb-6">
+          {ERRORS[error]}
+        </RedirectNotice>
+      )}
       <span className="text-sm text-muted-foreground">NextFM</span>
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>

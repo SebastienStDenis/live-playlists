@@ -1,5 +1,3 @@
-import { Suspense } from "react";
-
 import {
   Card,
   CardContent,
@@ -10,15 +8,28 @@ import {
 } from "@/components/ui/card";
 import { HomeLink } from "../home-link";
 import { InlineNav } from "../inline-nav";
+import { RedirectNotice } from "../redirect-notice";
 import { LoginForm } from "./login-form";
-import { LoginNotice } from "./login-notice";
 
-export default function LoginPage() {
+// /auth/confirm redirects here with an `?error=` value when an emailed link's
+// token is invalid or expired and no user is signed in.
+const ERRORS: Record<string, string> = {
+  confirm: "That email link is invalid or has expired.",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { error } = await searchParams;
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-8">
-      <Suspense>
-        <LoginNotice />
-      </Suspense>
+      {typeof error === "string" && ERRORS[error] && (
+        <RedirectNotice param="error" variant="error" className="mb-6">
+          {ERRORS[error]}
+        </RedirectNotice>
+      )}
       <HomeLink href="/" />
       <Card className="mt-4">
         <CardHeader>

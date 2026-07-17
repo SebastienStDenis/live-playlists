@@ -108,6 +108,12 @@ lower reads as "broken/greyed", not "on-theme"; that floor is intentional.
   icon at all** - info carries no state to react to, so the icon would be pure
   decoration; its absence is what distinguishes an FYI from a message that
   wants a reaction (see `frontend/src/components/ui/sonner.tsx`).
+- Messages carried by a redirect's URL param (`?notice=` / `?error=`) render
+  as dismissible inline alerts with the same check/x vocabulary, not toasts -
+  a toast can't paint until the client hydrates, which is too late on a slow
+  mobile load (see `frontend/src/app/redirect-notice.tsx`). Toasts are for
+  messages fired from an interaction handler, where hydration has already
+  happened.
 
 ## Email
 
