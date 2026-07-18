@@ -51,11 +51,16 @@ function usePageOverhangX() {
   return { left, right }
 }
 
+// The gap every popover keeps from the page's edges when it collides;
+// exported so bespoke width math (the concert cards' chip popover) agrees
+// with Radix's collision padding.
+export const popoverEdgeGap = 8
+
 function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
-  collisionPadding = 0,
+  collisionPadding = popoverEdgeGap,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   // Radix collides against the window; negative side paddings push those

@@ -19,6 +19,7 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
+  popoverEdgeGap,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
@@ -162,7 +163,6 @@ function artistChipLabel(
 // floor to keep its left edge on the chip, and only below the floor does the
 // collision shift slide it left, so far-right chips still get a readable card.
 const chipPopoverMinWidth = 208;
-const chipPopoverEdgeGap = 8;
 
 // Space between the chip's left edge and the page's right edge (the page,
 // not the window: below the 320px layout floor the page scrolls
@@ -173,7 +173,7 @@ function chipPopoverMaxWidth(trigger: HTMLElement): number {
     document.documentElement.scrollWidth -
     window.scrollX -
     trigger.getBoundingClientRect().left -
-    chipPopoverEdgeGap;
+    popoverEdgeGap;
   return Math.max(chipPopoverMinWidth, available);
 }
 
