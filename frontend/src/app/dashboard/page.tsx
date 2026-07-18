@@ -85,6 +85,12 @@ export default async function DashboardPage() {
   const pinnedPlaylists = playlists.filter(
     (playlist) => playlist.city !== null,
   );
+  // Cities behind the artist popup's pinned-city sections; a pin awaiting its
+  // first sync still has a city, so this doesn't wait on spotify_url like
+  // linkedPlaylists does.
+  const pinnedCities = pinnedPlaylists.flatMap((playlist) =>
+    playlist.city ? [playlist.city] : [],
+  );
   // A fingerprint of the settings a sync propagates. The dialog snapshots it
   // on open and warns when it diverges (see SettingsHeader). Arrays are sorted
   // so reordering never reads as a change. Pinned cities are tracked
@@ -149,6 +155,9 @@ export default async function DashboardPage() {
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
                   synced={syncStepCompleted(sync, "suggestions")}
+                  homeCity={city}
+                  homeEvents={events}
+                  pinnedCities={pinnedCities}
                 />
               ),
             },

@@ -19,6 +19,7 @@ import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
+import { ConcertDialog } from "./concert-dialog";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
@@ -41,7 +42,7 @@ export type UserEvent = {
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
 // UTC displays the original local time.
-const dateFormat = new Intl.DateTimeFormat("en-US", {
+export const dateFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   month: "short",
   day: "numeric",
@@ -51,7 +52,7 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-function placeLabel(event: UserEvent["event"]): string {
+export function placeLabel(event: UserEvent["event"]): string {
   return [event.city_name, event.region].filter(Boolean).join(", ");
 }
 
@@ -88,6 +89,7 @@ export function EventsPanel({
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
+  const [selectedEvent, setSelectedEvent] = useState<UserEvent | null>(null);
 
   // Existing data always shows (even if the latest run didn't complete the
   // events step); the run-a-sync hint is only for a truly empty panel.
@@ -226,57 +228,76 @@ export function EventsPanel({
             </EmptyStateCell>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleEvents.map(({ event, url, artists }) => (
-                <li key={event.id} className="flex">
-                  <Card size="sm" className="flex-1">
-                    <CardHeader>
-                      {/* gap-y-1 matches the header gap, so a wrapped date
-                          sits as close to the title above as to the venue
-                          line below. */}
-                      <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                        <span className="min-w-0">
-                          {event.title ??
-                            artists.map((artist) => artist.name).join(", ")}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {dateFormat.format(new Date(event.starts_at))}
-                        </span>
-                      </CardTitle>
-                      <CardDescription>
-                        {event.venue_name} · {placeLabel(event)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                      {artists.map((artist) => {
-                        const suggested =
-                          artistRelations[artist.id] === "suggested";
-                        return (
-                          <Badge
-                            key={artist.id}
-                            variant={suggested ? "secondary" : "outline"}
-                            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
+              {visibleEvents.map((userEvent) => {
+                const { event, url, artists } = userEvent;
+                return (
+                  <li key={event.id} className="flex">
+                    {/* The card itself is the click target (opens the artist
+                        popup below); the ticket link stops the click from
+                        bubbling to it so it still navigates on its own. */}
+                    <Card
+                      size="sm"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedEvent(userEvent)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedEvent(userEvent);
+                        }
+                      }}
+                      className="flex-1 cursor-pointer outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50"
+                    >
+                      <CardHeader>
+                        {/* gap-y-1 matches the header gap, so a wrapped date
+                            sits as close to the title above as to the venue
+                            line below. */}
+                        <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                          <span className="min-w-0">
+                            {event.title ??
+                              artists.map((artist) => artist.name).join(", ")}
+                          </span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {dateFormat.format(new Date(event.starts_at))}
+                          </span>
+                        </CardTitle>
+                        <CardDescription>
+                          {event.venue_name} · {placeLabel(event)}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                        {artists.map((artist) => {
+                          const suggested =
+                            artistRelations[artist.id] === "suggested";
+                          return (
+                            <Badge
+                              key={artist.id}
+                              variant={suggested ? "secondary" : "outline"}
+                              className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
+                            >
+                              <span className="truncate">
+                                {artistChipLabel(artist, artistRelations)}
+                              </span>
+                            </Badge>
+                          );
+                        })}
+                        {url && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
                           >
-                            <span className="truncate">
-                              {artistChipLabel(artist, artistRelations)}
-                            </span>
-                          </Badge>
-                        );
-                      })}
-                      {url && (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-                        >
-                          Tickets
-                          <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                      )}
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
+                            Tickets
+                            <ExternalLink className="size-3.5" aria-hidden />
+                          </a>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </li>
+                );
+              })}
               {/* Filtered-out concerts keep a slot in the grid: a ghost cell
               sized like the cards it stands in for. */}
               {hiddenCount > 0 && (
@@ -291,6 +312,15 @@ export function EventsPanel({
           )}
         </AnimatedHeight>
       </div>
+      <ConcertDialog
+        event={selectedEvent}
+        artistRelations={artistRelations}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedEvent(null);
+          }
+        }}
+      />
     </div>
   );
 }

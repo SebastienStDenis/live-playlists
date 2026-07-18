@@ -1,6 +1,6 @@
 # Wording conventions
 
-*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-16 by Claude (Sonnet 5).*
+*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-18 by Claude (Sonnet 5).*
 
 User-facing copy (web UI, sync step labels and summaries, emails) uses one
 vocabulary. When adding or editing copy, follow these rules; when the product
@@ -76,6 +76,10 @@ fixed messages:
   filters."
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
+- An artist card's popup, per city section (home city, then each pinned
+  city), when that city has none of this artist's concerts: "No concerts by
+  {artist} found near {city}." This is a plain filter of already-loaded data,
+  not a sync-step state, so it never distinguishes "not synced yet."
 
 There is no "no home city" or "unlinked Last.fm" state: the dashboard
 requires a linked Last.fm account, a home city and a successful sync (see
