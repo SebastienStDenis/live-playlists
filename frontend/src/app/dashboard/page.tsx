@@ -77,6 +77,15 @@ export default async function DashboardPage() {
       ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
       ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
     ]);
+  // The suggestion score per artist, so the concerts panel can rank shows by
+  // the summed score of their line-up.
+  const artistScores: Record<string, number> = Object.fromEntries(
+    suggestedArtists.map(({ artist, interests }) => [
+      artist.id,
+      interests.find((interest) => interest.kind === SIMILAR_ARTIST_KIND)
+        ?.weight ?? 0,
+    ]),
+  );
   // Playlists appear only once they exist on Spotify; pins awaiting their
   // first sync are managed in Settings, not shown here.
   const linkedPlaylists = playlists.filter(
@@ -168,6 +177,7 @@ export default async function DashboardPage() {
                   city={city}
                   synced={syncStepCompleted(sync, "events")}
                   artistRelations={artistRelations}
+                  artistScores={artistScores}
                   events={events}
                 />
               ),

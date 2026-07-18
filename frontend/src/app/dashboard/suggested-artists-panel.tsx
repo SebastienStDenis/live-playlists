@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -11,6 +13,7 @@ import {
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SortSelect, type SortOption } from "./sort-select";
 import type { Interest, UserArtist } from "./taste-panel";
 
 function suggestionOf(userArtist: UserArtist): Interest | undefined {
@@ -22,6 +25,22 @@ function suggestionOf(userArtist: UserArtist): Interest | undefined {
 function scoreOf(userArtist: UserArtist): number {
   return suggestionOf(userArtist)?.weight ?? 0;
 }
+
+function byName(a: UserArtist, b: UserArtist): number {
+  return a.artist.name.localeCompare(b.artist.name);
+}
+
+type SortKey = "score" | "name";
+
+const sortOptions: readonly SortOption<SortKey>[] = [
+  { value: "score", label: "Score" },
+  { value: "name", label: "Name" },
+];
+
+const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
+  score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
+  name: byName,
+};
 
 const listenersFormat = new Intl.NumberFormat("en-US", {
   notation: "compact",
@@ -44,10 +63,8 @@ export function SuggestedArtistsPanel({
   suggestedArtists: UserArtist[];
   synced: boolean;
 }) {
-  const sortedArtists = [...suggestedArtists].sort(
-    (a, b) =>
-      scoreOf(b) - scoreOf(a) || a.artist.name.localeCompare(b.artist.name),
-  );
+  const [sortKey, setSortKey] = useState<SortKey>("score");
+  const sortedArtists = [...suggestedArtists].sort(comparators[sortKey]);
 
   return (
     <div>
@@ -62,54 +79,64 @@ export function SuggestedArtistsPanel({
           <RunSyncMessage action="suggest artists" />
         )
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sortedArtists.map((userArtist) => (
-            <li key={userArtist.artist.id} className="min-w-0">
-              <Card size="sm" className="h-full">
-                <CardHeader className="flex items-center justify-between gap-2">
-                  <CardTitle className="min-w-0 break-words">
-                    {userArtist.artist.name}
-                  </CardTitle>
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 px-1.5 text-muted-foreground"
-                  >
-                    <span
-                      className="size-1.5 rounded-full bg-primary"
-                      aria-hidden
-                    />
-                    score {scoreOf(userArtist).toFixed(2)}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="flex flex-1 flex-col gap-1">
-                  {reasonOf(userArtist) && (
-                    <p className="text-xs text-muted-foreground">
-                      {reasonOf(userArtist)}
-                    </p>
-                  )}
-                  {userArtist.listeners != null && (
-                    <p className="text-xs text-muted-foreground italic">
-                      {listenersFormat.format(userArtist.listeners)} listeners
-                    </p>
-                  )}
-                  {(userArtist.tags ?? []).length > 0 && (
-                    <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                      {(userArtist.tags ?? []).map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="max-w-full"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="mb-3 flex justify-end">
+            <SortSelect
+              value={sortKey}
+              onValueChange={setSortKey}
+              options={sortOptions}
+              labelId="suggested-sort-label"
+            />
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedArtists.map((userArtist) => (
+              <li key={userArtist.artist.id} className="min-w-0">
+                <Card size="sm" className="h-full">
+                  <CardHeader className="flex items-center justify-between gap-2">
+                    <CardTitle className="min-w-0 break-words">
+                      {userArtist.artist.name}
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 px-1.5 text-muted-foreground"
+                    >
+                      <span
+                        className="size-1.5 rounded-full bg-primary"
+                        aria-hidden
+                      />
+                      score {scoreOf(userArtist).toFixed(2)}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col gap-1">
+                    {reasonOf(userArtist) && (
+                      <p className="text-xs text-muted-foreground">
+                        {reasonOf(userArtist)}
+                      </p>
+                    )}
+                    {userArtist.listeners != null && (
+                      <p className="text-xs text-muted-foreground italic">
+                        {listenersFormat.format(userArtist.listeners)} listeners
+                      </p>
+                    )}
+                    {(userArtist.tags ?? []).length > 0 && (
+                      <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                        {(userArtist.tags ?? []).map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="max-w-full"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

@@ -21,6 +21,7 @@ import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SortSelect, type SortOption } from "./sort-select";
 
 export type UserEvent = {
   event: {
@@ -55,7 +56,54 @@ function placeLabel(event: UserEvent["event"]): string {
   return [event.city_name, event.region].filter(Boolean).join(", ");
 }
 
+function eventName(userEvent: UserEvent): string {
+  return (
+    userEvent.event.title ??
+    userEvent.artists.map((artist) => artist.name).join(", ")
+  );
+}
+
 export type ArtistRelation = "known" | "suggested";
+
+type SortKey = "date" | "name" | "distance" | "score";
+
+const sortOptions: readonly SortOption<SortKey>[] = [
+  { value: "date", label: "Date" },
+  { value: "name", label: "Name" },
+  { value: "distance", label: "Distance" },
+  { value: "score", label: "Score" },
+];
+
+function byName(a: UserEvent, b: UserEvent): number {
+  return eventName(a).localeCompare(eventName(b));
+}
+
+// A concert's score puts the ones featuring an artist you already listen to
+// first, then ranks by the summed suggestion score of every artist on the
+// bill (known artists carry no suggestion score, so they lean on the floor).
+function makeComparators(
+  relations: Record<string, ArtistRelation>,
+  scores: Record<string, number>,
+): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
+  const hasKnown = (userEvent: UserEvent) =>
+    userEvent.artists.some((artist) => relations[artist.id] === "known");
+  const scoreSum = (userEvent: UserEvent) =>
+    userEvent.artists.reduce(
+      (total, artist) => total + (scores[artist.id] ?? 0),
+      0,
+    );
+  return {
+    date: (a, b) =>
+      new Date(a.event.starts_at).getTime() -
+        new Date(b.event.starts_at).getTime() || byName(a, b),
+    name: byName,
+    distance: (a, b) => a.distance_km - b.distance_km || byName(a, b),
+    score: (a, b) =>
+      Number(hasKnown(b)) - Number(hasKnown(a)) ||
+      scoreSum(b) - scoreSum(a) ||
+      byName(a, b),
+  };
+}
 
 function artistChipLabel(
   artist: { id: string; name: string },
@@ -75,15 +123,18 @@ export function EventsPanel({
   city,
   synced,
   artistRelations,
+  artistScores,
   events,
 }: {
   city: City;
   synced: boolean;
   artistRelations: Record<string, ArtistRelation>;
+  artistScores: Record<string, number>;
   events: UserEvent[];
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [editingCity, setEditingCity] = useState(false);
@@ -120,15 +171,17 @@ export function EventsPanel({
   // Events come with known artists included regardless of the user's global
   // setting; the filter toggles below only affect this view.
   const shownEvents = viewCity ? viewEvents : events;
-  const visibleEvents = shownEvents.filter((userEvent) =>
-    userEvent.artists.some((artist) => {
-      const relation = artistRelations[artist.id];
-      return (
-        (showSuggested && relation === "suggested") ||
-        (showKnown && relation === "known")
-      );
-    }),
-  );
+  const visibleEvents = shownEvents
+    .filter((userEvent) =>
+      userEvent.artists.some((artist) => {
+        const relation = artistRelations[artist.id];
+        return (
+          (showSuggested && relation === "suggested") ||
+          (showKnown && relation === "known")
+        );
+      }),
+    )
+    .sort(makeComparators(artistRelations, artistScores)[sortKey]);
   const hiddenCount = shownEvents.length - visibleEvents.length;
 
   const shownCity = viewCity ?? city;
@@ -198,23 +251,31 @@ export function EventsPanel({
         {cityField}
         <span>({visibleEvents.length})</span>
       </h3>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={showSuggested}
-          onPressedChange={setShowSuggested}
-        >
-          Suggested artists
-        </Toggle>
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={showKnown}
-          onPressedChange={setShowKnown}
-        >
-          Artists you listen to
-        </Toggle>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap gap-2">
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={showSuggested}
+            onPressedChange={setShowSuggested}
+          >
+            Suggested artists
+          </Toggle>
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={showKnown}
+            onPressedChange={setShowKnown}
+          >
+            Artists you listen to
+          </Toggle>
+        </div>
+        <SortSelect
+          value={sortKey}
+          onValueChange={setSortKey}
+          options={sortOptions}
+          labelId="concerts-sort-label"
+        />
       </div>
       <div className="mt-3">
         <AnimatedHeight>
