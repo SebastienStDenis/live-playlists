@@ -50,11 +50,15 @@ export function ConcertDialog({
                   displayed.artists.map((artist) => artist.name).join(", ")}
               </DialogTitle>
             </DialogHeader>
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+            {/* overflow-y-auto forces overflow-x to auto too, which clips
+                the inner cards' ring (a box-shadow, so it renders outside
+                their border box) flush against this container's edges;
+                px-1 gives it room to paint. */}
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1">
               <ConcertCard
                 userEvent={displayed}
                 artistRelations={artistRelations}
-                floating
+                bare
               />
               <section>
                 <h4 className="text-sm font-semibold">Artists</h4>

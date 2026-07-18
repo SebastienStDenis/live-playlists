@@ -24,21 +24,79 @@ import {
 // the artist/concert popups so a concert always looks the same wherever it's
 // shown; `floating` drops the card's own background there, since the dialog
 // already shares its bg color and a filled card on a filled dialog just
-// reads as a smudge.
+// reads as a smudge. `bare` goes further, for the concert a popup is
+// *about*: no card frame at all, sitting as a wide header instead of a grid
+// tile.
 export function ConcertCard({
   userEvent,
   artistRelations,
   onClick,
   floating,
+  bare,
   className,
 }: {
   userEvent: UserEvent;
   artistRelations: Record<string, ArtistRelation>;
   onClick?: () => void;
   floating?: boolean;
+  bare?: boolean;
   className?: string;
 }) {
   const { event, url, artists } = userEvent;
+
+  const artistChips = (
+    <>
+      {artists.map((artist) => {
+        const suggested = artistRelations[artist.id] === "suggested";
+        return (
+          <Badge
+            key={artist.id}
+            variant={suggested ? "secondary" : "outline"}
+            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
+          >
+            <span className="truncate">
+              {artistChipLabel(artist, artistRelations)}
+            </span>
+          </Badge>
+        );
+      })}
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="relative ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+        >
+          Tickets
+          <ExternalLink className="size-3.5" aria-hidden />
+        </a>
+      )}
+    </>
+  );
+
+  if (bare) {
+    return (
+      <div className={cn("flex flex-col gap-3", className)}>
+        <div className="flex flex-col gap-1">
+          {/* gap-y-1 matches the header gap, so a wrapped date sits as close
+              to the title above as to the venue line below. */}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 font-heading text-lg font-medium">
+            <span className="min-w-0">
+              {event.title ?? artists.map((artist) => artist.name).join(", ")}
+            </span>
+            <span className="text-xs font-normal text-muted-foreground">
+              {dateFormat.format(new Date(event.starts_at))}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {event.venue_name} · {placeLabel(event)}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{artistChips}</div>
+      </div>
+    );
+  }
 
   return (
     <Card
@@ -80,32 +138,7 @@ export function ConcertCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-        {artists.map((artist) => {
-          const suggested = artistRelations[artist.id] === "suggested";
-          return (
-            <Badge
-              key={artist.id}
-              variant={suggested ? "secondary" : "outline"}
-              className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
-            >
-              <span className="truncate">
-                {artistChipLabel(artist, artistRelations)}
-              </span>
-            </Badge>
-          );
-        })}
-        {url && (
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="relative ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-          >
-            Tickets
-            <ExternalLink className="size-3.5" aria-hidden />
-          </a>
-        )}
+        {artistChips}
       </CardContent>
     </Card>
   );

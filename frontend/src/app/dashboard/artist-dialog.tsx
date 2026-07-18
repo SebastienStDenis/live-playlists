@@ -169,11 +169,15 @@ export function ArtistDialog({
                 {displayed.artist.name}
               </DialogTitle>
             </DialogHeader>
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+            {/* overflow-y-auto forces overflow-x to auto too, which clips
+                the inner cards' ring (a box-shadow, so it renders outside
+                their border box) flush against this container's edges;
+                px-1 gives it room to paint. */}
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1">
               <ArtistCard
                 userArtist={displayed}
                 relation={artistRelations[displayed.artist.id]}
-                floating
+                bare
               />
               <CitySection
                 city={homeCity}
