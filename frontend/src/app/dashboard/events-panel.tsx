@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -158,6 +158,25 @@ function artistChipLabel(
   }
 }
 
+// The chip popover gives up width rather than move: it narrows down to this
+// floor to keep its left edge on the chip, and only below the floor does the
+// collision shift slide it left, so far-right chips still get a readable card.
+const chipPopoverMinWidth = 208;
+const chipPopoverEdgeGap = 8;
+
+// Space between the chip's left edge and the page's right edge (the page,
+// not the window: below the 320px layout floor the page scrolls
+// horizontally). Radix reports available width only after shifting, so the
+// cap that prevents the shift has to be measured from the chip itself.
+function chipPopoverMaxWidth(trigger: HTMLElement): number {
+  const available =
+    document.documentElement.scrollWidth -
+    window.scrollX -
+    trigger.getBoundingClientRect().left -
+    chipPopoverEdgeGap;
+  return Math.max(chipPopoverMinWidth, available);
+}
+
 // An artist chip on a concert card. With details on hand it opens a popover
 // carrying the artist's profile - the same facts their Artists-tab card
 // shows - so the concert can be judged without leaving the tab.
@@ -170,6 +189,32 @@ function ArtistChip({
   relations: Record<string, ArtistRelation>;
   details?: UserArtist;
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [maxWidth, setMaxWidth] = useState<number>();
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen && triggerRef.current) {
+      setMaxWidth(chipPopoverMaxWidth(triggerRef.current));
+    }
+    setOpen(nextOpen);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (triggerRef.current) {
+        setMaxWidth(chipPopoverMaxWidth(triggerRef.current));
+      }
+    };
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update);
+    };
+  }, [open]);
+
   const suggested = relations[artist.id] === "suggested";
   const label = (
     <span className="truncate">{artistChipLabel(artist, relations)}</span>
@@ -186,7 +231,7 @@ function ArtistChip({
     );
   }
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Badge
           asChild
@@ -195,12 +240,12 @@ function ArtistChip({
             suggested ? "hover:bg-secondary/80" : "hover:bg-muted"
           }`}
         >
-          <button type="button" title={`About ${artist.name}`}>
+          <button ref={triggerRef} type="button" title={`About ${artist.name}`}>
             {label}
           </button>
         </Badge>
       </PopoverTrigger>
-      <PopoverContent align="start">
+      <PopoverContent align="start" style={{ maxWidth }}>
         <PopoverHeader>
           {/* The artist's headline number rides the title row: the score for
               a suggestion, the listening-history pills for an artist you
