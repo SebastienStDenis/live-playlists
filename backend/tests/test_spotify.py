@@ -293,7 +293,22 @@ async def test_create_playlist_maps_fields() -> None:
     assert json.loads(api_request.content) == {
         "name": "Live in Montreal",
         "description": "Upcoming concerts",
-        "public": True,
+        "public": False,
+    }
+
+
+async def test_update_playlist_details_keeps_playlist_unlisted() -> None:
+    client, requests = make_client([ok({})])
+
+    await client.update_playlist_details("p1", "New name", "New description")
+
+    (api_request,) = api_requests(requests)
+    assert api_request.method == "PUT"
+    assert api_request.url.path == "/v1/playlists/p1"
+    assert json.loads(api_request.content) == {
+        "name": "New name",
+        "description": "New description",
+        "public": False,
     }
 
 

@@ -137,10 +137,11 @@ Then, and the script does not say this - it only mentions `.env`:
   playlists.
 
 It needs `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` set first, and requests
-the `playlist-modify-public` (create and write the public playlists) and
-`playlist-read-private` (list the bot's own playlists for the orphan audit)
-scopes. Scopes are baked into the refresh token, so widening them means
-re-running this flow, not just editing the code.
+the `playlist-modify-private` (create and write the playlists, which are
+unlisted), `playlist-modify-public` (write access to any playlist still flagged
+public on the bot account), and `playlist-read-private` (list the bot's own
+playlists for the orphan audit) scopes. Scopes are baked into the refresh
+token, so widening them means re-running this flow, not just editing the code.
 
 ### A sync is failing for one user
 
