@@ -91,13 +91,11 @@ class SpotifyClient:
         payload = await self._request("GET", f"/artists/{spotify_id}")
         return SpotifyArtistData.model_validate(payload)
 
-    async def create_playlist(
-        self, name: str, description: str | None, public: bool = True
-    ) -> SpotifyPlaylistData:
+    async def create_playlist(self, name: str, description: str | None) -> SpotifyPlaylistData:
         payload = await self._request(
             "POST",
             "/me/playlists",
-            json={"name": name, "description": description or "", "public": public},
+            json={"name": name, "description": description or "", "public": False},
         )
         return SpotifyPlaylistData(
             id=payload["id"],
@@ -114,10 +112,12 @@ class SpotifyClient:
     async def update_playlist_details(
         self, playlist_id: str, name: str, description: str | None
     ) -> None:
+        # Re-asserting `public` on every details write converges any playlist
+        # still flagged public on the bot account to unlisted.
         await self._request(
             "PUT",
             f"/playlists/{playlist_id}",
-            json={"name": name, "description": description or ""},
+            json={"name": name, "description": description or "", "public": False},
         )
 
     async def unfollow_playlist(self, playlist_id: str) -> None:
