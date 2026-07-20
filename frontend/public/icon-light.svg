@@ -4,8 +4,8 @@
        cap-height sizing mirror brand/avatar.html; the path is Geist N at
        wght 560. See docs/theme.md. -->
   <style>
-    .bg { fill: #f5f2eb }
-    .mark { fill: #723722 }
+    .bg { fill: #f8f5f1 }
+    .mark { fill: #6c4939 }
   </style>
   <defs>
     <pattern id="grille" width="8.3333" height="8.3333" patternUnits="userSpaceOnUse">

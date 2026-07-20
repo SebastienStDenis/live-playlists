@@ -7,13 +7,13 @@
     <meta name="supported-color-schemes" content="light dark">
     <style>
       @media (prefers-color-scheme: dark) {
-        .email-card { background: #291c15 !important; border-color: #4f3e31 !important; }
-        .email-brand, .email-heading, .email-body { color: #dcd3c6 !important; }
-        .email-muted { color: #b5a592 !important; }
-        .email-hr { border-color: #4f3e31 !important; }
-        .email-button { background: #daaf75 !important; }
-        .email-button-text { color: #28150c !important; }
-        .email-link { color: #daaf75 !important; }
+        .email-card { background: #201713 !important; border-color: #3b3028 !important; }
+        .email-brand, .email-heading, .email-body { color: #d9cfc3 !important; }
+        .email-muted { color: #b3a393 !important; }
+        .email-hr { border-color: #3b3028 !important; }
+        .email-button { background: #cfaa7f !important; }
+        .email-button-text { color: #291910 !important; }
+        .email-link { color: #cfaa7f !important; }
       }
     </style>
   </head>
@@ -21,27 +21,27 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:480px;background:#fefdfa;border-radius:12px;border:1px solid #dfd7cd;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:480px;background:#fcf9f6;border-radius:12px;border:1px solid #e2d7cb;">
             <tr>
               <td style="padding:32px 40px;">
-                <p class="email-brand" style="margin:0 0 24px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:#20140f;">NextFM</p>
-                <h1 class="email-heading" style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#20140f;">Confirm your email</h1>
-                <p class="email-body" style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#20140f;">
+                <p class="email-brand" style="margin:0 0 24px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:#201511;">NextFM</p>
+                <h1 class="email-heading" style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#201511;">Confirm your email</h1>
+                <p class="email-body" style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#201511;">
                   Thanks for signing up. Confirm your email address to finish setting up your account and start discovering live music through listening.
                 </p>
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
                   <tr>
-                    <td class="email-button" style="border-radius:8px;background:#723722;">
-                      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email" class="email-button-text" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#f7f1e8;text-decoration:none;border-radius:8px;">Confirm email</a>
+                    <td class="email-button" style="border-radius:8px;background:#6c4939;">
+                      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email" class="email-button-text" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#f5ede4;text-decoration:none;border-radius:8px;">Confirm email</a>
                     </td>
                   </tr>
                 </table>
-                <p class="email-muted" style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#635147;">Or paste this link into your browser:</p>
-                <p class="email-muted" style="margin:0 0 24px;font-size:13px;line-height:1.6;word-break:break-all;color:#635147;">
-                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email" class="email-link" style="color:#723722;text-decoration:underline;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email</a>
+                <p class="email-muted" style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6e5c50;">Or paste this link into your browser:</p>
+                <p class="email-muted" style="margin:0 0 24px;font-size:13px;line-height:1.6;word-break:break-all;color:#6e5c50;">
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email" class="email-link" style="color:#6c4939;text-decoration:underline;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email</a>
                 </p>
-                <hr class="email-hr" style="border:none;border-top:1px solid #dfd7cd;margin:0 0 20px;">
-                <p class="email-muted" style="margin:0;font-size:13px;line-height:1.6;color:#635147;">
+                <hr class="email-hr" style="border:none;border-top:1px solid #e2d7cb;margin:0 0 20px;">
+                <p class="email-muted" style="margin:0;font-size:13px;line-height:1.6;color:#6e5c50;">
                   This link expires in one hour. If you didn't create a NextFM account, you can safely ignore this email.
                 </p>
               </td>
