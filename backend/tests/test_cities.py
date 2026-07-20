@@ -1,8 +1,8 @@
 import uuid
 from unittest.mock import MagicMock
 
-from app.auth import Claims
-from app.models import City, User
+from app.core.auth import Claims
+from app.core.models import City, User
 from tests.helpers import make_session, request
 
 USER_ID = uuid.uuid7()

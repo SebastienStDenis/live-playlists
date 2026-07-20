@@ -5,9 +5,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.config import Settings
-from app.lastfm import LastfmClient
-from app.models import (
+from app.clients.lastfm import LastfmClient
+from app.clients.musicbrainz import MusicBrainzClient
+from app.clients.spotify import SpotifyApiError, SpotifyClient, SpotifyPlaylistData
+from app.core.config import Settings
+from app.core.models import (
     Artist,
     ArtistTopTrack,
     City,
@@ -17,9 +19,7 @@ from app.models import (
     SpotifyArtist,
     User,
 )
-from app.musicbrainz import MusicBrainzClient
-from app.playlist_sync import PINNED_PLAYLIST_CAP
-from app.spotify import SpotifyApiError, SpotifyClient, SpotifyPlaylistData
+from app.sync.playlist_sync import PINNED_PLAYLIST_CAP
 from tests.helpers import (
     added_objects,
     make_session,

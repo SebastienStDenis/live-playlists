@@ -5,7 +5,7 @@ import pytest
 from temporalio.client import ScheduleAlreadyRunningError
 from temporalio.service import RPCError, RPCStatusCode
 
-from app.config import Settings
+from app.core.config import Settings
 from app.worker import SCHEDULE_ID, _reconcile_nightly_schedule
 
 

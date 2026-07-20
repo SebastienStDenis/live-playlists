@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy.exc import IntegrityError
 
-from app.auth import Claims
-from app.models import User
-from app.spotify import SpotifyApiError, SpotifyClient
+from app.clients.spotify import SpotifyApiError, SpotifyClient
+from app.core.auth import Claims
+from app.core.models import User
 from tests.helpers import added_objects, request, result_returning, result_with_scalars
 
 USER_ID = uuid.uuid7()

@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.dialects import postgresql
 
-from app.models import Artist, User
+from app.core.models import Artist, User
 from tests.helpers import make_session, request
 
 USER_ID = uuid.uuid7()
