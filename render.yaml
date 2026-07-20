@@ -11,9 +11,10 @@ services:
     dockerContext: ./backend
     healthCheckPath: /health
     # Runs once per deploy (not per replica), before the new version goes live,
-    # so schema changes and the cities load land exactly once and the worker
-    # never races the migration.
-    preDeployCommand: sh predeploy.sh
+    # so schema changes land exactly once and the worker never races the
+    # migration. Keep it a single command: Render wraps this in its own sh -c,
+    # so inline chaining ("a && b") collides - use a script if steps grow.
+    preDeployCommand: uv run alembic upgrade head
     envVars:
       - fromGroup: next-fm
 
