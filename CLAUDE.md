@@ -35,11 +35,11 @@ uv run ruff check .             # lint (--fix to auto-fix)
 uv run ruff format .            # format
 uv run ty check                 # type check
 uv run pytest                   # all tests
-uv run pytest tests/test_health.py::test_health   # single test
+uv run pytest tests/app/test_health.py::test_health   # single test
 uv run uvicorn app.main:app --reload              # dev server (needs Postgres + backend/.env)
 ```
 
-Tests are unit tests: the database dependency is overridden (`app.dependency_overrides[get_session]`), so nothing needs to be running. pytest-asyncio is in auto mode - async test functions need no decorator. Exception: the workflow tests in `tests/sync/test_sync_orchestration.py` run against Temporal's time-skipping test server, which the SDK downloads on first use (a one-time network fetch).
+Tests are unit tests: the database dependency is overridden (`app.dependency_overrides[get_session]`), so nothing needs to be running. pytest-asyncio is in auto mode - async test functions need no decorator. Exception: the workflow tests in `tests/app/sync/test_sync_orchestration.py` run against Temporal's time-skipping test server, which the SDK downloads on first use (a one-time network fetch).
 
 ### Migrations (run from `backend/`)
 
