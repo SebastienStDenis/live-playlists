@@ -63,9 +63,12 @@ in light mode, chestnut in dark - never a color of their own. The pieces:
   base (`bg-popover glass:bg-(--glass-surface) ...`), so unsupporting
   browsers get exactly the opaque theme described above.
 - **The `--glass-*` tokens** hold the translucent tints: `--glass-surface`
-  (popover at 62%, the floating chrome), `--glass-card` (card at 80%),
-  `--glass-canvas` (background at 75%, the settings dialog), `--glass-wash`
-  (background at 60%, the landing haze). They resolve per mode through their
+  (popover at 40%, the floating chrome), `--glass-card` (card at 70%),
+  `--glass-canvas` (background at 50%, the settings dialog), `--glass-wash`
+  (background at 50%, the landing haze), `--glass-well` (the tab bar),
+  `--glass-lens` (primary at 30%, the tab pill). Tints run deliberately low -
+  the material should be unmistakably see-through - and lean on blur, the
+  sheen, and the specular edge for legibility. They resolve per mode through their
   `var()` references, and a `prefers-reduced-transparency: reduce` block
   collapses them all back to opaque. The preference is honored via tokens,
   not a media gate inside the variant, deliberately: a browser that doesn't
@@ -96,14 +99,23 @@ in light mode, chestnut in dark - never a color of their own. The pieces:
   at 70% in light mode, champagne at 10% in dark - the light-from-above catch
   that sells the material. It rides Tailwind's inset-shadow slot, so it
   composes with each surface's existing `ring` and shadow.
-- **The accent stays matte.** Primary buttons, the active-tab pill, and badges
-  are untouched: glass is a surface material here, and the chestnut/champagne
-  accent remains solid metal.
+- **The accent stays matte on buttons and badges** - but the active-tab pill
+  became a lens (below): under glass it is the one accent surface that reads
+  as tinted glass rather than solid metal.
 - **The dashboard tab bar floats.** The tab strip is sticky (`top-2`, in
   `frontend/src/app/dashboard/tabs.tsx`) and carries `--glass-well` - the
-  recessed wash made genuinely translucent (muted at 62% light, black at 28%
+  recessed wash made genuinely translucent (muted at 45% light, black at 20%
   dark) with backdrop blur - so cards scroll beneath it iOS-style, which is
-  where its frost actually shows. The solid accent pill rides on top.
+  where its frost actually shows.
+- **The tab pill is a draggable lens.** The sliding indicator
+  (`frontend/src/components/ui/tabs.tsx`) is a motion (framer-motion) span:
+  spring-animated between tabs, and draggable from the active tab - the list
+  forwards the gesture through motion's drag controls, and release snaps to
+  (and activates) the nearest trigger. Under glass it paints `--glass-lens`
+  *above* the labels with a small backdrop blur, so labels smear under it in
+  transit; the active label rises above the lens (`z-20`) and keeps the plain
+  foreground color. Without glass it falls back to the solid primary pill
+  behind the labels.
 - **A sheen sells the pane.** `--glass-sheen`, a faint diagonal light sweep
   (white in light mode, champagne in dark), paints across floating glass
   surfaces via `background-image`, so a panel reads as glass even where its
