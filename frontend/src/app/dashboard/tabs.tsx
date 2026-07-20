@@ -69,8 +69,10 @@ export function Tabs({
         {/* flex-wrap only engages when the titles overflow (narrow screens):
             the list grows a second row and the sliding indicator follows the
             active tab there (it positions by offsetTop/offsetHeight). The
-            trigger height pins the wrapped rows to the single-row height. */}
-        <TabsList className="w-full gap-1 max-sm:h-auto max-sm:flex-wrap sm:w-fit">
+            trigger height pins the wrapped rows to the single-row height.
+            The bar is sticky and frosted: content scrolling beneath it is
+            what gives the glass something to refract. */}
+        <TabsList className="sticky top-2 z-30 w-full gap-1 glass:bg-(--glass-well) glass:shadow-card glass:backdrop-blur-lg glass:backdrop-saturate-150 glass:inset-shadow-[0_1px_0_var(--glass-edge)] max-sm:h-auto max-sm:flex-wrap sm:w-fit">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.key}

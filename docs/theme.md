@@ -98,8 +98,16 @@ in light mode, chestnut in dark - never a color of their own. The pieces:
   composes with each surface's existing `ring` and shadow.
 - **The accent stays matte.** Primary buttons, the active-tab pill, and badges
   are untouched: glass is a surface material here, and the chestnut/champagne
-  accent remains solid metal. The tab strip likewise keeps its flat recessed
-  wash - it sits on the page background, where frost has nothing to show.
+  accent remains solid metal.
+- **The dashboard tab bar floats.** The tab strip is sticky (`top-2`, in
+  `frontend/src/app/dashboard/tabs.tsx`) and carries `--glass-well` - the
+  recessed wash made genuinely translucent (muted at 62% light, black at 28%
+  dark) with backdrop blur - so cards scroll beneath it iOS-style, which is
+  where its frost actually shows. The solid accent pill rides on top.
+- **A sheen sells the pane.** `--glass-sheen`, a faint diagonal light sweep
+  (white in light mode, champagne in dark), paints across floating glass
+  surfaces via `background-image`, so a panel reads as glass even where its
+  backdrop happens to be calm.
 - **The landing haze refracts.** `frontend/src/app/haze.tsx` pairs its
   feathered wash (now `--glass-wash` under `glass:`) with a second
   `glass:backdrop-blur-[3px]` layer, so the soundwave dots soften as they pass
