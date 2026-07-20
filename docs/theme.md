@@ -1,6 +1,6 @@
 # Theme
 
-*Written 2026-07-11 by Claude (Fable 5).*
+*Written 2026-07-11 by Claude (Fable 5); retuned 2026-07-20.*
 
 The site's visual identity. When adjusting styling, follow these guidelines;
 when the theme changes, update this doc in the same change.
@@ -11,13 +11,13 @@ The palette is modeled on the **Focal Bathys MG** headphones colorway: a deep
 chestnut brown shell paired with a desaturated magnesium/champagne metal
 grille. The two modes are the two sides of that material pairing:
 
-- **Light mode** is the magnesium side - champagne-taupe paper, warm-grey
-  surfaces, with the deep chestnut as the action color (buttons, active tab).
+- **Light mode** is the magnesium side - champagne paper under near-white
+  cards, with the deep chestnut as the action color (buttons, active tab).
 - **Dark mode** is the chestnut shell - warm brown surfaces with the
   champagne metal as the action color.
 
 The general vibe: matte metal and wood rather than stage lights and neon.
-Warm, muted, a little hi-fi. Every hue in the system sits between 45° and 75°
+Warm, muted, a little hi-fi. Every hue in the system sits between 40° and 85°
 in oklch (brown → champagne); nothing is allowed to drift yellow, orange, or
 red enough to read as a "colorful accent" - the accent is a material, not a
 color.
@@ -28,20 +28,33 @@ Everything lives in the shadcn/ui token set in `frontend/src/app/globals.css`
 (`:root` for light, `.dark` for dark), expressed in oklch. Guidelines that
 shaped the values, and should shape future adjustments:
 
-- **Low chroma everywhere.** Neutrals carry 0.004-0.03 chroma; even the
-  primary stays under 0.075. If a tweak makes something look "poppy", it has
-  drifted off-theme.
+- **Low chroma everywhere.** Neutrals carry 0.003-0.05 chroma; even the
+  primary stays under 0.095. If a tweak makes something look "poppy", it has
+  drifted off-theme - the primary is a rich auburn chestnut (light) or a
+  champagne metal (dark), never terracotta or gold.
+- **Surfaces step apart tonally.** Light mode is champagne paper
+  (background L 0.961) under near-white cards (L 0.993); the page reads as
+  layers, not one field. Cards additionally carry `shadow-card` (the
+  `--surface-shadow` token, a soft chestnut-tinted drop in light mode, a
+  deeper black one in dark) alongside their hairline ring.
+- **A sheen, not a gradient.** `--sheen` is a faint fixed-size radial wash at
+  the top of the page (light-from-above in light mode, a warm glow in dark),
+  painted once on `body`. It shades the chrome; content lower on the page
+  sits on the flat background.
 - **Warmth lives in surfaces and text, not in lines.** Borders and input
-  edges are the greyest tokens in the system (chroma ~0.013 in light mode),
+  edges are the greyest tokens in the system (chroma ~0.016 in light mode),
   so hairlines read crisp rather than rosy. Dark-mode borders are translucent
-  champagne - 17% over cards, 22% on inputs - enough to define a card edge
+  champagne - 19% over cards, 25% on inputs - enough to define a card edge
   and make a field read as a field without breaking the tight layer
   hierarchy.
-- **Dark mode avoids pure white.** Foreground text is warm ivory
-  (L 0.86), captions L ~0.72 - readable (>= 6:1 on cards) without OLED glare.
-- **Layer hierarchy in dark mode** is deliberately tight: background L 0.17,
-  cards 0.215, pills/badges ~0.31, active-tab champagne 0.76. Separation
-  comes from these small steps plus borders, not from brightness jumps.
+- **Dark mode avoids pure white and pure black.** Foreground text is warm
+  ivory (L 0.87), captions L ~0.73 - readable (>= 6:1 on cards) without OLED
+  glare - and the background is a true chestnut (L 0.193, chroma 0.021), so
+  the shell reads as material rather than switched-off black.
+- **Layer hierarchy in dark mode** is deliberately tight: background L 0.193,
+  cards 0.242, pills/badges ~0.32, active-tab champagne 0.78. Separation
+  comes from these small steps plus borders and shadows, not from brightness
+  jumps.
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
