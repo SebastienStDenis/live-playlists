@@ -204,7 +204,9 @@ function ArtistChip({
           asChild
           variant={variant}
           className={`${badgeClass} cursor-pointer ${
-            suggested ? "hover:bg-primary/10" : "hover:bg-muted"
+            suggested
+              ? "hover:bg-primary/8 dark:hover:bg-primary/12"
+              : "hover:bg-muted"
           }`}
         >
           <button ref={triggerRef} type="button" title={`About ${artist.name}`}>

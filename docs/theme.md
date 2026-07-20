@@ -150,8 +150,8 @@ varies is the suggestion treatment - the badge `accent` variant plus the
 score pill and the "you might like ..." chips on concert cards (the
 dashboard panel dots share the dot motif). The `accent` variant is a
 primary-tinted border (30% light, 40% dark) over a faint primary wash
-(5%/10%): enough to lift a suggestion chip above the plain chips without
-turning it into a button. The dot sits concentric with the pill's rounded
+(3% light, 6% dark; hover deepens it to 8%/12%): enough to lift a
+suggestion chip above the plain chips without turning it into a button. The dot sits concentric with the pill's rounded
 end (`px-1.5`/`pl-1.5` against the default `px-2`). Artist tag pills and
 known-artist chips ("you listen to ...", play counts) are the plain outline
 badge, so suggested and known read apart at a glance while every pill stays
