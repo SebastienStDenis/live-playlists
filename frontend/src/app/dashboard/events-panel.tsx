@@ -57,8 +57,8 @@ export type UserEvent = {
 };
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
-// UTC displays the original local time. Day and time are formatted apart so
-// the card can wrap between them and nowhere else.
+// UTC displays the original local time. Day and time are formatted apart
+// because the card stacks them on separate lines.
 const dateFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   month: "short",
@@ -428,21 +428,19 @@ export function EventsPanel({
                       {/* gap-3 opens the title-to-venue gap to match the
                           artist cards' title-to-body spacing. */}
                       <CardHeader className="gap-3">
-                        {/* The date shares the title's line: when the row is
-                            tight the title wraps within its slot and the date
-                            folds between day and time (right-aligned), rather
-                            than the whole date dropping below the title. */}
+                        {/* The date always stacks day over time in a fixed
+                            right-hand column (shrink-0), keeping it beside
+                            the title; the title takes the remaining width
+                            and wraps within its slot only when it must. */}
                         <CardTitle className="flex items-baseline gap-x-2">
                           <span className="min-w-0 text-balance">
                             {eventName(userEvent)}
                           </span>
-                          <span className="ml-auto text-right text-xs font-normal text-muted-foreground">
-                            <span className="whitespace-nowrap">
-                              {dateFormat.format(startsAt)},
-                            </span>{" "}
-                            <span className="whitespace-nowrap">
-                              {timeFormat.format(startsAt)}
+                          <span className="ml-auto shrink-0 text-right text-xs font-normal text-muted-foreground">
+                            <span className="block">
+                              {dateFormat.format(startsAt)}
                             </span>
+                            {timeFormat.format(startsAt)}
                           </span>
                         </CardTitle>
                         {/* text-xs steps the venue line below the title,
