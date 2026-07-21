@@ -1,6 +1,5 @@
-import asyncio
-
 import httpx
+from aiolimiter import AsyncLimiter
 
 API_URL = "https://musicbrainz.org/ws/2"
 USER_AGENT = "next-fm/0.1 (https://github.com/sebastien/next-fm)"
@@ -17,8 +16,7 @@ class MusicBrainzApiError(Exception):
 class MusicBrainzClient:
     def __init__(self) -> None:
         self._http = httpx.AsyncClient(base_url=API_URL, headers={"User-Agent": USER_AGENT})
-        self._throttle = asyncio.Lock()
-        self._next_request_at = 0.0
+        self._limiter = AsyncLimiter(1, REQUEST_INTERVAL)
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -40,9 +38,7 @@ class MusicBrainzClient:
 
     async def has_artist_named(self, name: str) -> bool:
         """Whether an artist entity exists whose name or alias equals the given
-        name (case-insensitive). MusicBrainz models joint scrobble credits as
-        artist credits, never entities, so entity existence separates real
-        separator-bearing names ("Earth, Wind & Fire") from credit strings."""
+        name (case-insensitive)."""
         escaped = name.replace("\\", "\\\\").replace('"', '\\"')
         response = await self._get(
             "/artist",
@@ -59,12 +55,5 @@ class MusicBrainzClient:
         return False
 
     async def _get(self, path: str, params: dict) -> httpx.Response:
-        async with self._throttle:
-            loop = asyncio.get_running_loop()
-            delay = self._next_request_at - loop.time()
-            if delay > 0:
-                await asyncio.sleep(delay)
-            try:
-                return await self._http.get(path, params=params)
-            finally:
-                self._next_request_at = loop.time() + REQUEST_INTERVAL
+        async with self._limiter:
+            return await self._http.get(path, params=params)

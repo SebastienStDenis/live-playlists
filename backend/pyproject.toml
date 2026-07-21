@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "NextFM API"
 requires-python = ">=3.14"
 dependencies = [
+    "aiolimiter>=1.2.1",
     "alembic>=1.18.5",
     "fastapi>=0.139.0",
     "httpx>=0.28.1",
