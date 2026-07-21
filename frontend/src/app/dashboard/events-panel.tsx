@@ -425,7 +425,9 @@ export function EventsPanel({
                 return (
                   <li key={event.id} className="flex">
                     <Card size="sm" className="flex-1">
-                      <CardHeader>
+                      {/* gap-3 opens the title-to-venue gap to match the
+                          artist cards' title-to-body spacing. */}
+                      <CardHeader className="gap-3">
                         {/* The date shares the title's line: when the row is
                             tight the title wraps within its slot and the date
                             folds between day and time (right-aligned), rather
@@ -444,10 +446,8 @@ export function EventsPanel({
                           </span>
                         </CardTitle>
                         {/* text-xs steps the venue line below the title,
-                            matching the date and the Tickets link; mt-2 plus
-                            the header's gap-1 opens the same 12px the artist
-                            cards have between title and body. */}
-                        <CardDescription className="mt-2 flex items-start gap-1 text-xs">
+                            matching the date and the Tickets link. */}
+                        <CardDescription className="flex items-start gap-1 text-xs">
                           {/* mt-px centers the 14px icon in the 16px first
                               line, so it holds position if the text wraps. */}
                           <MapPin
