@@ -26,8 +26,6 @@ class Settings(BaseSettings):
     # Defaults to {supabase_url}/auth/v1; set only when the URL the backend
     # dials differs from the issuer in the tokens (compose containers).
     supabase_issuer: str = ""
-    # Empty disables HS256 verification entirely
-    supabase_jwt_secret: str = ""
     supabase_secret_key: str = ""
     log_level: str = "INFO"
     sentry_dsn: str = ""

@@ -146,7 +146,7 @@ async def sync_user_suggestions(
     synced, failed = await _refresh_seed_edges(session, lastfm, stale, now)
 
     result = await session.execute(
-        select(LastfmSimilarArtist).where(LastfmSimilarArtist.artist_id.in_(eligible_ids))
+        select(LastfmSimilarArtist).where(LastfmSimilarArtist.seed_artist_id.in_(eligible_ids))
     )
     edges = list(result.scalars())
     seed_names = {seed.artist_id: seed.name for seed in seeds}
@@ -273,12 +273,12 @@ def score_candidates(
     small capped bonus for consensus across seeds."""
     grouped: dict[str, list[tuple[LastfmSimilarArtist, Path]]] = {}
     for edge in edges:
-        affinity = affinities.get(edge.artist_id)
+        affinity = affinities.get(edge.seed_artist_id)
         if not affinity:
             continue
         path = Path(
-            seed_artist_id=edge.artist_id,
-            seed_name=seed_names.get(edge.artist_id, ""),
+            seed_artist_id=edge.seed_artist_id,
+            seed_name=seed_names.get(edge.seed_artist_id, ""),
             match=edge.match,
             value=edge.match * affinity,
         )
@@ -400,6 +400,8 @@ async def joint_credit_keys(
             if await musicbrainz.has_artist_named(names[key]):
                 verdicts[key] = False
         except MusicBrainzApiError, httpx.HTTPError:
+            # A probe degraded by an upstream failure writes nothing, so the
+            # next sync retries it: drop the key rather than cache a guess.
             del verdicts[key]
 
     fresh = {key for key, condemned in verdicts.items() if condemned}
@@ -454,7 +456,7 @@ async def _refresh_seed_edges(
     if fetched:
         await session.execute(
             delete(LastfmSimilarArtist).where(
-                LastfmSimilarArtist.artist_id.in_([seed.artist_id for seed, _ in fetched])
+                LastfmSimilarArtist.seed_artist_id.in_([seed.artist_id for seed, _ in fetched])
             )
         )
     for seed, similar in fetched:
@@ -464,7 +466,7 @@ async def _refresh_seed_edges(
         for key, entry in deduped.items():
             session.add(
                 LastfmSimilarArtist(
-                    artist_id=seed.artist_id,
+                    seed_artist_id=seed.artist_id,
                     name=entry.name,
                     name_key=key,
                     mbid=entry.mbid,

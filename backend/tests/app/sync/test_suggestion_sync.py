@@ -113,7 +113,7 @@ def test_seed_affinity_takes_the_stronger_signal() -> None:
 
 def edge(seed_id: uuid.UUID, name: str, match: float, mbid: str | None = None):
     return LastfmSimilarArtist(
-        artist_id=seed_id, name=name, name_key=name_key(name), mbid=mbid, match=match
+        seed_artist_id=seed_id, name=name, name_key=name_key(name), mbid=mbid, match=match
     )
 
 
@@ -287,7 +287,7 @@ async def test_refresh_replaces_edges_and_stamps_freshness() -> None:
     session.execute.assert_awaited_once()  # the delete of the seed's old edges
     edges = added_objects(session, LastfmSimilarArtist)
     assert [(e.name, e.match) for e in edges] == [("Boards of Canada", 0.9)]  # deduped, first wins
-    assert edges[0].artist_id == seed.artist_id
+    assert edges[0].seed_artist_id == seed.artist_id
     assert seed.similar_synced_at == NOW
 
 
