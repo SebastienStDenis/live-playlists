@@ -49,15 +49,8 @@ class BandsintownClient:
         """Fetch an artist's upcoming events, skipping ones the schema can't
         represent (no id, date, venue name, or coordinates).
 
-        The V3.1 path prefix is undocumented (SwaggerHub only publishes
-        3.0.x) but is the one variant of this endpoint that returns the
-        real venue name on event-page listings (festivals, branded
-        tours); the default path stamps the event title over venue.name.
-        If V3.1 is ever removed, every fetch fails loudly through the
-        sync alerting; if it silently regresses to the default behavior,
-        the concert cards degrade gracefully (a title that repeats the
-        venue is dropped from the heading; see
-        docs/design/2026-07-18-concert-venues.md).
+        The V3.1 path prefix is undocumented but is the version that returns
+        reliable venue names - see docs/design/2026-07-18-concert-venues.md.
         """
         response = await self._http.get(
             f"/V3.1/artists/{_encode_artist_name(name)}/events",
