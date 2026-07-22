@@ -53,17 +53,14 @@ SIMILAR_FETCH_LIMIT = 100
 INFO_FETCH_LIMIT = 200
 FETCH_CONCURRENCY = 4
 
-# A lastfm_top_artist interest counts toward the known classification only
-# above this playcount: presence is not knowing, and the floor keeps playlist
-# scrobbles from evicting the suggestions that caused them.
+# Artists are only considered known if user's playcount is above this floor
 KNOWN_PLAYCOUNT_FLOOR = 20.0
 
-LOVED_AFFINITY_BASE = 0.4
-LOVED_AFFINITY_PER_TRACK = 0.15
+LOVED_TRACK_AFFINITY_BASE = 0.4
+LOVED_TRACK_AFFINITY_PER_TRACK = 0.15
 
-# Paths below this value neither earn the consensus bonus nor, therefore,
-# change any output - which is also why seeds with affinity below it are
-# provably safe to skip fetching (path value never exceeds affinity).
+# Paths (from seed artist to suggested artist) must clear a minimum value
+# to be considered.
 QUALIFYING_PATH_VALUE = 0.2
 CONSENSUS_BONUS = 0.05
 CONSENSUS_MAX_PATHS = 4
@@ -128,6 +125,8 @@ async def sync_user_suggestions(
     )
     excluded_ids = set(result.scalars())
 
+    # Paths starting from affinity < QUALIFYING_PATH_VALUE will never be greater than
+    # QUALIFYING_PATH_VALUE.
     eligible_ids = {
         artist_id
         for artist_id, affinity in affinities.items()
@@ -238,29 +237,32 @@ def known_artist_ids(interests: list[UserArtistInterest]) -> set[uuid.UUID]:
 def seed_affinities(interests: list[UserArtistInterest]) -> dict[uuid.UUID, float]:
     """Affinity (0-1) for every known artist; an artist known through both
     signals takes the stronger."""
-    playcounts: dict[uuid.UUID, float] = {}
-    track_counts: dict[uuid.UUID, float] = {}
+    artist_playcounts: dict[uuid.UUID, float] = {}
+    loved_track_counts: dict[uuid.UUID, float] = {}
     for interest in interests:
         if interest.weight is None:
             continue
         if interest.kind == TOP_ARTIST_KIND:
-            playcounts[interest.artist_id] = interest.weight
+            artist_playcounts[interest.artist_id] = interest.weight
         elif interest.kind == LOVED_TRACKS_KIND:
-            track_counts[interest.artist_id] = interest.weight
+            loved_track_counts[interest.artist_id] = interest.weight
 
-    max_playcount = max(playcounts.values(), default=0.0)
+    max_playcount = max(artist_playcounts.values(), default=0.0)
     affinities: dict[uuid.UUID, float] = {}
     for artist_id in known_artist_ids(interests):
-        affinity = 0.0
-        playcount = playcounts.get(artist_id)
+        playcount_affinity = 0.0
+        playcount = artist_playcounts.get(artist_id)
         if playcount and max_playcount > 0:
-            affinity = math.log1p(playcount) / math.log1p(max_playcount)
-        track_count = track_counts.get(artist_id)
+            playcount_affinity = math.log1p(playcount) / math.log1p(max_playcount)
+
+        track_count_affinity = 0.0
+        track_count = loved_track_counts.get(artist_id)
         if track_count:
-            affinity = max(
-                affinity, min(LOVED_AFFINITY_BASE + LOVED_AFFINITY_PER_TRACK * track_count, 1.0)
+            track_count_affinity = min(
+                LOVED_TRACK_AFFINITY_BASE + LOVED_TRACK_AFFINITY_PER_TRACK * track_count, 1.0
             )
-        affinities[artist_id] = affinity
+
+        affinities[artist_id] = max(playcount_affinity, track_count_affinity)
     return affinities
 
 
@@ -462,7 +464,10 @@ async def _refresh_seed_edges(
     for seed, similar in fetched:
         deduped: dict[str, LastfmSimilarArtistData] = {}
         for entry in similar:
-            deduped.setdefault(name_key(entry.name), entry)
+            key = name_key(entry.name)
+            current = deduped.get(key)
+            if current is None or entry.match > current.match:
+                deduped[key] = entry
         for key, entry in deduped.items():
             session.add(
                 LastfmSimilarArtist(
