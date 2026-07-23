@@ -59,8 +59,6 @@ KNOWN_PLAYCOUNT_FLOOR = 20.0
 LOVED_TRACK_AFFINITY_BASE = 0.4
 LOVED_TRACK_AFFINITY_PER_TRACK = 0.15
 
-# Paths (from seed artist to suggested artist) must clear a minimum value
-# to be considered.
 QUALIFYING_PATH_VALUE = 0.2
 CONSENSUS_BONUS = 0.05
 CONSENSUS_MAX_PATHS = 4
@@ -70,7 +68,7 @@ SUGGESTION_EXIT_SCORE = 0.35
 SUGGESTION_BUDGET = 200
 
 OVERALL_TOP_ARTISTS_LIMIT = 1000
-EVIDENCE_PATH_COUNT = 3
+EVIDENCE_PATHS_LIMIT = 3
 
 JOINT_CREDIT_PATTERN = re.compile(r"[,&]|\b(?:feat|ft|featuring|vs)\b\.?|\sx\s", re.IGNORECASE)
 JOINT_CREDIT_VERDICT_TTL = timedelta(days=90)
@@ -120,13 +118,14 @@ async def sync_user_suggestions(
     affinities = seed_affinities(interests)
     incumbents = {i.artist_id: i for i in interests if i.kind == SIMILAR_ARTIST_KIND}
 
+    # ignore artists the user has explicitly hidden
     result = await session.execute(
         select(UserArtistExclusion.artist_id).where(UserArtistExclusion.user_id == user.id)
     )
     excluded_ids = set(result.scalars())
 
-    # Paths starting from affinity < QUALIFYING_PATH_VALUE will never be greater than
-    # QUALIFYING_PATH_VALUE.
+    # Paths starting from affinity < QUALIFYING_PATH_VALUE will never produce a
+    # qualifying path.
     eligible_ids = {
         artist_id
         for artist_id, affinity in affinities.items()
@@ -151,7 +150,7 @@ async def sync_user_suggestions(
     seed_names = {seed.artist_id: seed.name for seed in seeds}
     candidates = score_candidates(edges, affinities, seed_names)
 
-    # Only candidates that could pass a threshold are worth probing.
+    # filter out joint-credit keys (e.g. 'Turnstile & Blood Orange')
     joint_keys = await joint_credit_keys(
         session,
         lastfm,
@@ -161,19 +160,20 @@ async def sync_user_suggestions(
     if joint_keys:
         candidates = [c for c in candidates if c.name_key not in joint_keys]
 
-    blocked_keys = await _blocked_name_keys(lastfm, username)
-    # Below the exit score a candidate fails both thresholds regardless of
-    # incumbency, so only the rest ever need a canonical id.
+    # Don't suggest artists the user has listened to significantly
+    known_keys = await _overall_known_artists_name_keys(lastfm, username)
     viable_keys = [c.name_key for c in candidates if c.score >= SUGGESTION_EXIT_SCORE]
     artist_ids_by_key = await _canonical_ids_by_key(session, viable_keys)
-    graced_ids = await _graced_artist_ids(session, user, set(incumbents))
+    # Incumbent artists that become known should remain suggested if they have upcoming shows (this
+    # avoids suggestions disappearing once the user starts listening to them in their playlists)
+    graced_ids = await _artist_ids_with_upcoming_shows(session, user, set(incumbents))
 
     kept = select_suggestions(
         candidates,
         artist_ids_by_key,
         incumbent_ids=set(incumbents),
         known_ids=known_ids,
-        blocked_keys=blocked_keys,
+        known_keys=known_keys,
         excluded_ids=excluded_ids,
         graced_ids=graced_ids,
     )
@@ -186,9 +186,7 @@ async def sync_user_suggestions(
         for c in kept
     ]
     artist_ids = await upsert_lastfm_artists(session, signals)
-    # An exclusion committed while the fetches above ran is missing from the
-    # snapshot the selection used; re-read so the reconcile drops the artist
-    # instead of resurrecting the interest the exclusion write just deleted.
+    # Re-read exclusions and filter out any new ones.
     result = await session.execute(
         select(UserArtistExclusion.artist_id).where(UserArtistExclusion.user_id == user.id)
     )
@@ -272,7 +270,7 @@ def score_candidates(
     seed_names: dict[uuid.UUID, str],
 ) -> list[Candidate]:
     """Aggregate edges into per-candidate scores: best path first, plus a
-    small capped bonus for consensus across seeds."""
+    small capped bonus for additional paths from other seeds."""
     grouped: dict[str, list[tuple[LastfmSimilarArtist, Path]]] = {}
     for edge in edges:
         affinity = affinities.get(edge.seed_artist_id)
@@ -306,30 +304,32 @@ def select_suggestions(
     *,
     incumbent_ids: set[uuid.UUID],
     known_ids: set[uuid.UUID],
-    blocked_keys: set[str],
+    known_keys: set[str],
     excluded_ids: set[uuid.UUID],
     graced_ids: set[uuid.UUID],
 ) -> list[Candidate]:
-    """Apply thresholds with hysteresis, the known-artist filter with its
-    concert-tied grace, exclusions, and the budget. Deterministic: ties break by
-    incumbency, then name_key."""
+    """Filter out suggestions that fall below the suggestion thresholds"""
 
     def incumbent(candidate: Candidate) -> bool:
         return artist_ids_by_key.get(candidate.name_key) in incumbent_ids
 
     kept = []
     for candidate in candidates:
+        # Artists that were previously suggested are judged against a lower floor to control
+        # hysterisis (avoids churn for entries near ENTER_SCORE)
         threshold = SUGGESTION_EXIT_SCORE if incumbent(candidate) else SUGGESTION_ENTER_SCORE
         if candidate.score < threshold:
             continue
         artist_id = artist_ids_by_key.get(candidate.name_key)
         if artist_id in excluded_ids:
             continue
-        known = artist_id in known_ids or candidate.name_key in blocked_keys
+        # Filter out artists the user knows, unless they're incumbent and graced
+        known = artist_id in known_ids or candidate.name_key in known_keys
         if known and not (incumbent(candidate) and artist_id in graced_ids):
             continue
         kept.append(candidate)
 
+    # Only keep SUGGESTION_BUDGET top matches, with ties broken by incumbency then name
     kept.sort(key=lambda c: (-c.score, not incumbent(c), c.name_key))
     return kept[:SUGGESTION_BUDGET]
 
@@ -340,24 +340,15 @@ async def joint_credit_keys(
     musicbrainz: MusicBrainzClient,
     artists: Iterable[tuple[str, str | None]],
 ) -> set[str]:
-    """Name keys among the given (name, mbid) pairs that are joint-credit pages
-    Last.fm auto-created from multi-artist scrobble credits ("Turnstile & Blood
-    Orange") rather than real artists.
+    """
+    Return keys among the given (name, mbid) pairs that are joint-credits names
+    (e.g. "Turnstile & Blood Orange") rather than real artists.
 
-    A suspect is a separator-bearing name without an MBID; the verdict is zero
-    tags, which nobody applies to auto-created pages while real separator-bearing
-    names ("Earth, Wind & Fire") carry them even when Last.fm omits the MBID.
-    The registry answers for names it has info for; the rest cost one getInfo
-    each. A MusicBrainz artist entity with the exact name or alias then rescues
-    the would-be drops - MusicBrainz models joint credits as artist credits,
-    never entities, so its registry is the maintained exception list for real
-    separator-bearing names Last.fm has neither an MBID nor tags for. Any
-    upstream being unreachable keeps the name until the next sync.
-
-    Clean verdicts persist to the global joint_credit_verdicts cache for
+    Verdicts are saved to the global joint_credit_verdicts cache for
     JOINT_CREDIT_VERDICT_TTL, so a stable candidate pool costs upstream calls
-    once instead of every sync; degraded probes stay uncached and retry.
-    Fresh drops log at WARNING so only new decisions surface in Sentry."""
+    once instead of every sync."""
+    # Rule 1: if artist has MBID or does not contain a separator in the name
+    # (',', '&', 'feat.'), then it is not a joint-credit name.
     names = {
         name_key(name): name
         for name, mbid in artists
@@ -366,6 +357,7 @@ async def joint_credit_keys(
     if not names:
         return set()
 
+    # Check existing verdicts in db - skip processing those within TTL.
     now = datetime.now(UTC)
     dropped: set[str] = set()
     result = await session.execute(
@@ -380,6 +372,7 @@ async def joint_credit_keys(
     if not names:
         return dropped
 
+    # Rule 2: if artist has tags in Last.fm, then it's a real atist (not a joint-credit name).
     verdicts: dict[str, bool] = {}
     result = await session.execute(select(LastfmArtist).where(LastfmArtist.name_key.in_(names)))
     unprobed = dict(names)
@@ -397,6 +390,8 @@ async def joint_credit_keys(
         if info is not None:
             verdicts[key] = info.mbid is None and not info.tags
 
+    # Rule 3: to confirm an suspected name is a joint-artist name, ensure it does not exist in
+    # MusicBrainz. Names in MusicBrainz are trusted as real artists.
     for key in sorted(key for key, condemned in verdicts.items() if condemned):
         try:
             if await musicbrainz.has_artist_named(names[key]):
@@ -468,16 +463,34 @@ async def _refresh_seed_edges(
             current = deduped.get(key)
             if current is None or entry.match > current.match:
                 deduped[key] = entry
-        for key, entry in deduped.items():
-            session.add(
-                LastfmSimilarArtist(
-                    seed_artist_id=seed.artist_id,
-                    name=entry.name,
-                    name_key=key,
-                    mbid=entry.mbid,
-                    match=entry.match,
-                )
+        if deduped:
+            stmt = pg_insert(LastfmSimilarArtist).values(
+                [
+                    {
+                        "seed_artist_id": seed.artist_id,
+                        "name": entry.name,
+                        "name_key": key,
+                        "mbid": entry.mbid,
+                        "match": entry.match,
+                    }
+                    for key, entry in deduped.items()
+                ]
             )
+            # A concurrent sync refreshing the same shared seed may have written
+            # these edges between our delete and this insert; on conflict the
+            # fresh fetch wins instead of the whole step failing.
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[
+                    LastfmSimilarArtist.seed_artist_id,
+                    LastfmSimilarArtist.name_key,
+                ],
+                set_={
+                    "name": stmt.excluded.name,
+                    "mbid": stmt.excluded.mbid,
+                    "match": stmt.excluded.match,
+                },
+            )
+            await session.execute(stmt)
         seed.similar_synced_at = now
     return len(fetched), len(seeds) - len(fetched)
 
@@ -513,8 +526,7 @@ async def _enrich_artist_info(
     priority_ids: frozenset[uuid.UUID] = frozenset(),
 ) -> tuple[int, int]:
     """Fill url, listening stats, and tags for interest artists whose info is
-    missing or stale. The registry is global, so one user's sync serves every
-    user reading the same artist."""
+    missing or stale."""
     result = await session.execute(
         select(LastfmArtist).where(LastfmArtist.artist_id.in_(artist_ids))
     )
@@ -523,10 +535,8 @@ async def _enrich_artist_info(
         for row in result.scalars()
         if row.info_synced_at is None or now - row.info_synced_at >= INFO_TTL
     ]
-    # A cold registry can make this the sync's biggest fan-out; the cap bounds
-    # one run, and the rows left stale complete over the following syncs.
-    # Priority rows (the current suggestions, whose panel shows the tags) go
-    # ahead of the rest.
+    # Limit fan-out by only allowing up to INFO_FETCH_LIMIT artist fetches (priority_ids first).
+    # Remaining ones gets synced on future syncs.
     stale.sort(key=lambda row: row.artist_id not in priority_ids)
     rows = stale[:INFO_FETCH_LIMIT]
     semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
@@ -559,13 +569,10 @@ async def _fetch_info(
     return await _guarded_fetch(lambda: lastfm.get_artist_info(name), empty, semaphore)
 
 
-async def _blocked_name_keys(lastfm: LastfmClient, username: str) -> set[str]:
-    """The user's overall-period top artists above the playcount floor, as an
-    in-memory blocklist: catches artists known well but not played lately.
-
-    A transient Last.fm failure here degrades to an empty blocklist for this
-    run instead of failing the whole step: known_ids still filters, and the
-    next sync rebuilds the list.
+async def _overall_known_artists_name_keys(lastfm: LastfmClient, username: str) -> set[str]:
+    """Return artists from user's overall (all-time) history with playcount
+    above the configured floor. Swallow transient Last.fm failures to avoid
+    failing the whole step - self-heals on the next run.
     """
     try:
         top_artists = await lastfm.get_top_artists(
@@ -593,13 +600,12 @@ async def _canonical_ids_by_key(
     return {key: artist_id for key, artist_id in result.all()}
 
 
-async def _graced_artist_ids(
-    session: AsyncSession, user: User, incumbent_ids: set[uuid.UUID]
+async def _artist_ids_with_upcoming_shows(
+    session: AsyncSession, user: User, artist_ids: set[uuid.UUID]
 ) -> set[uuid.UUID]:
-    """Incumbents with an upcoming concert near any of the user's playlist
-    target cities - the same servable predicate the match join runs on.
-    Grace retains, never admits: it only ever excuses known-ness."""
-    if not incumbent_ids:
+    """Which of the given artists have an upcoming concert near any of the
+    user's cities (home city plus pinned playlist cities)."""
+    if not artist_ids:
         return set()
     result = await session.execute(
         select(Playlist.city_id).where(Playlist.user_id == user.id, Playlist.city_id.is_not(None))
@@ -615,7 +621,7 @@ async def _graced_artist_ids(
     result = await session.execute(
         select(EventArtist.artist_id)
         .join(Event, Event.id == EventArtist.event_id)
-        .where(EventArtist.artist_id.in_(incumbent_ids), upcoming_event_near(cities))
+        .where(EventArtist.artist_id.in_(artist_ids), upcoming_event_near(cities))
         .distinct()
     )
     return set(result.scalars())
@@ -630,6 +636,6 @@ def _evidence(candidate: Candidate) -> dict:
                 "seed_name": path.seed_name,
                 "match": path.match,
             }
-            for path in candidate.paths[:EVIDENCE_PATH_COUNT]
+            for path in candidate.paths[:EVIDENCE_PATHS_LIMIT]
         ],
     }

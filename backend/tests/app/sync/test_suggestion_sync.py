@@ -170,7 +170,7 @@ def select(candidates: list[Candidate], ids: dict[str, uuid.UUID], **overrides):
     defaults: dict = {
         "incumbent_ids": set(),
         "known_ids": set(),
-        "blocked_keys": set(),
+        "known_keys": set(),
         "excluded_ids": set(),
         "graced_ids": set(),
     }
@@ -213,10 +213,8 @@ def test_selection_drops_known_candidates_unless_graced_incumbents() -> None:
     assert keys(kept) == ["graced"]
 
 
-def test_selection_blocklist_drops_by_name_key() -> None:
-    kept = select(
-        [candidate("Blocked", 0.9), candidate("Fresh", 0.9)], {}, blocked_keys={"blocked"}
-    )
+def test_selection_drops_known_candidates_by_name_key() -> None:
+    kept = select([candidate("Known", 0.9), candidate("Fresh", 0.9)], {}, known_keys={"known"})
 
     assert keys(kept) == ["fresh"]
 
@@ -284,11 +282,21 @@ async def test_refresh_replaces_edges_and_stamps_freshness() -> None:
     synced, failed = await _refresh_seed_edges(session, lastfm, [seed], NOW)
 
     assert (synced, failed) == (1, 0)
-    session.execute.assert_awaited_once()  # the delete of the seed's old edges
-    edges = added_objects(session, LastfmSimilarArtist)
-    assert [(e.name, e.match) for e in edges] == [("Boards of Canada", 0.9)]  # deduped, first wins
-    assert edges[0].seed_artist_id == seed.artist_id
     assert seed.similar_synced_at == NOW
+    # The delete of the seed's old edges, then the on-conflict upsert of the
+    # fresh set: a concurrent refresh of the same shared seed must not raise.
+    assert session.execute.await_count == 2
+    assert session.execute.await_args_list[0].args[0].table.name == "lastfm_similar_artists"
+    upsert = session.execute.await_args_list[-1].args[0]
+    assert upsert.table.name == "lastfm_similar_artists"
+    params = upsert.compile(dialect=postgresql.dialect()).params
+    assert sum(1 for key in params if key.startswith("match_m")) == 1  # deduped, first wins
+    values = list(params.values())
+    assert "Boards of Canada" in values
+    assert "mbid-boc" in values
+    assert 0.9 in values
+    assert 0.8 not in values
+    assert seed.artist_id in values
 
 
 async def test_refresh_treats_unknown_artist_as_durable_empty() -> None:
@@ -301,7 +309,9 @@ async def test_refresh_treats_unknown_artist_as_durable_empty() -> None:
 
     assert (synced, failed) == (1, 0)
     assert seed.similar_synced_at == NOW
-    session.add.assert_not_called()
+    # Durable-empty clears the seed's old edges (the delete) but writes no new
+    # ones, so no upsert follows.
+    assert session.execute.await_count == 1
 
 
 async def test_refresh_leaves_timestamp_untouched_on_failure() -> None:
