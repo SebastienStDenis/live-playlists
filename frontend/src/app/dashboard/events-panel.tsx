@@ -36,7 +36,7 @@ import { CitySearchBox } from "./city-search-box";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 import { SortSelect, type SortOption } from "./sort-select";
-import type { UserArtist } from "./taste-panel";
+import { playsOf, rankOf, type UserArtist } from "./taste-panel";
 
 export type UserEvent = {
   event: {
@@ -111,17 +111,33 @@ function byName(a: UserEvent, b: UserEvent): number {
 }
 
 // Best match leads with concerts featuring an artist rendered as
-// you-listen-to, then ranks by the summed score of every artist rendered
-// as a suggestion. Each artist counts by the signal its chip displays (the
-// relation map): an artist with both listening history and a suggestion
-// reads as a suggestion, so it adds its score rather than lifting the
-// concert into the you-listen-to block.
+// you-listen-to, in the Artists tab's plays order taken from the bill's
+// best such artist (lowest Last.fm top-artist rank, highest raw playcount
+// for the unranked); suggestion-only concerts follow by the summed score
+// of every artist rendered as a suggestion. Each artist counts by the
+// signal its chip displays (the relation map): an artist with both
+// listening history and a suggestion reads as a suggestion, so it adds
+// its score rather than lifting the concert into the you-listen-to block.
 function makeComparators(
   relations: Record<string, ArtistRelation>,
   artistsById: Record<string, UserArtist>,
 ): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
   const hasKnown = (userEvent: UserEvent) =>
     userEvent.artists.some((artist) => relations[artist.id] === "known");
+  const knownArtists = (userEvent: UserEvent) =>
+    userEvent.artists.filter((artist) => relations[artist.id] === "known");
+  const bestRank = (userEvent: UserEvent) =>
+    Math.min(
+      Number.MAX_SAFE_INTEGER,
+      ...knownArtists(userEvent).map((artist) => rankOf(artistsById[artist.id])),
+    );
+  const bestPlays = (userEvent: UserEvent) =>
+    Math.max(
+      -1,
+      ...knownArtists(userEvent).map((artist) =>
+        playsOf(artistsById[artist.id]),
+      ),
+    );
   const scoreSum = (userEvent: UserEvent) =>
     userEvent.artists.reduce(
       (total, artist) =>
@@ -140,6 +156,8 @@ function makeComparators(
     name: byName,
     match: (a, b) =>
       Number(hasKnown(b)) - Number(hasKnown(a)) ||
+      bestRank(a) - bestRank(b) ||
+      bestPlays(b) - bestPlays(a) ||
       scoreSum(b) - scoreSum(a) ||
       byName(a, b),
   };
