@@ -1,6 +1,6 @@
 import { InlineNav } from "../inline-nav";
 import { EmptyStateCell } from "./empty-state";
-import { SETTINGS_HASH } from "./settings-dialog";
+import { SETTINGS_HASH } from "./settings-hash";
 
 // Standard wording for a list whose sync step has not completed yet; see
 // docs/wording.md.

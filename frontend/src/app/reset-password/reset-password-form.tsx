@@ -3,12 +3,10 @@
 import { useActionState, useState } from "react";
 import { Check } from "lucide-react";
 
-import { Collapse } from "../collapse";
-import { FormError } from "../form-error";
-import { Button } from "@/components/ui/button";
+import { ConfirmPasswordField } from "../confirm-password-field";
+import { SubmitRow } from "../form-submit-row";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { resetPassword } from "./actions";
 
@@ -53,34 +51,20 @@ export function ResetPasswordForm() {
           />
         </p>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="confirm-password">Confirm new password</Label>
-        <div>
-          <Input
-            id="confirm-password"
-            type="password"
-            required
-            autoComplete="new-password"
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            onBlur={() => setConfirmationTouched(true)}
-          />
-          <Collapse show={mismatch}>
-            <p className="pt-2 text-xs text-destructive">
-              Passwords do not match.
-            </p>
-          </Collapse>
-        </div>
-      </div>
-      <div className="grid">
-        <Collapse show={state.error !== null}>
-          <FormError className="pb-3">{state.error}</FormError>
-        </Collapse>
-        <Button type="submit" disabled={pending || !valid} className="w-full">
-          {pending && <Spinner />}
-          Set new password
-        </Button>
-      </div>
+      <ConfirmPasswordField
+        value={confirmation}
+        onChange={setConfirmation}
+        onBlur={() => setConfirmationTouched(true)}
+        mismatch={mismatch}
+      />
+      <SubmitRow
+        error={state.error}
+        disabled={pending || !valid}
+        pending={pending}
+        buttonClassName="w-full"
+      >
+        Set new password
+      </SubmitRow>
     </form>
   );
 }

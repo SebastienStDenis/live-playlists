@@ -2,17 +2,14 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import type { ActionState } from "@/lib/action-state";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
-export type AuthState = {
-  error: string | null;
-};
-
 export async function logIn(
-  _prev: AuthState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<AuthState> {
+): Promise<ActionState> {
   const email = formData.get("email");
   const password = formData.get("password");
   if (

@@ -7,9 +7,8 @@ import { toast } from "sonner";
 
 import { createCityPlaylist, deletePlaylist } from "./actions";
 import { AnimatedHeight } from "./animated-height";
-import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
-import type { Playlist } from "./playlists-panel";
+import type { City, Playlist } from "@/lib/api-types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,7 +110,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
         title="Remove"
         className="text-muted-foreground"
       >
-        {pending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
+        {pending ? <Spinner /> : <X aria-hidden />}
       </Button>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>

@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { ExternalLink, MapPin, Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,248 +12,108 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-  usePinnedPopoverWidth,
-} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { Toggle } from "@/components/ui/toggle";
+import type { ArtistRelation, City, UserArtist, UserEvent } from "@/lib/api-types";
 import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
-import {
-  ArtistDetails,
-  KnownInterestBadges,
-  ScoreBadge,
-  scoreOf,
-} from "./artist-details";
-import type { City } from "./city-panel";
+import { ArtistChip } from "./artist-chip";
 import { CitySearchBox } from "./city-search-box";
-import { EmptyState, EmptyStateCell } from "./empty-state";
+import {
+  CARD_GRID_CLASS,
+  EmptyStateCell,
+  HiddenByFiltersCell,
+} from "./empty-state";
+import {
+  eventName,
+  makeComparators,
+  sortOptions,
+  type SortKey,
+} from "./event-sort";
+import { concertDateFormat, concertTimeFormat } from "./formats";
+import { RelationFilterBar } from "./relation-filter-bar";
 import { RunSyncMessage } from "./run-sync-message";
-import { SortSelect, type SortOption } from "./sort-select";
-import { playsOf, rankOf, type UserArtist } from "./taste-panel";
-
-export type UserEvent = {
-  event: {
-    id: string;
-    title: string | null;
-    venue_name: string;
-    venue_latitude: number;
-    venue_longitude: number;
-    city_name: string;
-    region: string | null;
-    country: string | null;
-    starts_at: string;
-  };
-  url: string | null;
-  distance_km: number;
-  artists: { id: string; name: string }[];
-};
-
-// Event times are stored as venue-local time labeled UTC, so formatting in
-// UTC displays the original local time. Day and time are formatted apart
-// because the card stacks them on separate lines.
-const dateFormat = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-const timeFormat = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
 
 function placeLabel(event: UserEvent["event"]): string {
   return [event.city_name, event.region].filter(Boolean).join(", ");
 }
 
-// A title that only repeats the venue name is not a title - Bandsintown
-// listings are often named after their venue ("Public Records") - so the
-// heading falls back to the artists and the venue keeps its slot.
-// Compared trimmed: Bandsintown strings carry stray whitespace
-// ("Moda Center "). Shared with the artist cards' concerts popover so
-// both surfaces agree on which titles are real.
-export function eventTitle(event: UserEvent["event"]): string | null {
-  return event.title && event.title.trim() !== event.venue_name.trim()
-    ? event.title
-    : null;
-}
-
-// Sorting by name uses the same name the card displays as its heading.
-function eventName(userEvent: UserEvent): string {
-  return (
-    eventTitle(userEvent.event) ??
-    userEvent.artists.map((artist) => artist.name).join(", ")
-  );
-}
-
-export type ArtistRelation = "known" | "suggested";
-
-type SortKey = "date" | "name" | "match";
-
-const sortOptions: readonly SortOption<SortKey>[] = [
-  { value: "date", label: "Date" },
-  { value: "name", label: "Name" },
-  { value: "match", label: "Best match" },
-];
-
-function byName(a: UserEvent, b: UserEvent): number {
-  return eventName(a).localeCompare(eventName(b));
-}
-
-// Best match leads with concerts featuring an artist rendered as
-// you-listen-to, in the Artists tab's plays order taken from the bill's
-// best such artist (lowest Last.fm top-artist rank, highest raw playcount
-// for the unranked); suggestion-only concerts follow by the summed score
-// of every artist rendered as a suggestion. Each artist counts by the
-// signal its chip displays (the relation map): an artist with both
-// listening history and a suggestion reads as a suggestion, so it adds
-// its score rather than lifting the concert into the you-listen-to block.
-function makeComparators(
-  relations: Record<string, ArtistRelation>,
-  artistsById: Record<string, UserArtist>,
-): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
-  const hasKnown = (userEvent: UserEvent) =>
-    userEvent.artists.some((artist) => relations[artist.id] === "known");
-  const knownArtists = (userEvent: UserEvent) =>
-    userEvent.artists.filter((artist) => relations[artist.id] === "known");
-  const bestRank = (userEvent: UserEvent) =>
-    Math.min(
-      Number.MAX_SAFE_INTEGER,
-      ...knownArtists(userEvent).map((artist) => rankOf(artistsById[artist.id])),
-    );
-  const bestPlays = (userEvent: UserEvent) =>
-    Math.max(
-      -1,
-      ...knownArtists(userEvent).map((artist) =>
-        playsOf(artistsById[artist.id]),
-      ),
-    );
-  const scoreSum = (userEvent: UserEvent) =>
-    userEvent.artists.reduce(
-      (total, artist) =>
-        relations[artist.id] === "suggested"
-          ? total + scoreOf(artistsById[artist.id])
-          : total,
-      0,
-    );
-  return {
-    // The ISO timestamps sort chronologically as strings; ties keep the
-    // server's starts_at,id order so the list agrees with the artist cards'
-    // concert footers.
-    date: (a, b) =>
-      a.event.starts_at.localeCompare(b.event.starts_at) ||
-      a.event.id.localeCompare(b.event.id),
-    name: byName,
-    match: (a, b) =>
-      Number(hasKnown(b)) - Number(hasKnown(a)) ||
-      bestRank(a) - bestRank(b) ||
-      bestPlays(b) - bestPlays(a) ||
-      scoreSum(b) - scoreSum(a) ||
-      byName(a, b),
-  };
-}
-
-function artistChipLabel(
-  artist: { id: string; name: string },
-  relations: Record<string, ArtistRelation>,
-): string {
-  switch (relations[artist.id]) {
-    case "suggested":
-      return `you might like ${artist.name}`;
-    case "known":
-      return `you listen to ${artist.name}`;
-    default:
-      return artist.name;
-  }
-}
-
-// An artist chip on a concert card. With details on hand it opens a popover
-// carrying the artist's profile - the same facts their Artists-tab card
-// shows - so the concert can be judged without leaving the tab.
-function ArtistChip({
-  artist,
-  relations,
-  details,
+// The city name in the title is the switcher: click it (or its pencil) to
+// swap in a search input; picking from the dropdown accepts, the X cancels.
+// While viewing another city, an undo arrow jumps back to the home city.
+function CityTitleField({
+  city,
+  viewCity,
+  editing,
+  loading,
+  onSelect,
+  onEdit,
+  onCancel,
+  onBack,
 }: {
-  artist: { id: string; name: string };
-  relations: Record<string, ArtistRelation>;
-  details?: UserArtist;
+  city: City;
+  viewCity: City | null;
+  editing: boolean;
+  loading: boolean;
+  onSelect: (city: City) => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onBack: () => void;
 }) {
-  const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
-  const suggested = relations[artist.id] === "suggested";
-  const label = (
-    <>
-      {/* Suggestions carry the primary accent dot, echoing the score pill;
-          known-artist chips stay plain. */}
-      {suggested && (
-        <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-      )}
-      <span className="truncate">{artistChipLabel(artist, relations)}</span>
-    </>
-  );
-  // pl-1.5 sets the dot concentric with the pill's rounded end, matching the
-  // score pill's px-1.5.
-  const badgeClass = `max-w-full font-normal text-muted-foreground ${
-    suggested ? "pl-1.5" : ""
-  }`;
-  const variant = suggested ? "accent" : "outline";
-
-  if (!details) {
-    return (
-      <Badge variant={variant} className={badgeClass}>
-        {label}
-      </Badge>
-    );
-  }
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Badge
-          asChild
-          variant={variant}
-          className={`${badgeClass} cursor-pointer ${
-            suggested
-              ? "hover:bg-primary/8 dark:hover:bg-primary/12"
-              : "hover:bg-muted"
-          }`}
+  const shownCity = viewCity ?? city;
+  return editing ? (
+    <span className="flex items-center gap-2">
+      <span className="w-56 max-w-full font-normal">
+        <CitySearchBox
+          placeholder="Search for a city"
+          disabled={loading}
+          autoFocus={!hasVirtualKeyboard()}
+          onSelect={onSelect}
+        />
+      </span>
+      {loading ? (
+        <span className="flex text-muted-foreground">
+          <Spinner />
+        </span>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onCancel}
+          aria-label="Cancel"
+          title="Cancel"
+          className="text-muted-foreground"
         >
-          <button ref={triggerRef} type="button" title={`About ${artist.name}`}>
-            {label}
-          </button>
-        </Badge>
-      </PopoverTrigger>
-      <PopoverContent align="start" style={{ maxWidth }}>
-        <PopoverHeader>
-          {/* The artist's headline number rides the title row: the score for
-              a suggestion, the listening-history pills for an artist you
-              listen to. Mirrors the Artists-tab card title row: the row
-              never wraps, a long name wraps beside the in-line badge, and
-              items-start keeps the badge on the first line. */}
-          <PopoverTitle className="flex items-start justify-between gap-2">
-            <span className="min-w-0 break-words">{artist.name}</span>
-            {suggested ? (
-              <ScoreBadge userArtist={details} />
-            ) : (
-              <KnownInterestBadges userArtist={details} className="justify-end" />
-            )}
-          </PopoverTitle>
-        </PopoverHeader>
-        {/* gap-1 and the tags' pt-2 mirror the Artists-tab card body, so the
-            popover reads as the same card in miniature. */}
-        <div className="flex flex-col gap-1">
-          <ArtistDetails userArtist={details} tagsClassName="pt-2" />
-        </div>
-      </PopoverContent>
-    </Popover>
+          <X aria-hidden />
+        </Button>
+      )}
+    </span>
+  ) : (
+    <span className="flex min-w-0 items-center gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onEdit}
+        title="See concerts in another city"
+        className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
+      >
+        <span className="min-w-0">{shownCity.name}</span>
+        <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
+      </Button>
+      {viewCity && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onBack}
+          aria-label={`Back to ${city.name}`}
+          title={`Back to ${city.name}`}
+          className="text-muted-foreground"
+        >
+          <Undo2 aria-hidden />
+        </Button>
+      )}
+    </span>
   );
 }
 
@@ -274,8 +133,10 @@ export function EventsPanel({
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("date");
-  const [viewCity, setViewCity] = useState<City | null>(null);
-  const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
+  const [cityView, setCityView] = useState<{
+    city: City;
+    events: UserEvent[];
+  } | null>(null);
   const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
 
@@ -289,7 +150,7 @@ export function EventsPanel({
     // Picking the home city is a return home, not a city view - the home
     // events are already loaded and the back control should disappear.
     if (selected.geonameid === city.geonameid) {
-      setViewCity(null);
+      setCityView(null);
       setEditingCity(false);
       return;
     }
@@ -301,15 +162,14 @@ export function EventsPanel({
         toast.error("Failed to load concerts for that city.");
         return;
       }
-      setViewEvents(await res.json());
-      setViewCity(selected);
+      setCityView({ city: selected, events: await res.json() });
       setEditingCity(false);
     });
   }
 
   // Events come with known artists included regardless of the user's global
   // setting; the filter toggles below only affect this view.
-  const shownEvents = viewCity ? viewEvents : events;
+  const shownEvents = cityView ? cityView.events : events;
   const visibleEvents = shownEvents
     .filter((userEvent) =>
       userEvent.artists.some((artist) => {
@@ -323,111 +183,42 @@ export function EventsPanel({
     .sort(makeComparators(artistRelations, artistsById)[sortKey]);
   const hiddenCount = shownEvents.length - visibleEvents.length;
 
-  const shownCity = viewCity ?? city;
-  // The city name in the title is the switcher: click it (or its pencil) to
-  // swap in a search input; picking from the dropdown accepts, the X cancels.
-  // While viewing another city, an undo arrow jumps back to the home city.
-  const cityField = editingCity ? (
-    <span className="flex items-center gap-2">
-      <span className="w-56 max-w-full font-normal">
-        <CitySearchBox
-          placeholder="Search for a city"
-          disabled={loading}
-          autoFocus={!hasVirtualKeyboard()}
-          onSelect={selectCity}
-        />
-      </span>
-      {loading ? (
-        <span className="flex text-muted-foreground">
-          <Spinner />
-        </span>
-      ) : (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setEditingCity(false)}
-          aria-label="Cancel"
-          title="Cancel"
-          className="text-muted-foreground"
-        >
-          <X aria-hidden />
-        </Button>
-      )}
-    </span>
-  ) : (
-    <span className="flex min-w-0 items-center gap-0.5">
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => setEditingCity(true)}
-        title="See concerts in another city"
-        className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
-      >
-        <span className="min-w-0">{shownCity.name}</span>
-        <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
-      </Button>
-      {viewCity && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setViewCity(null)}
-          aria-label={`Back to ${city.name}`}
-          title={`Back to ${city.name}`}
-          className="text-muted-foreground"
-        >
-          <Undo2 aria-hidden />
-        </Button>
-      )}
-    </span>
-  );
-
   return (
     <div>
       <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
         <span>Upcoming concerts in</span>
-        {cityField}
+        <CityTitleField
+          city={city}
+          viewCity={cityView?.city ?? null}
+          editing={editingCity}
+          loading={loading}
+          onSelect={selectCity}
+          onEdit={() => setEditingCity(true)}
+          onCancel={() => setEditingCity(false)}
+          onBack={() => setCityView(null)}
+        />
         <span>({visibleEvents.length})</span>
       </h3>
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex flex-wrap gap-2">
-          <Toggle
-            variant="outline"
-            size="sm"
-            pressed={showSuggested}
-            onPressedChange={setShowSuggested}
-          >
-            Suggested artists
-          </Toggle>
-          <Toggle
-            variant="outline"
-            size="sm"
-            pressed={showKnown}
-            onPressedChange={setShowKnown}
-          >
-            Artists you listen to
-          </Toggle>
-        </div>
-        {/* ml-auto rather than justify-between on the row: it also keeps the
-            picker right-aligned when it wraps to its own line. */}
-        <SortSelect
-          value={sortKey}
-          onValueChange={setSortKey}
-          options={sortOptions}
-          className="ml-auto"
-        />
-      </div>
+      <RelationFilterBar
+        showSuggested={showSuggested}
+        onShowSuggested={setShowSuggested}
+        showKnown={showKnown}
+        onShowKnown={setShowKnown}
+        sortKey={sortKey}
+        onSortKey={setSortKey}
+        sortOptions={sortOptions}
+        className="mt-3"
+      />
       <div className="mt-3">
         <AnimatedHeight>
           {visibleEvents.length === 0 && hiddenCount === 0 ? (
             <EmptyStateCell>
-              {viewCity
+              {cityView
                 ? "No concerts found. Try a different city."
                 : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
             </EmptyStateCell>
           ) : (
-            <ul className="grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
+            <ul className={CARD_GRID_CLASS}>
               {visibleEvents.map((userEvent) => {
                 const { event, url, artists } = userEvent;
                 const startsAt = new Date(event.starts_at);
@@ -449,9 +240,9 @@ export function EventsPanel({
                           </span>
                           <span className="ml-auto shrink-0 text-right text-xs font-normal text-muted-foreground">
                             <span className="block">
-                              {dateFormat.format(startsAt)}
+                              {concertDateFormat.format(startsAt)}
                             </span>
-                            {timeFormat.format(startsAt)}
+                            {concertTimeFormat.format(startsAt)}
                           </span>
                         </CardTitle>
                         {/* 13px steps the venue line below the title without
@@ -493,15 +284,8 @@ export function EventsPanel({
                   </li>
                 );
               })}
-              {/* Filtered-out concerts keep a slot in the grid: a ghost cell
-              sized like the cards it stands in for. */}
               {hiddenCount > 0 && (
-                <li className="flex">
-                  <EmptyState className="flex-1 content-center">
-                    {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
-                    hidden by filters.
-                  </EmptyState>
-                </li>
+                <HiddenByFiltersCell count={hiddenCount} noun="concert" />
               )}
             </ul>
           )}

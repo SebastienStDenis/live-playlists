@@ -1,22 +1,17 @@
 import { Badge } from "@/components/ui/badge";
+import type { Interest, UserArtist } from "@/lib/api-types";
 
-import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import type { Interest, UserArtist } from "./taste-panel";
+import {
+  KNOWN_ARTIST_KINDS,
+  LOVED_TRACKS_KIND,
+  TOP_ARTIST_KIND,
+} from "./artist-kinds";
+import { numberFormat } from "./formats";
+import { scoreOf, suggestionOf } from "./user-artist";
 
-const numberFormat = new Intl.NumberFormat("en-US");
 const listenersFormat = new Intl.NumberFormat("en-US", {
   notation: "compact",
 });
-
-export function suggestionOf(userArtist: UserArtist): Interest | undefined {
-  return userArtist.interests.find(
-    (interest) => interest.kind === SIMILAR_ARTIST_KIND,
-  );
-}
-
-export function scoreOf(userArtist: UserArtist): number {
-  return suggestionOf(userArtist)?.weight ?? 0;
-}
 
 function reasonOf(userArtist: UserArtist): string | null {
   const seeds = suggestionOf(userArtist)
@@ -29,7 +24,7 @@ function reasonOf(userArtist: UserArtist): string | null {
 }
 
 export function interestLabel(interest: Interest): string {
-  if (interest.kind === "lastfm_top_artist") {
+  if (interest.kind === TOP_ARTIST_KIND) {
     const parts: string[] = [];
     if (interest.evidence.rank != null) {
       parts.push(`#${interest.evidence.rank}`);
@@ -41,7 +36,7 @@ export function interestLabel(interest: Interest): string {
       return parts.join(" · ");
     }
   }
-  if (interest.kind === "lastfm_loved_tracks") {
+  if (interest.kind === LOVED_TRACKS_KIND) {
     const count = interest.evidence.track_count ?? 0;
     return `${count} loved ${count === 1 ? "track" : "tracks"}`;
   }

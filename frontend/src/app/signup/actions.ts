@@ -2,15 +2,16 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import type { ActionState } from "@/lib/action-state";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
-import type { AuthState } from "../login/actions";
+const EMAIL_EXISTS_ERROR = "That email is already registered. Try logging in.";
 
 export async function signUp(
-  _prev: AuthState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<AuthState> {
+): Promise<ActionState> {
   const name = formData.get("name");
   const email = formData.get("email");
   const password = formData.get("password");
@@ -35,7 +36,7 @@ export async function signUp(
   if (error) {
     return {
       error: authErrorMessage(error, "Failed to create your account.", {
-        email_exists: "That email is already registered. Try logging in.",
+        email_exists: EMAIL_EXISTS_ERROR,
         validation_failed: "Enter a valid email address.",
         email_address_invalid: "Enter a valid email address.",
         signup_disabled: "New sign-ups are currently disabled.",
@@ -46,7 +47,7 @@ export async function signUp(
   // (to prevent enumeration); it returns a fake user with no identities. Surface
   // it as a duplicate rather than sending the user to the check-email page.
   if (data.user && data.user.identities?.length === 0) {
-    return { error: "That email is already registered. Try logging in." };
+    return { error: EMAIL_EXISTS_ERROR };
   }
   // With email confirmation on, signUp returns no session until the user clicks
   // the emailed link; send them to a holding page instead of the dashboard

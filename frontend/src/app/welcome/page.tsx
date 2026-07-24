@@ -1,11 +1,12 @@
-import { CityPanel, type City } from "../dashboard/city-panel";
-import { LastfmPanel, type LastfmAccount } from "../dashboard/lastfm-panel";
+import { CityPanel } from "../dashboard/city-panel";
+import { LastfmPanel } from "../dashboard/lastfm-panel";
 import { Section } from "../dashboard/section";
 import { SyncCard } from "../dashboard/sync-card";
-import { fetchOptional, loadMe } from "../dashboard/user-api";
 import { IntroText } from "../intro-text";
 import { DailySyncSection } from "./daily-sync-section";
 import { WelcomeFlow } from "./welcome-flow";
+import type { City, LastfmAccount } from "@/lib/api-types";
+import { fetchOptional, loadMe } from "@/lib/user-api";
 
 export default async function WelcomePage() {
   const user = await loadMe();

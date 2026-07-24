@@ -1,47 +1,40 @@
 import { Suspense } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { HomeLink } from "../home-link";
+import { AuthCard } from "../auth-card";
 import { InlineNav } from "../inline-nav";
+import { QueryNotice } from "../query-notice";
 import { LoginForm } from "./login-form";
-import { LoginNotice } from "./login-notice";
+
+// /auth/confirm redirects here with an `?error=` value when an emailed link's
+// token is invalid or expired.
+const ERRORS: Record<string, string> = {
+  confirm: "That email link is invalid or has expired.",
+};
 
 export default function LoginPage() {
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-8">
-      <Suspense>
-        <LoginNotice />
-      </Suspense>
-      <HomeLink href="/" />
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-xl">
-            <h1>Log in</h1>
-          </CardTitle>
-          <CardDescription>Welcome back to NextFM.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <LoginForm />
-        </CardContent>
-        <CardFooter>
-          <div className="grid gap-1">
-            <p className="text-sm text-muted-foreground">
-              No account? <InlineNav href="/signup">Sign up</InlineNav>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Forgot your password?{" "}
-              <InlineNav href="/login/forgot-password">Reset it</InlineNav>
-            </p>
-          </div>
-        </CardFooter>
-      </Card>
-    </main>
+    <AuthCard
+      title="Log in"
+      description="Welcome back to NextFM."
+      before={
+        <Suspense>
+          <QueryNotice errors={ERRORS} />
+        </Suspense>
+      }
+      contentClassName="grid gap-4"
+      footer={
+        <div className="grid gap-1">
+          <p className="text-sm text-muted-foreground">
+            No account? <InlineNav href="/signup">Sign up</InlineNav>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Forgot your password?{" "}
+            <InlineNav href="/login/forgot-password">Reset it</InlineNav>
+          </p>
+        </div>
+      }
+    >
+      <LoginForm />
+    </AuthCard>
   );
 }

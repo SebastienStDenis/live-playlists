@@ -2,15 +2,14 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import type { ActionState } from "@/lib/action-state";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
-import type { AuthState } from "../login/actions";
-
 export async function resetPassword(
-  _prev: AuthState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<AuthState> {
+): Promise<ActionState> {
   const password = formData.get("password");
   if (typeof password !== "string" || !password) {
     return { error: "Enter a new password." };

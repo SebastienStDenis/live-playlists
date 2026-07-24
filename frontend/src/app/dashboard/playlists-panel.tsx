@@ -21,8 +21,11 @@ import {
   PopoverContent,
   PopoverTitle,
 } from "@/components/ui/popover";
-import type { City } from "./city-panel";
-import { EmptyStateCell } from "./empty-state";
+import type { Playlist } from "@/lib/api-types";
+import { cn } from "@/lib/utils";
+import { useHydrated } from "@/lib/use-hydrated";
+import { CARD_GRID_CLASS, EmptyStateCell } from "./empty-state";
+import { syncDateFormat } from "./formats";
 import { RunSyncMessage } from "./run-sync-message";
 import {
   clearSavePlaylistTip,
@@ -30,31 +33,6 @@ import {
 } from "./save-playlist-tip";
 import { useSettingsOpen } from "./settings-dialog";
 import { useActiveTab } from "./tabs";
-
-export type Playlist = {
-  id: string;
-  kind: string;
-  name: string;
-  description: string | null;
-  city: City | null;
-  spotify_playlist_id: string | null;
-  spotify_url: string | null;
-  last_synced_at: string | null;
-  tracks: PlaylistTrack[];
-};
-
-type PlaylistTrack = {
-  position: number;
-  spotify_track_id: string;
-  title: string | null;
-  artist: { id: string; name: string } | null;
-  event: {
-    id: string;
-    venue_name: string;
-    starts_at: string;
-  } | null;
-  url: string | null;
-};
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
 // UTC displays the original local time.
@@ -64,31 +42,18 @@ const showDateFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-const emptySubscribe = () => () => {};
-
 // The playlist's own last write, distinct from the step markers on the tab
 // description line - plain text, no check (see docs/wording.md). Formats in
 // the viewer's timezone, which the server can't know - renders only after
 // hydration so server and client HTML always match.
 function SyncedAtLabel({ iso }: { iso: string }) {
-  const hydrated = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+  const hydrated = useHydrated();
   if (!hydrated) {
     return null;
   }
   return (
     <span className="ml-auto animate-fade-in text-xs text-muted-foreground">
-      Synced {syncedAtFormat.format(new Date(iso))}
+      Synced {syncDateFormat.format(new Date(iso))}
     </span>
   );
 }
@@ -174,7 +139,7 @@ export function PlaylistsPanel({
 
   if (columnCount === null) {
     return (
-      <ul className="grid grid-cols-[minmax(0,26rem)] items-start gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
+      <ul className={cn(CARD_GRID_CLASS, "items-start")}>
         {ordered.map((playlist) => (
           <PlaylistCard key={playlist.id} playlist={playlist} tip={tipFor(playlist)} />
         ))}
@@ -211,11 +176,7 @@ type SavePlaylistTip = { open: boolean; onOpenChange: (open: boolean) => void };
 // the surface on screen (another tab, or the settings dialog covering it) the
 // tip closes rather than float on top, and it reopens when the panel returns.
 function useSavePlaylistTip(onScreen: boolean): SavePlaylistTip | undefined {
-  const hydrated = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+  const hydrated = useHydrated();
   const [phase, setPhase] = useState<
     "idle" | "uncued" | "pending" | "open" | "closed"
   >("idle");

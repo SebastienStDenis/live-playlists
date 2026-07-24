@@ -6,43 +6,13 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { UserArtist } from "@/lib/api-types";
 import { setArtistHidden } from "./actions";
 import { interestLabel } from "./artist-details";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
+import { numberFormat } from "./formats";
 import { SortSelect, type SortOption } from "./sort-select";
-
-export type Artist = {
-  id: string;
-  name: string;
-};
-
-export type Interest = {
-  kind: string;
-  source: string;
-  evidence: {
-    rank?: number | null;
-    playcount?: number | null;
-    period?: string;
-    track_count?: number;
-    score?: number;
-    paths?: { seed_artist_id: string; seed_name: string; match: number }[];
-  };
-  weight: number | null;
-  created_at: string;
-  updated_at: string;
-};
-
-// tags and listeners are optional so a newer frontend tolerates responses
-// from a backend deployed before they existed.
-export type UserArtist = {
-  artist: Artist;
-  interests: Interest[];
-  excluded: boolean;
-  tags?: string[];
-  listeners?: number | null;
-};
-
-const numberFormat = new Intl.NumberFormat("en-US");
+import { compareByName, lovedOf, playsOf, rankOf } from "./user-artist";
 
 type SortKey = "plays" | "loved" | "name" | "hidden";
 
@@ -53,42 +23,17 @@ const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "hidden", label: "Hidden first" },
 ];
 
-export function rankOf(userArtist: UserArtist): number {
-  const rank = userArtist.interests.find(
-    (interest) => interest.kind === "lastfm_top_artist",
-  )?.evidence.rank;
-  return rank ?? Number.MAX_SAFE_INTEGER;
-}
-
-export function playsOf(userArtist: UserArtist): number {
-  return (
-    userArtist.interests.find((interest) => interest.kind === "lastfm_top_artist")
-      ?.evidence.playcount ?? -1
-  );
-}
-
-function lovedOf(userArtist: UserArtist): number {
-  return (
-    userArtist.interests.find((interest) => interest.kind === "lastfm_loved_tracks")
-      ?.evidence.track_count ?? -1
-  );
-}
-
-function byName(a: UserArtist, b: UserArtist): number {
-  return a.artist.name.localeCompare(b.artist.name);
-}
-
 const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
-  name: byName,
+  name: compareByName,
   // The top-artist rank is Last.fm's own play-based ordering, so it doubles
   // as the plays sort; raw playcount breaks ties for artists without a rank.
   plays: (a, b) =>
-    rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b),
-  loved: (a, b) => lovedOf(b) - lovedOf(a) || byName(a, b),
+    rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || compareByName(a, b),
+  loved: (a, b) => lovedOf(b) - lovedOf(a) || compareByName(a, b),
   hidden: (a, b) =>
     Number(b.excluded) - Number(a.excluded) ||
     rankOf(a) - rankOf(b) ||
-    byName(a, b),
+    compareByName(a, b),
 };
 
 function ArtistRow({ userArtist }: { userArtist: UserArtist }) {

@@ -7,32 +7,14 @@ import { Link2, Pencil, X } from "lucide-react";
 import { linkLastfm } from "./actions";
 import { FormError } from "../form-error";
 import { AnimatedHeight } from "./animated-height";
+import { plainDateFormat } from "./formats";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import type { LastfmAccount } from "@/lib/api-types";
 import { hasVirtualKeyboard } from "@/lib/utils";
-
-export type LastfmAccount = {
-  id: string;
-  username: string;
-  real_name: string | null;
-  avatar_url: string | null;
-  profile_url: string | null;
-  country: string | null;
-  registered_at: string | null;
-  last_synced_at: string | null;
-};
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 export function LastfmPanel({
   account,
@@ -167,7 +149,7 @@ function AccountCard({
           {account.registered_at && (
             <>
               <dt className="text-muted-foreground">Registered</dt>
-              <dd>{formatDate(account.registered_at)}</dd>
+              <dd>{plainDateFormat.format(new Date(account.registered_at))}</dd>
             </>
           )}
         </dl>

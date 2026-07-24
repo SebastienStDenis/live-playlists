@@ -1,18 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import type { SyncStatus, SyncStepKey, User } from "@/lib/api-types";
 import { createClient } from "@/lib/supabase/server";
-import type { SyncStatus } from "./sync-steps";
-
-export type User = {
-  id: string;
-  name: string;
-  include_known_artists: boolean;
-  last_synced_at: string | null;
-};
 
 export async function loadMe(): Promise<User> {
-  const res = await apiFetch("/me", { cache: "no-store" });
+  const res = await apiFetch("/me");
   if (res.status === 404 || res.status === 422) {
     notFound();
   }
@@ -32,7 +25,7 @@ export async function loadEmail(): Promise<string | null> {
 }
 
 export async function fetchJson<T>(path: string, what: string): Promise<T> {
-  const res = await apiFetch(path, { cache: "no-store" });
+  const res = await apiFetch(path);
   if (!res.ok) {
     throw new Error(`Failed to load ${what}: ${res.status}`);
   }
@@ -43,7 +36,7 @@ export async function fetchJson<T>(path: string, what: string): Promise<T> {
 // resolves to null so the page never breaks over status hints.
 export async function loadSyncStatus(): Promise<SyncStatus | null> {
   try {
-    const res = await apiFetch("/me/sync", { cache: "no-store" });
+    const res = await apiFetch("/me/sync");
     if (!res.ok) {
       return null;
     }
@@ -57,7 +50,7 @@ export async function loadSyncStatus(): Promise<SyncStatus | null> {
 // differently depending on it: "run a sync" vs "the sync found nothing".
 export function syncStepCompleted(
   sync: SyncStatus | null,
-  key: string,
+  key: SyncStepKey,
 ): boolean {
   return (
     sync?.steps.some(
@@ -70,7 +63,7 @@ export async function fetchOptional<T>(
   path: string,
   what: string,
 ): Promise<T | null> {
-  const res = await apiFetch(path, { cache: "no-store" });
+  const res = await apiFetch(path);
   if (res.status === 404) {
     return null;
   }

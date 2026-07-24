@@ -5,8 +5,14 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { Haze } from "./haze";
-import { HomeNotice } from "./home-notice";
 import { IntroText } from "./intro-text";
+import { QueryNotice } from "./query-notice";
+
+// Deleting an account signs the user out and lands them here, which is exactly
+// where signing out lands them too; the toast is what tells the two apart.
+const NOTICES: Record<string, string> = {
+  "account-deleted": "Account deleted.",
+};
 
 export default async function Home() {
   const supabase = await createClient();
@@ -20,7 +26,7 @@ export default async function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <Suspense>
-        <HomeNotice />
+        <QueryNotice notices={NOTICES} />
       </Suspense>
       <Haze>
         <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>

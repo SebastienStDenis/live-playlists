@@ -15,8 +15,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-
-import type { City } from "./city-panel";
+import type { City } from "@/lib/api-types";
 
 export function cityLabel(city: City): string {
   return [city.name, city.admin1, city.country_code].filter(Boolean).join(", ");

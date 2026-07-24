@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Collapse } from "../collapse";
 import { startSync } from "./actions";
+import { syncDateFormat } from "./formats";
 import { useReportSyncActivity } from "./sync-activity";
 import {
   CurrentStep,
@@ -16,8 +17,6 @@ import {
   RING_MIN_FRACTION,
   StepList,
   StepMark,
-  syncDateFormat,
-  type SyncStatus,
 } from "./sync-steps";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
+import type { SyncStatus } from "@/lib/api-types";
 
 // How long a run may be in flight before the card reassures the user that
 // closing the page doesn't stop it.

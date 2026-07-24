@@ -9,11 +9,11 @@ import {
 } from "react";
 
 import { IntroText } from "../intro-text";
-import { SyncActivityProvider } from "./sync-activity";
 import { SettingsHeader } from "./settings-header";
+import { SETTINGS_HASH } from "./settings-hash";
+import { SyncActivityProvider } from "./sync-activity";
+import { fetchStatus } from "./sync-steps";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-
-export const SETTINGS_HASH = "#settings";
 
 // Broadcast the dialog's open state to sibling dashboard surfaces that live
 // outside it - specifically the save-playlist tip, which portals to the body
@@ -113,13 +113,7 @@ export function SettingsDialog({
     let timer: ReturnType<typeof setTimeout>;
     let sawRunning = false;
     async function poll() {
-      let status: { status?: string } | null = null;
-      try {
-        const res = await fetch("/api/me/sync");
-        status = res.ok ? await res.json() : null;
-      } catch {
-        status = null;
-      }
+      const status = await fetchStatus();
       if (cancelled) {
         return;
       }

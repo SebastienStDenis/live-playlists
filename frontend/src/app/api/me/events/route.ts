@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { proxyJson } from "@/lib/api";
 
 export async function GET(request: Request) {
   const geonameid = new URL(request.url).searchParams.get("geonameid");
@@ -8,13 +8,5 @@ export async function GET(request: Request) {
   if (geonameid) {
     params.set("geonameid", geonameid);
   }
-  try {
-    const res = await apiFetch(`/me/events?${params}`, { cache: "no-store" });
-    if (!res.ok) {
-      return Response.json([], { status: 502 });
-    }
-    return Response.json(await res.json());
-  } catch {
-    return Response.json([], { status: 502 });
-  }
+  return proxyJson(`/me/events?${params}`, []);
 }

@@ -62,6 +62,7 @@ export function SoundwaveDots() {
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (reduceMotion) paintStill();
     };
 
     // How far a wavefront must travel to clear the viewport from where it fired,
@@ -86,6 +87,10 @@ export function SoundwaveDots() {
     };
 
     const drawDots = () => {
+      // Dots beyond 3 sigma of every wavefront are indistinguishable from rest
+      // (their contribution rounds below 1/255), so they all share one path and
+      // one fill instead of an arc each.
+      const resting = new Path2D();
       for (let gy = GRID_GAP / 2; gy < height; gy += GRID_GAP) {
         for (let gx = GRID_GAP / 2; gx < width; gx += GRID_GAP) {
           let energy = 0;
@@ -94,6 +99,11 @@ export function SoundwaveDots() {
           for (const pulse of pulses) {
             const dx = gx - pulse.x;
             const dy = gy - pulse.y;
+            const distSq = dx * dx + dy * dy;
+            const outer = pulse.ringRadius + 3 * RING_SIGMA;
+            if (distSq > outer * outer) continue;
+            const inner = pulse.ringRadius - 3 * RING_SIGMA;
+            if (inner > 0 && distSq < inner * inner) continue;
             const dist = Math.hypot(dx, dy) || 1;
             const gap = dist - pulse.ringRadius;
             const env = Math.exp(-(gap * gap) / (2 * RING_SIGMA * RING_SIGMA));
@@ -102,6 +112,11 @@ export function SoundwaveDots() {
             energy += strength;
             pushX += (dx / dist) * strength;
             pushY += (dy / dist) * strength;
+          }
+          if (energy === 0) {
+            resting.moveTo(gx + 1, gy);
+            resting.arc(gx, gy, 1, 0, Math.PI * 2);
+            continue;
           }
           if (energy > 1) energy = 1;
           const push = Math.hypot(pushX, pushY);
@@ -115,6 +130,8 @@ export function SoundwaveDots() {
           ctx.fill();
         }
       }
+      ctx.globalAlpha = BASE_ALPHA;
+      ctx.fill(resting);
       ctx.globalAlpha = 1;
     };
 
@@ -173,9 +190,7 @@ export function SoundwaveDots() {
     readColor();
     resize();
 
-    if (reduceMotion) {
-      paintStill();
-    } else {
+    if (!reduceMotion) {
       frame = requestAnimationFrame(loop);
       window.addEventListener("click", handleClick);
       window.addEventListener("mousedown", handleMouseDown);

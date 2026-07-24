@@ -7,7 +7,7 @@ export function AttentionDot({ pulse = false }: { pulse?: boolean }) {
     <span
       title="Action needed"
       className={cn(
-        "inline-block h-2 w-2 rounded-full bg-destructive align-middle",
+        "inline-block size-2 rounded-full bg-destructive align-middle",
         pulse && "animate-pulse motion-reduce:animate-none",
       )}
     />

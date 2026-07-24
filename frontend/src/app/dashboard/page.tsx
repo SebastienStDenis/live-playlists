@@ -4,20 +4,13 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
-
-import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import { ArtistsPanel, type CityConcerts } from "./artists-panel";
-import { type City } from "./city-panel";
-import { DashboardNotice } from "./dashboard-notice";
-import { EventsPanel, type UserEvent } from "./events-panel";
-import { type LastfmAccount } from "./lastfm-panel";
-import { PlaylistsPanel, type Playlist } from "./playlists-panel";
-import { SettingsContent } from "./settings-content";
-import { SettingsDialog, SETTINGS_HASH } from "./settings-dialog";
-import { SyncStepNote } from "./sync-step-note";
-import { TAB_COOKIE } from "./tab-cookie";
-import { Tabs } from "./tabs";
-import { type UserArtist } from "./taste-panel";
+import type {
+  City,
+  LastfmAccount,
+  Playlist,
+  UserArtist,
+  UserEvent,
+} from "@/lib/api-types";
 import {
   fetchJson,
   fetchOptional,
@@ -25,7 +18,35 @@ import {
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
-} from "./user-api";
+} from "@/lib/user-api";
+
+import { QueryNotice } from "../query-notice";
+import { ArtistsPanel, type CityConcerts } from "./artists-panel";
+import {
+  collectPinnedCities,
+  countSuggestedEvents,
+  partitionArtists,
+  pendingPinIds,
+  settingsSignature,
+} from "./derive";
+import { EventsPanel } from "./events-panel";
+import { PlaylistsPanel } from "./playlists-panel";
+import { SettingsContent } from "./settings-content";
+import { SettingsDialog } from "./settings-dialog";
+import { SETTINGS_HASH } from "./settings-hash";
+import { SyncStepNote } from "./sync-step-note";
+import { TAB_COOKIE } from "./tab-cookie";
+import { Tabs } from "./tabs";
+
+// Auth redirects land on the dashboard with a `?notice=` (success) or `?error=`
+// (a failed email link, since the change is confirmed while signed in) value.
+const NOTICES: Record<string, string> = {
+  "password-reset": "Password changed. You're signed in.",
+  "email-changed": "Email changed.",
+};
+const ERRORS: Record<string, string> = {
+  confirm: "That email link is invalid or has expired.",
+};
 
 export default async function DashboardPage() {
   const user = await loadMe();
@@ -56,17 +77,7 @@ export default async function DashboardPage() {
   // filters. Pinned-city events ride along, kept per city, so the artist
   // cards can group upcoming concerts by the cities the user tracks - home
   // first, pins in order.
-  const pinnedCities: City[] = [];
-  for (const playlist of playlists) {
-    const pinned = playlist.city;
-    if (
-      pinned &&
-      pinned.geonameid !== city.geonameid &&
-      !pinnedCities.some((other) => other.geonameid === pinned.geonameid)
-    ) {
-      pinnedCities.push(pinned);
-    }
-  }
+  const pinnedCities = collectPinnedCities(playlists, city);
   const [events, ...pinnedEventLists] = await Promise.all([
     fetchJson<UserEvent[]>("/me/events?include_known_artists=true", "events"),
     ...pinnedCities.map((pinnedCity) =>
@@ -84,37 +95,13 @@ export default async function DashboardPage() {
     })),
   ];
 
-  // The lists overlap on purpose: an artist can hold a known-kind interest
-  // below the engine's playcount floor and still be an active suggestion.
-  const knownArtists = userArtists.filter((userArtist) =>
-    userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
-  );
-  // A suggestion interest can briefly survive its artist's exclusion (a
-  // hide landing mid-sync); never render those as suggestions.
-  const suggestedArtists = userArtists.filter(
-    (userArtist) =>
-      !userArtist.excluded &&
-      userArtist.interests.some(
-        (interest) => interest.kind === SIMILAR_ARTIST_KIND,
-      ),
-  );
-  const artistRelations: Record<string, "known" | "suggested"> =
-    Object.fromEntries([
-      ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
-      ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
-    ]);
-  // The Artists tab's you-listen-to cards: known artists not already surfaced
-  // as suggestions (an artist that is both renders as the suggestion, the
-  // same precedence the concert chips use) and not hidden by the user.
-  const knownOnlyArtists = knownArtists.filter(
-    (userArtist) =>
-      !userArtist.excluded &&
-      artistRelations[userArtist.artist.id] === "known",
-  );
-  // Full artist records by id, for the artist popovers on concert cards.
-  const artistsById: Record<string, UserArtist> = Object.fromEntries(
-    userArtists.map((userArtist) => [userArtist.artist.id, userArtist]),
-  );
+  const {
+    knownArtists,
+    suggestedArtists,
+    knownOnlyArtists,
+    artistRelations,
+    artistsById,
+  } = partitionArtists(userArtists);
   // Playlists appear only once they exist on Spotify; pins awaiting their
   // first sync are managed in Settings, not shown here.
   const linkedPlaylists = playlists.filter(
@@ -123,39 +110,14 @@ export default async function DashboardPage() {
   const pinnedPlaylists = playlists.filter(
     (playlist) => playlist.city !== null,
   );
-  // A fingerprint of the settings a sync propagates. The dialog snapshots it
-  // on open and warns when it diverges (see SettingsHeader). Arrays are sorted
-  // so reordering never reads as a change. Pinned cities are tracked
-  // separately (below), not here: removing a pin applies immediately, so only
-  // additions warrant the warning.
-  const settingsSignature = JSON.stringify({
-    name: user.name,
-    discovery: user.include_known_artists,
-    lastfm: lastfm.username,
-    city: city.geonameid,
-    hidden: knownArtists
-      .filter((a) => a.excluded)
-      .map((a) => a.artist.id)
-      .sort(),
-  });
-  // Pins the next sync must still create on Spotify, by playlist id: a
-  // re-added city is a new row, so it reads as new work even when the same
-  // geonameid was pinned at open.
-  const pendingPinIds = pinnedPlaylists
-    .filter((playlist) => playlist.spotify_url === null)
-    .map((playlist) => playlist.id)
-    .sort();
-  // Tab counts match each panel's default view: suggested artists only.
-  const suggestedEventCount = events.filter((userEvent) =>
-    userEvent.artists.some(
-      (artist) => artistRelations[artist.id] === "suggested",
-    ),
-  ).length;
+  const signature = settingsSignature(user, lastfm, city, knownArtists);
+  const pendingPins = pendingPinIds(pinnedPlaylists);
+  const suggestedEventCount = countSuggestedEvents(events, artistRelations);
 
   return (
     <main className="mx-auto w-full max-w-5xl p-8">
       <Suspense>
-        <DashboardNotice />
+        <QueryNotice notices={NOTICES} errors={ERRORS} />
       </Suspense>
       <span className="text-sm text-muted-foreground">NextFM</span>
       <div className="mt-2 flex items-center justify-between gap-4">
@@ -245,8 +207,8 @@ export default async function DashboardPage() {
         />
       </section>
       <SettingsDialog
-        signature={settingsSignature}
-        pendingPinIds={pendingPinIds}
+        signature={signature}
+        pendingPinIds={pendingPins}
         lastSyncedAt={user.last_synced_at}
       >
         <SettingsContent
