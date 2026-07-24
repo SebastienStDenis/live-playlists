@@ -114,12 +114,12 @@ class SpotifyClient:
             json={"name": name, "description": description or "", "public": False},
         )
 
-    async def unfollow_playlist(self, playlist_id: str) -> None:
+    async def delete_playlist(self, playlist_id: str) -> None:
+        # playlists are deleted by unfollowing from the owning account
         await self._request("DELETE", f"/playlists/{playlist_id}/followers")
 
     async def list_own_playlist_ids(self) -> list[str]:
-        """Every playlist id on the bot account, paged - the ground truth the
-        orphan audit diffs local state against."""
+        """Every playlist id on the bot account, paged."""
         ids: list[str] = []
         offset = 0
         while True:

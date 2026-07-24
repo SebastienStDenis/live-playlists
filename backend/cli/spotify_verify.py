@@ -131,7 +131,7 @@ async def run_checks(client: SpotifyClient) -> None:
         )
         check("update playlist details", True)
     finally:
-        await client.unfollow_playlist(playlist.id)
+        await client.delete_playlist(playlist.id)
         print("  (throwaway playlist unfollowed)")
 
 

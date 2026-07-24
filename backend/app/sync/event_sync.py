@@ -30,12 +30,6 @@ async def sync_user_events(
     session: AsyncSession, bandsintown: BandsintownClient, user_id: uuid.UUID
 ) -> EventSyncResult:
     """Refresh upcoming events for every artist the user has an interest in.
-
-    Freshness is per artist and shared globally: an artist synced within the
-    TTL (by any user's request) is skipped. Each successful fetch is treated
-    as the full truth for that artist's future events, so future events that
-    vanished from the feed are deleted as cancellations. Fetches run
-    concurrently; all session writes stay on this task.
     """
     result = await session.execute(
         select(Artist)
@@ -91,9 +85,8 @@ async def sync_user_events(
         created += artist_created
         updated += artist_updated
         if status == "synced":
-            # Not-found says nothing about cancellations, so only a real feed
-            # response triggers vanish-deletion.
-            removed += await _remove_vanished_events(session, artist.id, events, now)
+            # Only delete after a successful sync
+            removed += await _prune_events(session, artist.id, events, now)
 
     return EventSyncResult(
         synced_at=now,
@@ -179,8 +172,7 @@ async def _upsert_artist_events(
             updated += 1
         event_ids.append(event.id)
 
-    # Without relationships the unit of work doesn't order inserts across
-    # tables, so events must be flushed before rows that FK them.
+    # Flush new events before inserting BandsintownEvents (dependency order)
     await session.flush()
     if created_events:
         stmt = pg_insert(BandsintownEvent).values(
@@ -219,7 +211,7 @@ async def _upsert_artist_events(
     return created, updated
 
 
-async def _remove_vanished_events(
+async def _prune_events(
     session: AsyncSession,
     artist_id: uuid.UUID,
     events: list[BandsintownEventData],
@@ -227,18 +219,18 @@ async def _remove_vanished_events(
 ) -> int:
     """Delete this artist's future events that disappeared from their feed;
     the cascade cleans up source rows and lineup links."""
-    vanished = (
+    to_prune = (
         select(Event.id)
         .join(EventArtist, EventArtist.event_id == Event.id)
         .join(BandsintownEvent, BandsintownEvent.event_id == Event.id)
         .where(EventArtist.artist_id == artist_id, Event.starts_at > now)
     )
     if events:
-        vanished = vanished.where(
+        to_prune = to_prune.where(
             BandsintownEvent.external_id.notin_([data.external_id for data in events])
         )
-    result = await session.execute(vanished)
-    vanished_ids = list(result.scalars())
-    if vanished_ids:
-        await session.execute(delete(Event).where(Event.id.in_(vanished_ids)))
-    return len(vanished_ids)
+    result = await session.execute(to_prune)
+    to_prune_ids = list(result.scalars())
+    if to_prune_ids:
+        await session.execute(delete(Event).where(Event.id.in_(to_prune_ids)))
+    return len(to_prune_ids)
