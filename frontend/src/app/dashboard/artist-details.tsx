@@ -87,16 +87,13 @@ export function KnownInterestBadges({
 
 // The facts an Artists-tab card shows under its title. Shared with the
 // artist popovers on concert cards so both surfaces present the same
-// details. Known-kind interests (plays, loved tracks) usually ride the
-// title row instead; showKnownInterests pulls them in here for a
-// suggestion's popover, the artist's whole profile.
+// details. Known-kind interests (plays, loved tracks) ride the title row,
+// never here: each surface headlines a single signal, the one it sorts by.
 export function ArtistDetails({
   userArtist,
-  showKnownInterests = false,
   tagsClassName = "",
 }: {
   userArtist: UserArtist;
-  showKnownInterests?: boolean;
   tagsClassName?: string;
 }) {
   const reason = reasonOf(userArtist);
@@ -105,7 +102,6 @@ export function ArtistDetails({
   return (
     <>
       {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
-      {showKnownInterests && <KnownInterestBadges userArtist={userArtist} />}
       {userArtist.listeners != null && (
         <p className="text-xs text-muted-foreground italic">
           {listenersFormat.format(userArtist.listeners)} listeners

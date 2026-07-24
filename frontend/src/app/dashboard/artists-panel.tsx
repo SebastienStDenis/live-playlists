@@ -142,28 +142,36 @@ function byName(a: UserArtist, b: UserArtist): number {
   return a.artist.name.localeCompare(b.artist.name);
 }
 
-type SortKey = "score" | "plays" | "name" | "concert";
+type SortKey = "match" | "name" | "concert";
 
 const sortOptions: readonly SortOption<SortKey>[] = [
-  { value: "score", label: "Score" },
-  { value: "plays", label: "Most plays" },
+  { value: "match", label: "Best match" },
   { value: "name", label: "Name" },
   { value: "concert", label: "Next concert" },
 ];
 
 // Next concert orders by each artist's soonest show across the user's
-// cities; artists with nothing coming up trail alphabetically. Score keeps
-// you-listen-to cards (no suggestion score) below every suggestion; Most
-// plays is its inverse, sinking artists without listening history. Plays
-// order mirrors the Listening History panel: Last.fm's play-based
-// top-artist rank first, raw playcount breaking ties for the unranked.
+// cities; artists with nothing coming up trail alphabetically. Best match
+// leads with the you-listen-to cards in the Listening History panel's
+// plays order (Last.fm's play-based top-artist rank, raw playcount for
+// the unranked), then ranks suggestion cards by score. Each card sorts by
+// the signal it displays: an artist with both listening history and a
+// suggestion renders as a suggestion, so only its score counts.
 function makeComparators(
+  suggestedIds: Set<string>,
   soonestConcert: Map<string, string>,
 ): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
   return {
-    score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
-    plays: (a, b) =>
-      rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b),
+    match: (a, b) => {
+      const aSuggested = suggestedIds.has(a.artist.id);
+      const bSuggested = suggestedIds.has(b.artist.id);
+      if (aSuggested !== bSuggested) {
+        return aSuggested ? 1 : -1;
+      }
+      return aSuggested
+        ? scoreOf(b) - scoreOf(a) || byName(a, b)
+        : rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b);
+    },
     name: byName,
     concert: (a, b) => {
       const aDate = soonestConcert.get(a.artist.id);
@@ -228,7 +236,7 @@ export function ArtistsPanel({
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("score");
+  const [sortKey, setSortKey] = useState<SortKey>("match");
 
   // Without any artist to show there is nothing to filter or sort: just the
   // explanation, full width, in place of the controls.
@@ -261,7 +269,7 @@ export function ArtistsPanel({
   const visibleArtists = [
     ...(showSuggested ? suggestedArtists : []),
     ...(showKnown ? knownArtists : []),
-  ].sort(makeComparators(soonestConcert)[sortKey]);
+  ].sort(makeComparators(suggestedIds, soonestConcert)[sortKey]);
   const hiddenCount =
     suggestedArtists.length + knownArtists.length - visibleArtists.length;
 
