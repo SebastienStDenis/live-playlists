@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Run the app stack (api, web, temporal, worker) for the CURRENT worktree.
+# Run the app stack (api, web, temporal, worker) for the current worktree.
 #
 # - Picks its own free host ports so it can run alongside the main stack and
-#   other worktrees (see the port-override note in README.md).
+#   other worktrees.
 # - Shares the single Supabase stack rather than starting a per-worktree one;
 #   starts the main Supabase instance if nothing is listening yet.
 # - Copies .env from the main checkout when the worktree doesn't have one.

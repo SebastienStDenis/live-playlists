@@ -44,7 +44,7 @@ services:
   temporal:
     image: temporalio/temporal:1.7.2
     # Run as root so the dev server can create its SQLite file on the
-    # root-owned named volume (dev-only; production is Temporal Cloud).
+    # root-owned named volume.
     user: root
     command: server start-dev --ip 0.0.0.0 --db-filename /data/temporal.db
     ports:
@@ -60,7 +60,6 @@ services:
 
   worker:
     build: ./backend
-    # watchfiles restarts the worker on code edits, standing in for uvicorn's --reload
     command: >
       sh -c "uv run watchfiles --filter python 'python -m app.worker' app"
     environment:
