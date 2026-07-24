@@ -1,7 +1,6 @@
 # Brand assets
 
-Profile pictures for the app-owned bot accounts (Last.fm, Spotify). Not served
-by the app - these are uploaded by hand to each service.
+Icons for the project, used as favicons and account profile pictures.
 
 ## The files
 
