@@ -23,6 +23,7 @@ from app.core.schemas import (
     ArtistSyncResult,
     DispatchSyncsResult,
     EventSyncResult,
+    PlaylistSyncItem,
     PlaylistSyncResult,
     SuggestionSyncResult,
     SyncRunResult,
@@ -38,6 +39,8 @@ from app.sync.sync_workflow import (
     DispatchSyncsWorkflow,
     SyncUserWorkflow,
     _failure_summary,
+    _summarize_events,
+    _summarize_playlists,
     _timeout_warning,
     pending_steps,
     user_sync_workflow_id,
@@ -94,6 +97,7 @@ EVENT_RESULT = EventSyncResult(
     events_created=4,
     events_updated=2,
     events_removed=1,
+    events_total=37,
 )
 
 PLAYLIST_RESULT = PlaylistSyncResult(
@@ -232,7 +236,7 @@ async def test_sync_status_running_reports_step_progress() -> None:
     session = make_session()
     steps = pending_steps()
     steps[0].status = "completed"
-    steps[0].summary = "Imported 4 artists · 3 new"
+    steps[0].summary = "Imported 4 artists · 3 added"
     steps[1].status = "running"
     handle = make_handle(WorkflowExecutionStatus.RUNNING, steps)
     temporal = make_temporal(handle)
@@ -497,10 +501,10 @@ async def test_workflow_runs_all_steps_in_order() -> None:
     ]
     assert all(step.status == "completed" for step in result.steps)
     assert all(step.finished_at is not None for step in result.steps)
-    assert result.steps[0].summary == "Imported 4 artists · 3 new"
-    assert result.steps[1].summary == "Suggested 15 artists · 10 new"
-    assert result.steps[2].summary == "Found 4 new concerts"
-    assert result.steps[3].summary == "Generated 0 playlists · 0 tracks added, 0 removed"
+    assert result.steps[0].summary == "Imported 4 artists · 3 added"
+    assert result.steps[1].summary == "Suggested 15 artists · 10 added, 1 removed"
+    assert result.steps[2].summary == "Found 37 concerts · 4 added, 1 removed"
+    assert result.steps[3].summary == "Generated 0 playlists"
     assert recorded == [str(USER_ID)]
 
 
@@ -572,6 +576,29 @@ def test_failure_summary_for_timeout_is_generic() -> None:
         TimeoutError("timed out", type=TimeoutType.START_TO_CLOSE, last_heartbeat_details=[])
     )
     assert _failure_summary(exc) == "This step didn't finish. Please try again."
+
+
+def test_step_summaries_drop_zero_delta_clauses() -> None:
+    quiet = EVENT_RESULT.model_copy(update={"events_created": 0, "events_removed": 0})
+    assert _summarize_events(quiet) == "Found 37 concerts"
+    removals_only = EVENT_RESULT.model_copy(update={"events_created": 0})
+    assert _summarize_events(removals_only) == "Found 37 concerts · 1 removed"
+
+
+def test_playlist_summary_deltas_name_tracks() -> None:
+    playlist = PlaylistSyncItem(
+        playlist_id=uuid.uuid7(),
+        name="NextFM · Montréal",
+        status="synced",
+        tracks_added=1,
+        tracks_removed=0,
+        tracks_total=1,
+    )
+    result = PLAYLIST_RESULT.model_copy(update={"playlists": [playlist]})
+    assert _summarize_playlists(result) == "Generated 1 playlist · 1 track added"
+    both = playlist.model_copy(update={"tracks_added": 3, "tracks_removed": 2})
+    result = PLAYLIST_RESULT.model_copy(update={"playlists": [both]})
+    assert _summarize_playlists(result) == "Generated 1 playlist · 3 tracks added, 2 removed"
 
 
 async def test_workflow_does_not_retry_private_lastfm_data() -> None:

@@ -120,6 +120,9 @@ class EventSyncResult(BaseModel):
     events_created: int
     events_updated: int
     events_removed: int
+    # The user's full upcoming-concert count after the run, not a delta.
+    # Defaulted so Temporal can replay histories recorded before this field.
+    events_total: int = 0
 
 
 class ArtistSyncKindResult(BaseModel):

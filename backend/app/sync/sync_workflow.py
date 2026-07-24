@@ -71,19 +71,39 @@ def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
+def _with_deltas(headline: str, added: int, removed: int, noun: str = "") -> str:
+    """Append " · {added} added, {removed} removed" to the headline, dropping
+    zero clauses; the noun (when given) labels only the first clause shown."""
+    parts = []
+    for count, verb in ((added, "added"), (removed, "removed")):
+        if count:
+            label = f"{_plural(count, noun)} {verb}" if noun and not parts else f"{count} {verb}"
+            parts.append(label)
+    return f"{headline} · {', '.join(parts)}" if parts else headline
+
+
 def _summarize_artists(result: ArtistSyncResult) -> str:
     artists = sum(kind.artists for kind in result.results)
-    created = sum(kind.interests_created for kind in result.results)
-    return f"Imported {_plural(artists, 'artist')} · {created} new"
+    added = sum(kind.interests_created for kind in result.results)
+    removed = sum(kind.interests_removed for kind in result.results)
+    return _with_deltas(f"Imported {_plural(artists, 'artist')}", added, removed)
 
 
 def _summarize_suggestions(result: SuggestionSyncResult) -> str:
     total = result.suggestions_created + result.suggestions_kept
-    return f"Suggested {_plural(total, 'artist')} · {result.suggestions_created} new"
+    return _with_deltas(
+        f"Suggested {_plural(total, 'artist')}",
+        result.suggestions_created,
+        result.suggestions_removed,
+    )
 
 
 def _summarize_events(result: EventSyncResult) -> str:
-    return f"Found {_plural(result.events_created, 'new concert')}"
+    return _with_deltas(
+        f"Found {_plural(result.events_total, 'concert')}",
+        result.events_created,
+        result.events_removed,
+    )
 
 
 def _summarize_playlists(result: PlaylistSyncResult) -> str:
@@ -92,7 +112,7 @@ def _summarize_playlists(result: PlaylistSyncResult) -> str:
     # tracks too, and the summary must explain where they went.
     added = sum(playlist.tracks_added for playlist in result.playlists)
     removed = sum(playlist.tracks_removed for playlist in result.playlists)
-    return f"Generated {_plural(len(synced), 'playlist')} · {added} tracks added, {removed} removed"
+    return _with_deltas(f"Generated {_plural(len(synced), 'playlist')}", added, removed, "track")
 
 
 @dataclass(frozen=True)

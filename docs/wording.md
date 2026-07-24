@@ -50,17 +50,21 @@ suggests artists, finds concerts and generates playlists."
 
 The line under each step in the Daily Sync card names only outcomes the user
 can see in the product, never pipeline internals (seeds, candidates, scoring,
-cache freshness, interest rows, enrichment). Each summary opens with the
-step's past-tense verb and separates clauses with " · ":
+cache freshness, interest rows, enrichment). Every summary has the same
+shape: the step's past-tense verb and the total as it stands after the run,
+then " · {a} added, {r} removed" naming what the run changed. A zero delta
+clause is dropped; the leading total always shows, even at 0.
 
-- Import listening history: "Imported {n} artists · {m} new" ({n} counts
-  every artist in the listening history, {m} the ones first seen this run)
-- Suggest artists: "Suggested {n} artists · {m} new" ({n} counts every
-  currently suggested artist, {m} the ones new this run)
-- Find concerts: "Found {n} new concerts"
-- Generate playlists: "Generated {n} playlists · {a} tracks added,
-  {r} removed" (track counts span all playlists, including ones emptied
-  because a city was unpinned)
+- Import listening history: "Imported {n} artists" ({n} counts every artist
+  in the listening history)
+- Suggest artists: "Suggested {n} artists" ({n} counts every currently
+  suggested artist)
+- Find concerts: "Found {n} concerts" ({n} counts every upcoming concert by
+  the user's servable artists, across all searchable cities - not just near
+  home)
+- Generate playlists: "Generated {n} playlists" (deltas count tracks - "{a}
+  tracks added, {r} removed" - and span all playlists, including ones
+  emptied because a city was unpinned)
 
 Failed steps show the activity's own user-phrased error message instead
 (`app.sync.sync_activities._user_facing_errors`).
