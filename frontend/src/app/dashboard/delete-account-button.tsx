@@ -2,9 +2,9 @@
 
 import { useActionState } from "react";
 
-import { deleteAccount } from "./actions";
-import { Collapse } from "../collapse";
-import { FormError } from "../form-error";
+import { deleteAccount } from "@/lib/actions";
+import { Collapse } from "@/components/collapse";
+import { FormError } from "@/components/form-error";
 import {
   AlertDialog,
   AlertDialogAction,

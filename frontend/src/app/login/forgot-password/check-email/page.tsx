@@ -1,5 +1,5 @@
-import { AuthCard } from "../../../auth-card";
-import { InlineNav } from "../../../inline-nav";
+import { AuthCard } from "@/components/auth-card";
+import { InlineNav } from "@/components/inline-nav";
 
 export default function CheckEmailPage() {
   return (

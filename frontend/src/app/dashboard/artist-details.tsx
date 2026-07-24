@@ -1,12 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import type { Interest, UserArtist } from "@/lib/api-types";
+import { cn } from "@/lib/utils";
 
 import {
   KNOWN_ARTIST_KINDS,
   LOVED_TRACKS_KIND,
   TOP_ARTIST_KIND,
 } from "./artist-kinds";
-import { numberFormat } from "./formats";
+import { numberFormat } from "@/lib/formats";
 import { scoreOf, suggestionOf } from "./user-artist";
 
 const listenersFormat = new Intl.NumberFormat("en-US", {
@@ -66,7 +67,7 @@ export function KnownInterestBadges({
     return null;
   }
   return (
-    <span className={`flex flex-wrap gap-1.5 ${className}`}>
+    <span className={cn("flex flex-wrap gap-1.5", className)}>
       {knownInterests.map((interest) => (
         <Badge
           key={`${interest.kind}-${interest.source}`}
@@ -93,7 +94,7 @@ export function ArtistDetails({
 }) {
   const reason = reasonOf(userArtist);
   // Last.fm tag lists can repeat a tag; they key the badges, so dedupe.
-  const tags = [...new Set(userArtist.tags ?? [])];
+  const tags = [...new Set(userArtist.tags)];
   return (
     <>
       {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
@@ -103,7 +104,7 @@ export function ArtistDetails({
         </p>
       )}
       {tags.length > 0 && (
-        <div className={`flex flex-wrap gap-1.5 ${tagsClassName}`}>
+        <div className={cn("flex flex-wrap gap-1.5", tagsClassName)}>
           {tags.map((tag) => (
             <Badge
               key={tag}

@@ -2,7 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactCompiler: true,
 };
 
 // Source maps upload only when SENTRY_AUTH_TOKEN, SENTRY_ORG, and

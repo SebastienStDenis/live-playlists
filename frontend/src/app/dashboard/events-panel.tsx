@@ -15,9 +15,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type { ArtistRelation, City, UserArtist, UserEvent } from "@/lib/api-types";
 import { hasVirtualKeyboard } from "@/lib/utils";
-import { AnimatedHeight } from "./animated-height";
+import { AnimatedHeight } from "@/components/animated-height";
 import { ArtistChip } from "./artist-chip";
-import { CitySearchBox } from "./city-search-box";
+import { CitySearchBox } from "@/components/city-search-box";
 import {
   CARD_GRID_CLASS,
   EmptyStateCell,
@@ -29,7 +29,7 @@ import {
   sortOptions,
   type SortKey,
 } from "./event-sort";
-import { concertDateFormat, concertTimeFormat } from "./formats";
+import { concertDateFormat, concertTimeFormat } from "@/lib/formats";
 import { RelationFilterBar } from "./relation-filter-bar";
 import { RunSyncMessage } from "./run-sync-message";
 

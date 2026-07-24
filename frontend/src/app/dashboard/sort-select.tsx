@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export type SortOption<K extends string> = { value: K; label: string };
 
@@ -28,7 +29,10 @@ export function SortSelect<K extends string>({
   const labelId = useId();
   return (
     <div
-      className={`flex items-center gap-2 text-xs text-muted-foreground ${className}`}
+      className={cn(
+        "flex items-center gap-2 text-xs text-muted-foreground",
+        className,
+      )}
     >
       <span id={labelId}>Sort by</span>
       <Select value={value} onValueChange={(next) => onValueChange(next as K)}>

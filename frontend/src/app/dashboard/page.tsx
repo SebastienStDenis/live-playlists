@@ -18,9 +18,10 @@ import {
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
+  userEventsPath,
 } from "@/lib/user-api";
 
-import { QueryNotice } from "../query-notice";
+import { QueryNotice } from "@/components/query-notice";
 import { ArtistsPanel, type CityConcerts } from "./artists-panel";
 import {
   collectPinnedCities,
@@ -49,18 +50,23 @@ const ERRORS: Record<string, string> = {
 };
 
 export default async function DashboardPage() {
-  const user = await loadMe();
+  const userPromise = loadMe();
+  const dataPromise = Promise.all([
+    fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
+    fetchOptional<City>("/me/city", "city"),
+    fetchJson<UserArtist[]>("/me/artists", "user artists"),
+    fetchJson<Playlist[]>("/me/playlists", "playlists"),
+    loadSyncStatus(),
+    loadEmail(),
+  ]);
+  // The user await comes first so a gone user (notFound/redirect) beats any
+  // fetch failure; the noop catch keeps the fan-out's rejection from going
+  // unhandled when loadMe throws - awaiting it below still surfaces it.
+  dataPromise.catch(() => {});
   const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
-
+  const user = await userPromise;
   const [lastfm, city, userArtists, playlists, sync, email] =
-    await Promise.all([
-      fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
-      fetchOptional<City>("/me/city", "city"),
-      fetchJson<UserArtist[]>("/me/artists", "user artists"),
-      fetchJson<Playlist[]>("/me/playlists", "playlists"),
-      loadSyncStatus(),
-      loadEmail(),
-    ]);
+    await dataPromise;
   // The dashboard requires a linked Last.fm account, a home city and a
   // successful sync (`last_synced_at`, a durable DB stamp independent of
   // Temporal retention); anyone short of that goes through the welcome flow
@@ -79,12 +85,9 @@ export default async function DashboardPage() {
   // first, pins in order.
   const pinnedCities = collectPinnedCities(playlists, city);
   const [events, ...pinnedEventLists] = await Promise.all([
-    fetchJson<UserEvent[]>("/me/events?include_known_artists=true", "events"),
+    fetchJson<UserEvent[]>(userEventsPath(), "events"),
     ...pinnedCities.map((pinnedCity) =>
-      fetchJson<UserEvent[]>(
-        `/me/events?geonameid=${pinnedCity.geonameid}&include_known_artists=true`,
-        "events",
-      ),
+      fetchJson<UserEvent[]>(userEventsPath(pinnedCity.geonameid), "events"),
     ),
   ]);
   const cityConcerts: CityConcerts[] = [

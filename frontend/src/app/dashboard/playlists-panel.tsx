@@ -21,11 +21,12 @@ import {
   PopoverContent,
   PopoverTitle,
 } from "@/components/ui/popover";
+import { GHOST_PILL_CLASS } from "@/components/ghost-pill";
 import type { Playlist } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { useHydrated } from "@/lib/use-hydrated";
 import { CARD_GRID_CLASS, EmptyStateCell } from "./empty-state";
-import { syncDateFormat } from "./formats";
+import { syncDateFormat } from "@/lib/formats";
 import { RunSyncMessage } from "./run-sync-message";
 import {
   clearSavePlaylistTip,
@@ -241,9 +242,10 @@ function PlaylistCard({
         // Ring the card while the save tip points at it, so the nudge reads as
         // being about this playlist. Driven off the tip's open state rather
         // than :focus, which a programmatic focus() doesn't render visibly.
-        className={`flex-1 outline-none transition-shadow ${
-          tip?.open ? "ring-2 ring-primary/40" : ""
-        }`}
+        className={cn(
+          "flex-1 outline-none transition-shadow",
+          tip?.open && "ring-2 ring-primary/40",
+        )}
       >
         <CardHeader>
           <CardTitle className="flex items-start gap-2">
@@ -321,7 +323,12 @@ function PlaylistCard({
                 justify-between, so it stays right-aligned when it wraps
                 under the trigger. */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+              <CollapsibleTrigger
+                className={cn(
+                  GHOST_PILL_CLASS,
+                  "cursor-pointer gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180",
+                )}
+              >
                 <span>
                   {playlist.tracks.length}{" "}
                   {playlist.tracks.length === 1 ? "track" : "tracks"}

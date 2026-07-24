@@ -1,4 +1,4 @@
-import { InlineNav } from "../inline-nav";
+import { InlineNav } from "@/components/inline-nav";
 import { EmptyStateCell } from "./empty-state";
 import { SETTINGS_HASH } from "./settings-hash";
 

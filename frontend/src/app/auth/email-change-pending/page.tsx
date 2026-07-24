@@ -1,4 +1,4 @@
-import { AuthCard } from "../../auth-card";
+import { AuthCard } from "@/components/auth-card";
 
 export default function EmailChangePendingPage() {
   return (

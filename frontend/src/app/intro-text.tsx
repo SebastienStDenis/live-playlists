@@ -1,4 +1,4 @@
-import { InlineNav } from "./inline-nav";
+import { InlineNav } from "@/components/inline-nav";
 
 export function IntroText({ className }: { className?: string }) {
   return (

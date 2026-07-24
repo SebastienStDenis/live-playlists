@@ -4,10 +4,10 @@ import { useActionState, useState } from "react";
 
 import { Link2, Pencil, X } from "lucide-react";
 
-import { linkLastfm } from "./actions";
-import { FormError } from "../form-error";
+import { linkLastfm } from "@/lib/actions";
+import { FormError } from "./form-error";
 import { AnimatedHeight } from "./animated-height";
-import { plainDateFormat } from "./formats";
+import { plainDateFormat } from "@/lib/formats";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

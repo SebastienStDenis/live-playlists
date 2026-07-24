@@ -1,4 +1,4 @@
-import { HomeLink } from "../home-link";
+import { HomeLink } from "@/components/home-link";
 
 export default function AboutPage() {
   return (

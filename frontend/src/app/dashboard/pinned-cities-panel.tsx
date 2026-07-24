@@ -5,9 +5,9 @@ import { useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 
-import { createCityPlaylist, deletePlaylist } from "./actions";
-import { AnimatedHeight } from "./animated-height";
-import { CitySearchBox, cityLabel } from "./city-search-box";
+import { createCityPlaylist, deletePlaylist } from "@/lib/actions";
+import { AnimatedHeight } from "@/components/animated-height";
+import { CitySearchBox, cityLabel } from "@/components/city-search-box";
 import type { City, Playlist } from "@/lib/api-types";
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { SpinnerSlot } from "@/components/spinner-slot";
 
 const PINNED_PLAYLIST_CAP = 2;
 
@@ -57,9 +58,7 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
             {pending && adding && (
               <li className="flex items-center justify-between gap-x-2 text-sm">
                 <span className="min-w-0">{cityLabel(adding)}</span>
-                <span className="flex size-7 items-center justify-center text-muted-foreground">
-                  <Spinner />
-                </span>
+                <SpinnerSlot />
               </li>
             )}
           </ul>

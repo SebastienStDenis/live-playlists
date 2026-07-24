@@ -2,8 +2,8 @@
 
 import { type ReactNode } from "react";
 
-import { Section } from "../dashboard/section";
-import { useSyncSettled } from "../dashboard/sync-activity";
+import { Section } from "@/components/section";
+import { useSyncSettled } from "@/components/sync-activity";
 
 // The Daily Sync section, with its state mark computed on the client so the
 // green check waits for the sync card's simulated steps to finish. `reached`

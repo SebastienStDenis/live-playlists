@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 
-import { EmailField } from "../email-field";
-import { SubmitRow } from "../form-submit-row";
+import { EmailField } from "@/components/email-field";
+import { SubmitRow } from "@/components/form-submit-row";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EMAIL_SHAPE } from "@/lib/validation";

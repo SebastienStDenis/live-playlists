@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { changeEmail } from "./actions";
+import { changeEmail } from "@/lib/actions";
 import { SettingsEditDialog } from "./settings-edit-dialog";
 import { useDialogAction } from "./use-dialog-action";
-import { EmailField } from "../email-field";
-import { SubmitRow } from "../form-submit-row";
+import { EmailField } from "@/components/email-field";
+import { SubmitRow } from "@/components/form-submit-row";
 import { EMAIL_SHAPE } from "@/lib/validation";
 
 export function ChangeEmailButton() {

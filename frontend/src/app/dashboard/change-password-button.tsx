@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { changePassword } from "./actions";
+import { changePassword } from "@/lib/actions";
 import { SettingsEditDialog } from "./settings-edit-dialog";
 import { useDialogAction } from "./use-dialog-action";
-import { ConfirmPasswordField } from "../confirm-password-field";
-import { SubmitRow } from "../form-submit-row";
-import { PasswordRequirementHint } from "../password-hint";
+import { ConfirmPasswordField } from "@/components/confirm-password-field";
+import { SubmitRow } from "@/components/form-submit-row";
+import { PasswordRequirementHint } from "@/components/password-hint";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
