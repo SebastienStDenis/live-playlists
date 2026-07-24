@@ -152,8 +152,8 @@ def test_playlist_description() -> None:
     now = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
 
     assert playlist_description("Alice", "Montréal", now) == (
-        "Artists you might like playing near Montréal, curated for Alice by "
-        "NextFM (nextfm.net). Updated July 6, 2026."
+        "Artists you might like playing near Montréal. Curated for Alice by "
+        "NextFM (.net). Updated July 6, 2026."
     )
 
 
@@ -664,7 +664,7 @@ async def test_sync_playlist_lost_create_race_adopts_the_winner() -> None:
 
     item = await run_sync_playlist(session, spotify, playlist, [match])
 
-    spotify.unfollow_playlist.assert_awaited_once_with("pl-new")  # own creation discarded
+    spotify.delete_playlist.assert_awaited_once_with("pl-new")  # own creation discarded
     spotify.replace_playlist_items.assert_awaited_once_with("pl-winner", ["spotify:track:t1"])
     assert item.status == "synced"
     assert item.created_remotely is False
@@ -682,7 +682,7 @@ async def test_sync_playlist_lost_race_to_deletion_discards_creation() -> None:
     spotify.create_playlist.return_value = SpotifyPlaylistData(
         id="pl-new", url=None, snapshot_id="snap-new"
     )
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+    spotify.delete_playlist.side_effect = SpotifyApiError(500, "boom")
 
     item = await run_sync_playlist(session, spotify, playlist, [])
 
@@ -768,14 +768,14 @@ async def test_settle_tombstone_unfollows_and_clears() -> None:
 
     assert await settle_tombstone(session, spotify, "pl-dead") is True
 
-    spotify.unfollow_playlist.assert_awaited_once_with("pl-dead")
+    spotify.delete_playlist.assert_awaited_once_with("pl-dead")
     session.execute.assert_awaited_once()
 
 
 async def test_settle_tombstone_treats_gone_playlist_as_settled() -> None:
     session = make_session()
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(404, "not found")
+    spotify.delete_playlist.side_effect = SpotifyApiError(404, "not found")
 
     assert await settle_tombstone(session, spotify, "pl-dead") is True
 
@@ -785,7 +785,7 @@ async def test_settle_tombstone_treats_gone_playlist_as_settled() -> None:
 async def test_settle_tombstone_keeps_tombstone_on_failure() -> None:
     session = make_session()
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = httpx.ConnectError("down")
+    spotify.delete_playlist.side_effect = httpx.ConnectError("down")
 
     assert await settle_tombstone(session, spotify, "pl-dead") is False
 
@@ -802,7 +802,7 @@ async def test_drain_settles_delete_tombstones() -> None:
 
     result = await drain_playlist_tombstones(session, spotify)
 
-    spotify.unfollow_playlist.assert_awaited_once_with("pl-dead")
+    spotify.delete_playlist.assert_awaited_once_with("pl-dead")
     assert (result.drained, result.pending) == (1, 0)
 
 
@@ -810,7 +810,7 @@ async def test_drain_reports_failed_unfollows_as_pending() -> None:
     session = make_session()
     session.execute.side_effect = [result_with_scalars([make_tombstone()])]
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+    spotify.delete_playlist.side_effect = SpotifyApiError(500, "boom")
 
     result = await drain_playlist_tombstones(session, spotify)
 
@@ -826,7 +826,7 @@ async def test_drain_leaves_young_audit_tombstones_alone() -> None:
 
     result = await drain_playlist_tombstones(session, spotify)
 
-    spotify.unfollow_playlist.assert_not_awaited()
+    spotify.delete_playlist.assert_not_awaited()
     assert (result.drained, result.pending) == (0, 1)
 
 
@@ -842,7 +842,7 @@ async def test_drain_unfollows_confirmed_audit_tombstones() -> None:
 
     result = await drain_playlist_tombstones(session, spotify)
 
-    spotify.unfollow_playlist.assert_awaited_once_with("pl-dead")
+    spotify.delete_playlist.assert_awaited_once_with("pl-dead")
     assert (result.drained, result.pending) == (1, 0)
 
 
@@ -857,7 +857,7 @@ async def test_drain_drops_audit_tombstone_claimed_since_the_audit() -> None:
 
     result = await drain_playlist_tombstones(session, spotify)
 
-    spotify.unfollow_playlist.assert_not_awaited()
+    spotify.delete_playlist.assert_not_awaited()
     session.delete.assert_awaited_once_with(aged)
     assert (result.drained, result.pending) == (1, 0)
 

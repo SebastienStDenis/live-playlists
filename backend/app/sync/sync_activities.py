@@ -57,8 +57,7 @@ STEP_FAILED_PLAYLISTS = "We couldn't update your Spotify playlists. Please try a
 
 @contextlib.asynccontextmanager
 async def _user_facing_errors(fallback: str) -> AsyncIterator[None]:
-    """Ensure a failing sync step surfaces only a message safe for the user.
-    """
+    """Ensure a failing sync step surfaces only a message safe for the user."""
     try:
         yield
     except ApplicationError:

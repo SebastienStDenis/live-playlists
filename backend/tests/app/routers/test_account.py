@@ -211,7 +211,7 @@ async def test_delete_me_unfollows_the_cascaded_playlists() -> None:
 
     assert response.status_code == 204
     session.delete.assert_awaited_once()
-    assert [args.args for args in spotify.unfollow_playlist.await_args_list] == [
+    assert [args.args for args in spotify.delete_playlist.await_args_list] == [
         ("pl1",),
         ("pl2",),
     ]
@@ -222,7 +222,7 @@ async def test_delete_me_leaves_tombstones_when_spotify_fails() -> None:
     session.execute.side_effect = [result_with_scalars(["pl1"])]
     user = User(id=USER_ID, name="Alice", supabase_user_id=None)
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+    spotify.delete_playlist.side_effect = SpotifyApiError(500, "boom")
 
     response = await request("DELETE", "/me", session, user=user, spotify=spotify)
 

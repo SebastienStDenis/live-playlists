@@ -94,9 +94,7 @@ async def settle_tombstone(
                 "Deleting playlist %s rejected with 400; treating as gone", spotify_playlist_id
             )
     except (SpotifyAuthError, httpx.HTTPError) as exc:
-        logger.warning(
-            "Deleting playlist %s failed, tombstone kept: %s", spotify_playlist_id, exc
-        )
+        logger.warning("Deleting playlist %s failed, tombstone kept: %s", spotify_playlist_id, exc)
         return False
     await session.execute(
         delete(SpotifyPlaylistTombstone).where(

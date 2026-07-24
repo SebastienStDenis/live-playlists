@@ -259,7 +259,7 @@ async def test_delete_playlist_unfollows_and_settles_tombstone() -> None:
 
     assert response.status_code == 204
     session.delete.assert_awaited_once_with(playlist)
-    spotify.unfollow_playlist.assert_awaited_once_with("pl1")
+    spotify.delete_playlist.assert_awaited_once_with("pl1")
     session.execute.assert_awaited_once()  # tombstone cleared after the unfollow landed
     assert session.commit.await_count == 2  # the deletion, then the settled tombstone
 
@@ -275,7 +275,7 @@ async def test_delete_playlist_skips_unfollow_without_spotify_id() -> None:
     )
 
     assert response.status_code == 204
-    spotify.unfollow_playlist.assert_not_awaited()
+    spotify.delete_playlist.assert_not_awaited()
     session.delete.assert_awaited_once_with(playlist)
     session.commit.assert_awaited_once()
 
@@ -285,7 +285,7 @@ async def test_delete_playlist_tolerates_spotify_not_found() -> None:
     session = make_session()
     session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(404, "not found")
+    spotify.delete_playlist.side_effect = SpotifyApiError(404, "not found")
 
     response = await request(
         "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
@@ -301,7 +301,7 @@ async def test_delete_playlist_survives_spotify_failure() -> None:
     session = make_session()
     session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+    spotify.delete_playlist.side_effect = SpotifyApiError(500, "boom")
 
     response = await request(
         "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
@@ -352,5 +352,5 @@ async def test_delete_playlist_of_another_user() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Playlist not found"
-    spotify.unfollow_playlist.assert_not_awaited()
+    spotify.delete_playlist.assert_not_awaited()
     session.delete.assert_not_awaited()

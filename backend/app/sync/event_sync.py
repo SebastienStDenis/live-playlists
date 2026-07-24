@@ -29,8 +29,7 @@ FETCH_CONCURRENCY = 8
 async def sync_user_events(
     session: AsyncSession, bandsintown: BandsintownClient, user_id: uuid.UUID
 ) -> EventSyncResult:
-    """Refresh upcoming events for every artist the user has an interest in.
-    """
+    """Refresh upcoming events for every artist the user has an interest in."""
     result = await session.execute(
         select(Artist)
         .join(UserArtistInterest, UserArtistInterest.artist_id == Artist.id)
