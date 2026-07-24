@@ -45,6 +45,7 @@ def _ensure_prerequisites(connection: Connection) -> None:
     if not native:
         connection.execute(text(_UUIDV7_POLYFILL))
 
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

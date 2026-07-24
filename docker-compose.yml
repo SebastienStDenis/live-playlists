@@ -17,7 +17,6 @@ services:
       SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:?set in .env}
       SUPABASE_URL: http://host.docker.internal:54321
       SUPABASE_ISSUER: http://127.0.0.1:54321/auth/v1
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
       SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-}
     ports:
       - "${API_PORT:-8000}:8000"

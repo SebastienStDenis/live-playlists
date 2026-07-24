@@ -76,7 +76,7 @@ def artist_qualifies(
         .exists()
     )
     excluded = (
-        select(UserArtistExclusion.id)
+        select(UserArtistExclusion.user_id)
         .where(
             UserArtistExclusion.user_id == user_id,
             UserArtistExclusion.artist_id == artist_id,

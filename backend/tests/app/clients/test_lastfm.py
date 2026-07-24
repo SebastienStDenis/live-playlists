@@ -169,6 +169,23 @@ async def test_link_probes_loved_tracks_too() -> None:
     session.commit.assert_not_awaited()
 
 
+async def test_link_maps_unknown_lastfm_error_to_502() -> None:
+    session = make_session()
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_user_info.side_effect = LastfmApiError(29, "Rate limit exceeded")
+
+    response = await request(
+        "PUT", "/me/lastfm", session, lastfm, user=user(), json={"username": "rj"}
+    )
+
+    assert response.status_code == 502
+    # The raw upstream message stays in the logs; the user sees a safe line.
+    assert response.json()["detail"] == (
+        "Last.fm isn't responding right now. Please try again in a moment."
+    )
+    session.commit.assert_not_awaited()
+
+
 async def test_refresh_updates_account() -> None:
     account = make_account()
     session = make_session()

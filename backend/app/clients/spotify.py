@@ -9,15 +9,15 @@ API_URL = "https://api.spotify.com/v1"
 
 SEARCH_LIMIT = 10  # development-mode hard cap
 LIST_PLAYLISTS_LIMIT = 50  # /me/playlists page size cap
-TOKEN_EXPIRY_MARGIN = 60.0
+TOKEN_EXPIRY_MARGIN_SECONDS = 60.0
 MAX_RATE_LIMIT_RETRIES = 3
-MAX_RETRY_AFTER = 60.0
+MAX_RETRY_AFTER_SECONDS = 60.0
 
 
 class SpotifyAuthError(Exception):
     """Token minting failed. `invalid_grant` means the refresh token expired
     (Spotify expires them after 6 months): re-run `python -m cli.spotify_auth`
-    as the bot account and update SPOTIFY_REFRESH_TOKEN in .env."""
+    as the bot account and update SPOTIFY_REFRESH_TOKEN."""
 
 
 class SpotifyApiError(Exception):
@@ -48,13 +48,9 @@ def track_uri(track_id: str) -> str:
 
 
 class SpotifyClient:
-    """Auth and HTTP for the Spotify Web API, as the app's bot account.
+    """Auth and HTTP for the Spotify Web API."""
 
-    Without a refresh token only app-level endpoints (search, entity lookups)
-    work; playlist endpoints act on the bot account and need the user grant.
-    """
-
-    def __init__(self, client_id: str, client_secret: str, refresh_token: str = "") -> None:
+    def __init__(self, client_id: str, client_secret: str, refresh_token: str) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._refresh_token = refresh_token
@@ -105,27 +101,25 @@ class SpotifyClient:
 
     async def replace_playlist_items(self, playlist_id: str, uris: list[str]) -> str | None:
         """Atomically replace the playlist's contents (max 100 URIs). Surviving
-        tracks keep their added_at (verified July 2026, see cli.spotify_verify)."""
+        tracks keep their added_at."""
         payload = await self._request("PUT", f"/playlists/{playlist_id}/items", json={"uris": uris})
         return payload.get("snapshot_id")
 
     async def update_playlist_details(
         self, playlist_id: str, name: str, description: str | None
     ) -> None:
-        # Re-asserting `public` on every details write converges any playlist
-        # still flagged public on the bot account to unlisted.
         await self._request(
             "PUT",
             f"/playlists/{playlist_id}",
             json={"name": name, "description": description or "", "public": False},
         )
 
-    async def unfollow_playlist(self, playlist_id: str) -> None:
+    async def delete_playlist(self, playlist_id: str) -> None:
+        # playlists are deleted by unfollowing from the owning account
         await self._request("DELETE", f"/playlists/{playlist_id}/followers")
 
     async def list_own_playlist_ids(self) -> list[str]:
-        """Every playlist id on the bot account, paged - the ground truth the
-        orphan audit diffs local state against."""
+        """Every playlist id on the bot account, paged."""
         ids: list[str] = []
         offset = 0
         while True:
@@ -160,9 +154,8 @@ class SpotifyClient:
                 continue
             if response.status_code == 429 and rate_limit_retries < MAX_RATE_LIMIT_RETRIES:
                 retry_after = float(response.headers.get("Retry-After") or 1)
-                if retry_after > MAX_RETRY_AFTER:
-                    # A long ban (quota exhaustion announces hours): waiting
-                    # our capped interval cannot help, so fail immediately.
+                if retry_after > MAX_RETRY_AFTER_SECONDS:
+                    # We've likely hit our quota, which takes hours to restore, so fail immediately.
                     raise SpotifyApiError(response.status_code, _error_message(response))
                 rate_limit_retries += 1
                 await asyncio.sleep(retry_after)
@@ -178,10 +171,7 @@ class SpotifyClient:
             if self._access_token and time.monotonic() < self._token_expires_at:
                 return self._access_token
 
-            if self._refresh_token:
-                data = {"grant_type": "refresh_token", "refresh_token": self._refresh_token}
-            else:
-                data = {"grant_type": "client_credentials"}
+            data = {"grant_type": "refresh_token", "refresh_token": self._refresh_token}
             response = await self._http.post(
                 ACCOUNTS_URL, data=data, auth=(self._client_id, self._client_secret)
             )
@@ -191,7 +181,7 @@ class SpotifyClient:
                     raise SpotifyAuthError(
                         "Spotify refresh token was rejected (invalid_grant): it has likely "
                         "expired. Re-run `python -m cli.spotify_auth` as the bot account and "
-                        "update SPOTIFY_REFRESH_TOKEN in .env."
+                        "update SPOTIFY_REFRESH_TOKEN."
                     )
                 raise SpotifyAuthError(
                     f"Spotify token request failed ({response.status_code}): {message}"
@@ -199,7 +189,9 @@ class SpotifyClient:
             payload = response.json()
             self._access_token = payload["access_token"]
             self._token_expires_at = (
-                time.monotonic() + float(payload.get("expires_in") or 3600) - TOKEN_EXPIRY_MARGIN
+                time.monotonic()
+                + float(payload.get("expires_in") or 3600)
+                - TOKEN_EXPIRY_MARGIN_SECONDS
             )
             return self._access_token
 

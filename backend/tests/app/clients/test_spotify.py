@@ -66,16 +66,6 @@ async def test_mints_token_with_refresh_token_grant() -> None:
     assert token_request.headers["Authorization"].startswith("Basic ")
 
 
-async def test_mints_token_with_client_credentials_when_no_refresh_token() -> None:
-    client, requests = make_client([ok({})], refresh_token="")
-
-    await client.replace_playlist_items("p1", [])
-
-    (token_request,) = token_requests(requests)
-    form = parse_qs(token_request.content.decode())
-    assert form == {"grant_type": ["client_credentials"]}
-
-
 async def test_caches_access_token_across_requests() -> None:
     client, requests = make_client([ok({}), ok({})])
 

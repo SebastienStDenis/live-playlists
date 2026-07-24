@@ -6,13 +6,31 @@ from sqlalchemy.exc import IntegrityError
 
 from app.clients.spotify import SpotifyApiError, SpotifyClient
 from app.core.auth import Claims
-from app.core.models import User
-from tests.helpers import added_objects, request, result_returning, result_with_scalars
+from app.core.models import City, User
+from tests.helpers import (
+    added_objects,
+    make_session,
+    request,
+    result_returning,
+    result_with_scalars,
+)
 
 USER_ID = uuid.uuid7()
+CLAIMS = Claims(sub=uuid.uuid4())
+
+MONTREAL = City(
+    geonameid=6077243,
+    name="Montréal",
+    ascii_name="Montreal",
+    admin1="Quebec",
+    country_code="CA",
+    latitude=45.50884,
+    longitude=-73.58781,
+    population=1762949,
+)
 
 
-def make_session() -> AsyncMock:
+def make_committing_session() -> AsyncMock:
     session = AsyncMock()
     session.add = MagicMock()
 
@@ -30,7 +48,7 @@ def make_session() -> AsyncMock:
 
 
 async def test_get_me_returns_authenticated_user() -> None:
-    session = make_session()
+    session = make_committing_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("GET", "/me", session, user=user)
@@ -42,7 +60,7 @@ async def test_get_me_returns_authenticated_user() -> None:
 
 
 async def test_get_me_requires_authentication() -> None:
-    session = make_session()
+    session = make_committing_session()
 
     response = await request("GET", "/me", session)
 
@@ -50,7 +68,7 @@ async def test_get_me_requires_authentication() -> None:
 
 
 async def test_get_me_provisions_user_on_first_login() -> None:
-    session = make_session()
+    session = make_committing_session()
     session.execute.return_value = result_returning(None)
     sub = uuid.uuid4()
 
@@ -111,7 +129,7 @@ async def test_get_me_leaves_fresh_last_seen_alone() -> None:
 
 
 async def test_update_user_sets_include_known_artists() -> None:
-    session = make_session()
+    session = make_committing_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request(
@@ -124,7 +142,7 @@ async def test_update_user_sets_include_known_artists() -> None:
 
 
 async def test_update_user_sets_name() -> None:
-    session = make_session()
+    session = make_committing_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("PATCH", "/me", session, user=user, json={"name": "Alicia"})
@@ -135,7 +153,7 @@ async def test_update_user_sets_name() -> None:
 
 
 async def test_update_user_trims_name() -> None:
-    session = make_session()
+    session = make_committing_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("PATCH", "/me", session, user=user, json={"name": "  Bob  "})
@@ -145,7 +163,7 @@ async def test_update_user_trims_name() -> None:
 
 
 async def test_update_user_rejects_blank_name() -> None:
-    session = make_session()
+    session = make_committing_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("PATCH", "/me", session, user=user, json={"name": "   "})
@@ -155,7 +173,7 @@ async def test_update_user_rejects_blank_name() -> None:
 
 
 async def test_update_user_with_empty_payload_changes_nothing() -> None:
-    session = make_session()
+    session = make_committing_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=True)
 
     response = await request("PATCH", "/me", session, user=user, json={})
@@ -166,7 +184,7 @@ async def test_update_user_with_empty_payload_changes_nothing() -> None:
 
 
 async def test_delete_me() -> None:
-    session = make_session()
+    session = make_committing_session()
     session.execute.return_value = result_with_scalars([])
     supabase_user_id = uuid.uuid4()
     user = User(id=USER_ID, name="Alice", supabase_user_id=supabase_user_id)
@@ -180,7 +198,7 @@ async def test_delete_me() -> None:
 
 
 async def test_delete_me_unfollows_the_cascaded_playlists() -> None:
-    session = make_session()
+    session = make_committing_session()
     session.execute.side_effect = [
         result_with_scalars(["pl1", "pl2"]),  # the remote ids captured before the delete
         MagicMock(),  # tombstone cleared for pl1
@@ -193,18 +211,18 @@ async def test_delete_me_unfollows_the_cascaded_playlists() -> None:
 
     assert response.status_code == 204
     session.delete.assert_awaited_once()
-    assert [args.args for args in spotify.unfollow_playlist.await_args_list] == [
+    assert [args.args for args in spotify.delete_playlist.await_args_list] == [
         ("pl1",),
         ("pl2",),
     ]
 
 
 async def test_delete_me_leaves_tombstones_when_spotify_fails() -> None:
-    session = make_session()
+    session = make_committing_session()
     session.execute.side_effect = [result_with_scalars(["pl1"])]
     user = User(id=USER_ID, name="Alice", supabase_user_id=None)
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+    spotify.delete_playlist.side_effect = SpotifyApiError(500, "boom")
 
     response = await request("DELETE", "/me", session, user=user, spotify=spotify)
 
@@ -214,7 +232,7 @@ async def test_delete_me_leaves_tombstones_when_spotify_fails() -> None:
 
 
 async def test_delete_me_requires_authentication() -> None:
-    session = make_session()
+    session = make_committing_session()
 
     response = await request("DELETE", "/me", session)
 
@@ -223,7 +241,7 @@ async def test_delete_me_requires_authentication() -> None:
 
 
 async def test_delete_me_unlinked_user_needs_no_admin() -> None:
-    session = make_session()
+    session = make_committing_session()
     session.execute.return_value = result_with_scalars([])
     user = User(id=USER_ID, name="Alice", supabase_user_id=None)
 
@@ -234,7 +252,7 @@ async def test_delete_me_unlinked_user_needs_no_admin() -> None:
 
 
 async def test_get_me_adopts_user_provisioned_by_a_concurrent_request() -> None:
-    session = make_session()
+    session = make_committing_session()
     sub = uuid.uuid4()
     existing = User(id=USER_ID, name="Ada", supabase_user_id=sub, include_known_artists=False)
     session.execute.side_effect = [result_returning(None), result_returning(existing)]
@@ -254,3 +272,142 @@ async def test_get_me_adopts_user_provisioned_by_a_concurrent_request() -> None:
     assert response.status_code == 200
     assert response.json()["id"] == str(USER_ID)
     session.rollback.assert_awaited_once()
+
+
+async def test_search_cities() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([MONTREAL])
+
+    response = await request("GET", "/cities?q=montr", session, claims=CLAIMS)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == [
+        {
+            "geonameid": 6077243,
+            "name": "Montréal",
+            "admin1": "Quebec",
+            "country_code": "CA",
+            "latitude": 45.50884,
+            "longitude": -73.58781,
+        }
+    ]
+
+
+async def test_search_cities_requires_authentication() -> None:
+    session = make_session()
+
+    response = await request("GET", "/cities?q=montr", session)
+
+    assert response.status_code == 401
+
+
+async def test_search_cities_requires_query() -> None:
+    session = make_session()
+
+    response = await request("GET", "/cities", session, claims=CLAIMS)
+
+    assert response.status_code == 422
+    session.execute.assert_not_awaited()
+
+
+async def test_search_cities_rejects_short_query() -> None:
+    session = make_session()
+
+    response = await request("GET", "/cities?q=m", session, claims=CLAIMS)
+
+    assert response.status_code == 422
+    session.execute.assert_not_awaited()
+
+
+async def test_search_cities_rejects_whitespace_query() -> None:
+    session = make_session()
+
+    response = await request("GET", "/cities?q=%20%20%20", session, claims=CLAIMS)
+
+    assert response.status_code == 422
+    session.execute.assert_not_awaited()
+
+
+async def test_get_user_city() -> None:
+    session = make_session()
+    session.get.return_value = MONTREAL
+
+    response = await request(
+        "GET", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=6077243)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Montréal"
+
+
+async def test_get_user_city_when_none_set() -> None:
+    session = make_session()
+
+    response = await request(
+        "GET", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=None)
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No city set"
+
+
+async def test_get_user_city_requires_authentication() -> None:
+    session = make_session()
+
+    response = await request("GET", "/me/city", session)
+
+    assert response.status_code == 401
+
+
+async def test_set_user_city() -> None:
+    current = User(id=USER_ID, name="Alice", city_id=None)
+    session = make_session()
+    session.get.return_value = MONTREAL
+
+    response = await request("PUT", "/me/city", session, user=current, json={"geonameid": 6077243})
+
+    assert response.status_code == 200
+    assert response.json()["geonameid"] == 6077243
+    assert current.city_id == 6077243
+    session.commit.assert_awaited_once()
+
+
+async def test_set_user_city_unknown_city() -> None:
+    session = make_session()
+    session.get.return_value = None
+
+    response = await request(
+        "PUT",
+        "/me/city",
+        session,
+        user=User(id=USER_ID, name="Alice", city_id=None),
+        json={"geonameid": 1},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "City not found"
+    session.commit.assert_not_awaited()
+
+
+async def test_clear_user_city() -> None:
+    current = User(id=USER_ID, name="Alice", city_id=6077243)
+    session = make_session()
+
+    response = await request("DELETE", "/me/city", session, user=current)
+
+    assert response.status_code == 204
+    assert current.city_id is None
+    session.commit.assert_awaited_once()
+
+
+async def test_clear_user_city_when_none_set() -> None:
+    session = make_session()
+
+    response = await request(
+        "DELETE", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=None)
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No city set"
+    session.commit.assert_not_awaited()

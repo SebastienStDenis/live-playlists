@@ -3,28 +3,28 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 from app.clients.lastfm import (
-    LastfmApiError,
     LastfmClient,
     LastfmLovedTrack,
     LastfmLovedTracksPage,
-    LastfmPrivateDataError,
     LastfmTopArtist,
-    LastfmUserNotFoundError,
 )
 from app.core.auth import Claims
-from app.core.models import Artist, LastfmAccount, LastfmArtist, User, UserArtistInterest
-from app.sync.artist_sync import loved_track_signals, top_artist_signals
+from app.core.models import Artist, LastfmArtist, User, UserArtistInterest
+from app.sync.artist_sync import (
+    SYNC_KINDS,
+    loved_track_signals,
+    sync_lastfm_artists,
+    top_artist_signals,
+)
 from tests.helpers import (
     added_objects,
     make_session,
     request,
-    result_returning,
     result_with_rows,
     result_with_scalars,
 )
 
 USER_ID = uuid.uuid7()
-SYNC_URL = "/me/lastfm/artists/sync"
 
 
 def user() -> User:
@@ -43,10 +43,6 @@ def top_artist(name: str, rank: int | None = None, playcount: int | None = None)
 
 def loved_track(title: str, artist_name: str) -> LastfmLovedTrack:
     return LastfmLovedTrack(title=title, artist_name=artist_name, artist_url=None, artist_mbid=None)
-
-
-def make_account() -> LastfmAccount:
-    return LastfmAccount(id=uuid.uuid7(), username="rj")
 
 
 def test_top_artist_signals_builds_rank_evidence() -> None:
@@ -103,7 +99,6 @@ def test_signal_builders_handle_empty_input() -> None:
 async def test_sync_creates_artists_and_interests() -> None:
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([]),
         result_with_rows([]),
         result_with_scalars([]),
@@ -120,11 +115,9 @@ async def test_sync_creates_artists_and_interests() -> None:
         tracks=[loved_track("Windowlicker", "Aphex Twin")], total_pages=1
     )
 
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+    results = await sync_lastfm_artists(session, lastfm, USER_ID, "rj", SYNC_KINDS)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["results"] == [
+    assert [result.model_dump() for result in results] == [
         {
             "kind": "lastfm_top_artist",
             "artists": 2,
@@ -151,7 +144,6 @@ async def test_sync_creates_artists_and_interests() -> None:
     assert [interest.weight for interest in interests] == [321.0, 210.0, 1.0]
     assert all(interest.user_id == USER_ID for interest in interests)
     assert all(interest.source == "lastfm" for interest in interests)
-    session.commit.assert_awaited_once()
 
 
 async def test_resync_updates_and_prunes_interests() -> None:
@@ -175,7 +167,6 @@ async def test_resync_updates_and_prunes_interests() -> None:
     )
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([existing_row]),
         result_with_scalars([kept, gone]),
         result_with_scalars([]),
@@ -185,10 +176,9 @@ async def test_resync_updates_and_prunes_interests() -> None:
     lastfm.get_top_artists.return_value = [top_artist("Autechre", rank=1, playcount=321)]
     lastfm.get_loved_tracks.return_value = LastfmLovedTracksPage(tracks=[], total_pages=1)
 
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+    results = await sync_lastfm_artists(session, lastfm, USER_ID, "rj", SYNC_KINDS)
 
-    assert response.status_code == 200
-    assert response.json()["results"][0] == {
+    assert results[0].model_dump() == {
         "kind": "lastfm_top_artist",
         "artists": 1,
         "interests_created": 0,
@@ -199,13 +189,11 @@ async def test_resync_updates_and_prunes_interests() -> None:
     assert kept.weight == 321.0
     session.delete.assert_awaited_once_with(gone)
     session.add.assert_not_called()
-    session.commit.assert_awaited_once()
 
 
 async def test_sync_fetches_all_loved_track_pages() -> None:
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([]),
         result_with_scalars([]),
         result_with_scalars([]),
@@ -225,10 +213,9 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
         ),
     ]
 
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+    results = await sync_lastfm_artists(session, lastfm, USER_ID, "rj", SYNC_KINDS)
 
-    assert response.status_code == 200
-    assert response.json()["results"][1] == {
+    assert results[1].model_dump() == {
         "kind": "lastfm_loved_tracks",
         "artists": 2,
         "interests_created": 2,
@@ -238,37 +225,6 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
     assert [call.kwargs["page"] for call in lastfm.get_loved_tracks.await_args_list] == [1, 2]
     interests = added_objects(session, UserArtistInterest)
     assert [interest.evidence for interest in interests] == [{"track_count": 2}, {"track_count": 1}]
-
-
-async def test_sync_requires_authentication() -> None:
-    session = make_session()
-
-    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
-
-    assert response.status_code == 401
-
-
-async def test_sync_when_not_linked() -> None:
-    session = make_session()
-    session.execute.return_value = result_returning(None)
-
-    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient), user=user())
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No Last.fm account linked"
-
-
-async def test_sync_unknown_lastfm_user() -> None:
-    session = make_session()
-    session.execute.return_value = result_returning(make_account())
-    lastfm = AsyncMock(spec=LastfmClient)
-    lastfm.get_top_artists.side_effect = LastfmUserNotFoundError("rj")
-
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Last.fm user not found"
-    session.commit.assert_not_awaited()
 
 
 async def test_sync_skips_pruning_when_loved_tracks_are_truncated() -> None:
@@ -281,7 +237,6 @@ async def test_sync_skips_pruning_when_loved_tracks_are_truncated() -> None:
     )
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([]),
         result_with_scalars([]),
         result_with_scalars([]),
@@ -295,41 +250,11 @@ async def test_sync_skips_pruning_when_loved_tracks_are_truncated() -> None:
         for page in range(1, 11)
     ]
 
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+    results = await sync_lastfm_artists(session, lastfm, USER_ID, "rj", SYNC_KINDS)
 
-    assert response.status_code == 200
-    assert response.json()["results"][1]["interests_removed"] == 0
+    assert results[1].interests_removed == 0
     assert len(lastfm.get_loved_tracks.await_args_list) == 10
     session.delete.assert_not_awaited()
-
-
-async def test_sync_maps_unknown_lastfm_error_to_502() -> None:
-    session = make_session()
-    session.execute.return_value = result_returning(make_account())
-    lastfm = AsyncMock(spec=LastfmClient)
-    lastfm.get_top_artists.side_effect = LastfmApiError(29, "Rate limit exceeded")
-
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
-
-    assert response.status_code == 502
-    # The raw upstream message stays in the logs; the user sees a safe line.
-    assert response.json()["detail"] == (
-        "Last.fm isn't responding right now. Please try again in a moment."
-    )
-    session.commit.assert_not_awaited()
-
-
-async def test_sync_private_lastfm_data() -> None:
-    session = make_session()
-    session.execute.return_value = result_returning(make_account())
-    lastfm = AsyncMock(spec=LastfmClient)
-    lastfm.get_top_artists.side_effect = LastfmPrivateDataError("rj")
-
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
-
-    assert response.status_code == 403
-    assert "visibility settings" in response.json()["detail"]
-    session.commit.assert_not_awaited()
 
 
 async def test_list_user_artists_groups_interests_by_artist() -> None:

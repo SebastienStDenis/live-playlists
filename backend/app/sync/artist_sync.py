@@ -128,8 +128,8 @@ def loved_track_signals(tracks: list[LastfmLovedTrack]) -> list[ArtistSignal]:
 async def upsert_lastfm_artists(
     session: AsyncSession, signals: list[ArtistSignal]
 ) -> dict[str, uuid.UUID]:
-    """Upsert Last.fm artist rows and their canonical artists, returning a
-    name-key -> canonical artist id mapping."""
+    """Upsert Last.fm artist rows and their canonical artists from a list
+    of ArtistSignals, returning a name-key -> canonical artist id mapping."""
     result = await session.execute(
         select(LastfmArtist).where(
             LastfmArtist.name_key.in_([name_key(signal.name) for signal in signals])
@@ -197,7 +197,7 @@ async def sync_interests(
     source: Source,
     prune: bool,
 ) -> ArtistSyncKindResult:
-    """Reconcile the (user, kind) interest scope against the given signals:
+    """Reconcile existing (user, kind) rows against the given signals:
     new artists get rows, survivors are updated in place (created_at
     preserved), and absent ones are deleted when pruning."""
     result = await session.execute(

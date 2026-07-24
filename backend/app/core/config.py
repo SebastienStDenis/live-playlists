@@ -20,28 +20,16 @@ class Settings(BaseSettings):
     temporal_namespace: str = "default"
     temporal_task_queue: str = "user-sync"
     temporal_api_key: str = ""
-    # Opt-in: the worker only keeps the nightly re-sync schedule when true, so
-    # a local stack doesn't churn every user through the third-party APIs
-    # overnight. Production must set it.
     nightly_sync_enabled: bool = False
     cors_origins: str = "http://localhost:3000"
     supabase_url: str = "http://127.0.0.1:54321"
     # Defaults to {supabase_url}/auth/v1; set only when the URL the backend
     # dials differs from the issuer in the tokens (compose containers).
     supabase_issuer: str = ""
-    # Empty disables HS256 verification entirely; set it locally (CLI default
-    # secret) and in production only if the project still signs with the
-    # legacy JWT secret rather than asymmetric signing keys.
-    supabase_jwt_secret: str = ""
     supabase_secret_key: str = ""
     log_level: str = "INFO"
-    # Empty disables error reporting entirely, which is what a local stack
-    # wants; the api and worker services share one DSN and are told apart by
-    # the `component` tag.
     sentry_dsn: str = ""
     sentry_environment: str = "development"
-    # Set by Render on every deploy; stamps events with the commit they came
-    # from, so an error points at the deploy that introduced it.
     render_git_commit: str = ""
 
     @property

@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 
 import httpx
@@ -70,6 +71,19 @@ def test_parse_event_skips_unusable_events() -> None:
     assert _parse_event({**EVENT, "venue": {**VENUE, "name": ""}}) is None
     assert _parse_event({**EVENT, "venue": {**VENUE, "latitude": ""}}) is None
     assert _parse_event({**EVENT, "venue": {**VENUE, "longitude": None}}) is None
+
+
+def test_parse_event_warns_with_missing_fields_when_dropping(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    event = {**EVENT, "id": "", "venue": {**VENUE, "latitude": "", "longitude": ""}}
+    with caplog.at_level(logging.WARNING, logger="app.clients.bandsintown"):
+        assert _parse_event(event) is None
+
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.levelno == logging.WARNING
+    assert "(missing id, venue.latitude, venue.longitude)" in record.getMessage()
 
 
 def test_parse_event_labels_wall_clock_as_utc_even_with_offset() -> None:

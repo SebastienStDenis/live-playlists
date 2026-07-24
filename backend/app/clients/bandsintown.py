@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import UTC, datetime
 from urllib.parse import quote
 
@@ -6,6 +7,8 @@ import httpx
 from pydantic import BaseModel
 
 API_URL = "https://rest.bandsintown.com"
+
+logger = logging.getLogger(__name__)
 
 
 class BandsintownArtistNotFoundError(Exception):
@@ -46,15 +49,8 @@ class BandsintownClient:
         """Fetch an artist's upcoming events, skipping ones the schema can't
         represent (no id, date, venue name, or coordinates).
 
-        The V3.1 path prefix is undocumented (SwaggerHub only publishes
-        3.0.x) but is the one variant of this endpoint that returns the
-        real venue name on event-page listings (festivals, branded
-        tours); the default path stamps the event title over venue.name.
-        If V3.1 is ever removed, every fetch fails loudly through the
-        sync alerting; if it silently regresses to the default behavior,
-        the concert cards degrade gracefully (a title that repeats the
-        venue is dropped from the heading; see
-        docs/design/2026-07-18-concert-venues.md).
+        The V3.1 path prefix is undocumented but is the version that returns
+        reliable venue names - see docs/design/2026-07-18-concert-venues.md.
         """
         response = await self._http.get(
             f"/V3.1/artists/{_encode_artist_name(name)}/events",
@@ -65,16 +61,14 @@ class BandsintownClient:
         except json.JSONDecodeError:
             # Error bodies are not always JSON, e.g. "{message=invalid parameter}".
             payload = {"message": response.text.strip()}
+        # Success is a JSON array of events; any object is an error envelope.
         if isinstance(payload, dict):
             message = payload.get("errorMessage") or payload.get("message") or ""
             if (
                 response.status_code == 404
                 or "[NotFound]" in message
                 # Bandsintown rejects some artist names (e.g. non-latin scripts)
-                # with a 400/401 "invalid parameter"; treat that as a per-artist
-                # lookup failure. The status guard keeps a proxy or rate-limit
-                # response that happens to contain the phrase from being
-                # mistaken for a missing artist.
+                # with a 400/401 "invalid parameter".
                 or (response.status_code in (400, 401) and "invalid parameter" in message)
             ):
                 raise BandsintownArtistNotFoundError(name)
@@ -99,9 +93,25 @@ def _parse_event(event: dict) -> BandsintownEventData | None:
     venue_name = _text_or_none(venue.get("name"))
     latitude = _float_or_none(venue.get("latitude"))
     longitude = _float_or_none(venue.get("longitude"))
-    if not external_id or starts_at is None or not venue_name:
-        return None
-    if latitude is None or longitude is None:
+    if (
+        not external_id
+        or starts_at is None
+        or not venue_name
+        or latitude is None
+        or longitude is None
+    ):
+        missing = [
+            name
+            for name, present in (
+                ("id", bool(external_id)),
+                ("datetime", starts_at is not None),
+                ("venue.name", bool(venue_name)),
+                ("venue.latitude", latitude is not None),
+                ("venue.longitude", longitude is not None),
+            )
+            if not present
+        ]
+        logger.warning("Dropped Bandsintown event %r (missing %s)", external_id, ", ".join(missing))
         return None
     artist_external_id = event.get("artist_id") or (event.get("artist") or {}).get("id")
     return BandsintownEventData(

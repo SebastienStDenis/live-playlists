@@ -18,7 +18,6 @@ from app.clients.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.core.models import (
     Artist,
     JointCreditVerdict,
-    LastfmAccount,
     LastfmArtist,
     LastfmSimilarArtist,
     User,
@@ -39,18 +38,16 @@ from app.sync.suggestion_sync import (
     score_candidates,
     seed_affinities,
     select_suggestions,
+    sync_user_suggestions,
 )
 from tests.helpers import (
     added_objects,
     make_session,
-    request,
-    result_returning,
     result_with_rows,
     result_with_scalars,
 )
 
 USER_ID = uuid.uuid7()
-SYNC_URL = "/me/suggestions/sync"
 
 
 def user() -> User:
@@ -113,7 +110,7 @@ def test_seed_affinity_takes_the_stronger_signal() -> None:
 
 def edge(seed_id: uuid.UUID, name: str, match: float, mbid: str | None = None):
     return LastfmSimilarArtist(
-        artist_id=seed_id, name=name, name_key=name_key(name), mbid=mbid, match=match
+        seed_artist_id=seed_id, name=name, name_key=name_key(name), mbid=mbid, match=match
     )
 
 
@@ -170,7 +167,7 @@ def select(candidates: list[Candidate], ids: dict[str, uuid.UUID], **overrides):
     defaults: dict = {
         "incumbent_ids": set(),
         "known_ids": set(),
-        "blocked_keys": set(),
+        "known_keys": set(),
         "excluded_ids": set(),
         "graced_ids": set(),
     }
@@ -213,10 +210,8 @@ def test_selection_drops_known_candidates_unless_graced_incumbents() -> None:
     assert keys(kept) == ["graced"]
 
 
-def test_selection_blocklist_drops_by_name_key() -> None:
-    kept = select(
-        [candidate("Blocked", 0.9), candidate("Fresh", 0.9)], {}, blocked_keys={"blocked"}
-    )
+def test_selection_drops_known_candidates_by_name_key() -> None:
+    kept = select([candidate("Known", 0.9), candidate("Fresh", 0.9)], {}, known_keys={"known"})
 
     assert keys(kept) == ["fresh"]
 
@@ -284,11 +279,21 @@ async def test_refresh_replaces_edges_and_stamps_freshness() -> None:
     synced, failed = await _refresh_seed_edges(session, lastfm, [seed], NOW)
 
     assert (synced, failed) == (1, 0)
-    session.execute.assert_awaited_once()  # the delete of the seed's old edges
-    edges = added_objects(session, LastfmSimilarArtist)
-    assert [(e.name, e.match) for e in edges] == [("Boards of Canada", 0.9)]  # deduped, first wins
-    assert edges[0].artist_id == seed.artist_id
     assert seed.similar_synced_at == NOW
+    # The delete of the seed's old edges, then the on-conflict upsert of the
+    # fresh set: a concurrent refresh of the same shared seed must not raise.
+    assert session.execute.await_count == 2
+    assert session.execute.await_args_list[0].args[0].table.name == "lastfm_similar_artists"
+    upsert = session.execute.await_args_list[-1].args[0]
+    assert upsert.table.name == "lastfm_similar_artists"
+    params = upsert.compile(dialect=postgresql.dialect()).params
+    assert sum(1 for key in params if key.startswith("match_m")) == 1  # deduped, first wins
+    values = list(params.values())
+    assert "Boards of Canada" in values
+    assert "mbid-boc" in values
+    assert 0.9 in values
+    assert 0.8 not in values
+    assert seed.artist_id in values
 
 
 async def test_refresh_treats_unknown_artist_as_durable_empty() -> None:
@@ -301,7 +306,9 @@ async def test_refresh_treats_unknown_artist_as_durable_empty() -> None:
 
     assert (synced, failed) == (1, 0)
     assert seed.similar_synced_at == NOW
-    session.add.assert_not_called()
+    # Durable-empty clears the seed's old edges (the delete) but writes no new
+    # ones, so no upsert follows.
+    assert session.execute.await_count == 1
 
 
 async def test_refresh_leaves_timestamp_untouched_on_failure() -> None:
@@ -420,16 +427,11 @@ async def test_enrich_leaves_timestamp_untouched_on_failure() -> None:
     assert healthy.info_synced_at == NOW
 
 
-def make_account() -> LastfmAccount:
-    return LastfmAccount(id=uuid.uuid7(), username="rj")
-
-
 async def test_sync_creates_suggestions_from_cached_edges() -> None:
     seed = make_seed("Autechre", synced_at=datetime.now(UTC))
     seed_interest = interest(TOP_ARTIST_KIND, 100.0, artist_id=seed.artist_id)
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([seed_interest]),  # interests
         result_with_scalars([]),  # exclusions
         result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
@@ -446,17 +448,16 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
         LastfmTopArtist(name="Autechre", url=None, mbid=None, playcount=100, rank=1)
     ]
     lastfm.get_artist_info.return_value = artist_info("Autechre")
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
 
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+    result = await sync_user_suggestions(session, lastfm, musicbrainz, user(), "rj")
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["seeds_total"] == 1
-    assert body["seeds_skipped"] == 1
-    assert body["candidates_scored"] == 1
-    assert body["suggestions_created"] == 1
-    assert (body["suggestions_kept"], body["suggestions_removed"]) == (0, 0)
-    assert (body["artists_enriched"], body["artists_enrich_failed"]) == (1, 0)
+    assert result.seeds_total == 1
+    assert result.seeds_skipped == 1
+    assert result.candidates_scored == 1
+    assert result.suggestions_created == 1
+    assert (result.suggestions_kept, result.suggestions_removed) == (0, 0)
+    assert (result.artists_enriched, result.artists_enrich_failed) == (1, 0)
     lastfm.get_artist_info.assert_awaited_once_with("Autechre")
     lastfm.get_similar_artists.assert_not_awaited()
     lastfm.get_top_artists.assert_awaited_once_with("rj", period="overall", limit=1000)
@@ -479,7 +480,6 @@ async def test_sync_drops_suggestion_excluded_while_fetching() -> None:
     boc = make_seed("Boards of Canada")
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([seed_interest]),  # interests
         result_with_scalars([]),  # exclusions snapshot: nothing yet
         result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
@@ -492,30 +492,12 @@ async def test_sync_drops_suggestion_excluded_while_fetching() -> None:
     ]
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.return_value = []
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
 
-    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+    result = await sync_user_suggestions(session, lastfm, musicbrainz, user(), "rj")
 
-    assert response.status_code == 200
-    assert response.json()["suggestions_created"] == 0
+    assert result.suggestions_created == 0
     assert added_objects(session, UserArtistInterest) == []
-
-
-async def test_sync_when_not_linked() -> None:
-    session = make_session()
-    session.execute.return_value = result_returning(None)
-
-    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient), user=user())
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No Last.fm account linked"
-
-
-async def test_sync_requires_authentication() -> None:
-    session = make_session()
-
-    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
-
-    assert response.status_code == 401
 
 
 async def test_sync_drops_joint_credit_candidates(caplog) -> None:
@@ -523,7 +505,6 @@ async def test_sync_drops_joint_credit_candidates(caplog) -> None:
     seed_interest = interest(TOP_ARTIST_KIND, 100.0, artist_id=seed.artist_id)
     session = make_session()
     session.execute.side_effect = [
-        result_returning(make_account()),
         result_with_scalars([seed_interest]),  # interests
         result_with_scalars([]),  # exclusions
         result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
@@ -544,14 +525,10 @@ async def test_sync_drops_joint_credit_candidates(caplog) -> None:
     musicbrainz = AsyncMock(spec=MusicBrainzClient)
     musicbrainz.has_artist_named.return_value = False
 
-    response = await request(
-        "POST", SYNC_URL, session, lastfm, musicbrainz=musicbrainz, user=user()
-    )
+    result = await sync_user_suggestions(session, lastfm, musicbrainz, user(), "rj")
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["candidates_scored"] == 0
-    assert body["suggestions_created"] == 0
+    assert result.candidates_scored == 0
+    assert result.suggestions_created == 0
     assert added_objects(session, UserArtistInterest) == []
     musicbrainz.has_artist_named.assert_awaited_once_with("Turnstile & Blood Orange")
     assert "joint-credit" in caplog.text

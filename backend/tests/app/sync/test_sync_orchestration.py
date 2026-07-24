@@ -10,7 +10,7 @@ from temporalio import activity
 from temporalio.client import WorkflowExecutionStatus, WorkflowFailureError
 from temporalio.common import WorkflowIDConflictPolicy
 from temporalio.contrib.pydantic import pydantic_data_converter
-from temporalio.exceptions import ApplicationError
+from temporalio.exceptions import ActivityError, ApplicationError, TimeoutError, TimeoutType
 from temporalio.service import RPCError, RPCStatusCode
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -37,6 +37,8 @@ from app.sync.sync_activities import (
 from app.sync.sync_workflow import (
     DispatchSyncsWorkflow,
     SyncUserWorkflow,
+    _failure_summary,
+    _timeout_warning,
     pending_steps,
     user_sync_workflow_id,
 )
@@ -535,6 +537,41 @@ async def test_workflow_stops_at_first_failed_step() -> None:
     assert steps[0].summary is not None
     assert steps[1].summary == "Last.fm exploded"
     assert recorded == []
+
+
+def make_activity_error(cause: BaseException) -> ActivityError:
+    error = ActivityError(
+        "Activity task failed",
+        scheduled_event_id=1,
+        started_event_id=2,
+        identity="test",
+        activity_type="sync_suggestions",
+        activity_id="1",
+        retry_state=None,
+    )
+    error.__cause__ = cause
+    return error
+
+
+def test_timeout_warning_names_step_and_timeout_type() -> None:
+    exc = make_activity_error(
+        TimeoutError("timed out", type=TimeoutType.SCHEDULE_TO_CLOSE, last_heartbeat_details=[])
+    )
+    assert _timeout_warning("suggestions", exc) == (
+        "Sync step suggestions timed out (SCHEDULE_TO_CLOSE)"
+    )
+
+
+def test_timeout_warning_skips_non_timeout_failures() -> None:
+    exc = make_activity_error(ApplicationError("No home city set", non_retryable=True))
+    assert _timeout_warning("suggestions", exc) is None
+
+
+def test_failure_summary_for_timeout_is_generic() -> None:
+    exc = make_activity_error(
+        TimeoutError("timed out", type=TimeoutType.START_TO_CLOSE, last_heartbeat_details=[])
+    )
+    assert _failure_summary(exc) == "This step didn't finish. Please try again."
 
 
 async def test_workflow_does_not_retry_private_lastfm_data() -> None:

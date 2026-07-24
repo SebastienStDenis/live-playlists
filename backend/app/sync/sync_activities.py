@@ -1,14 +1,11 @@
 """Temporal activities wrapping the four per-user sync entrypoints, plus the
-bookkeeping the nightly dispatch needs (eligibility listing and the
-last-synced stamp; see docs/design/2026-07-09-background-sync-plan.md) and
-the playlist cleanup pair (orphan audit and tombstone drain;
-docs/design/2026-07-10-playlist-deletion-plan.md).
+bookkeeping the nightly dispatch needs (eligibility check and the last-synced
+stamp) and the playlist cleanup tasks (orphan audit and tombstone drain).
 
 Each activity is its own transaction: it opens a fresh session, re-fetches the
-user (so retries never see stale ORM state), runs the existing sync module
-unchanged, and commits. The API clients are owned by the worker process for
-its whole lifetime; in particular a single shared MusicBrainzClient is what
-preserves the MusicBrainz 1 req/s guarantee across activities.
+user, runs the existing sync module unchanged, and commits. The API clients are
+owned by the parent worker process for its whole lifetime for centralized
+throughput management.
 """
 
 import contextlib
@@ -51,10 +48,7 @@ logger = logging.getLogger(__name__)
 # would skip users whose previous run finished minutes after the firing time.
 SYNC_FRESHNESS_WINDOW = timedelta(hours=20)
 
-# What the user sees when a step fails for an unexpected reason. The raw cause
-# (a driver, HTTP, or timeout message) must never reach the UI, so each step
-# falls back to its own line; the real failure stays in the logs and in
-# Temporal history via the preserved exception cause.
+# Simple user-facing error messages. The real failure stays in the logs and in Temporal history.
 STEP_FAILED_ARTISTS = "We couldn't import your Last.fm listening history. Please try again."
 STEP_FAILED_SUGGESTIONS = "We couldn't refresh your artist suggestions. Please try again."
 STEP_FAILED_EVENTS = "We couldn't check for upcoming concerts. Please try again."
@@ -63,14 +57,7 @@ STEP_FAILED_PLAYLISTS = "We couldn't update your Spotify playlists. Please try a
 
 @contextlib.asynccontextmanager
 async def _user_facing_errors(fallback: str) -> AsyncIterator[None]:
-    """Ensure a failing sync step surfaces only a message safe for the user.
-
-    Curated `ApplicationError` preconditions and the already-actionable
-    `LastfmPrivateDataError` pass through unchanged; every other exception
-    becomes a generic step message. The original is chained with
-    `raise ... from`, so Temporal history and the worker log keep the real
-    cause for debugging.
-    """
+    """Ensure a failing sync step surfaces only a message safe for the user."""
     try:
         yield
     except ApplicationError:

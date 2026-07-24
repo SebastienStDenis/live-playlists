@@ -31,6 +31,10 @@ class City(Base):
     latitude: Mapped[float]
     longitude: Mapped[float]
     population: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 Index(
@@ -61,6 +65,10 @@ class User(Base):
     include_known_artists: Mapped[bool] = mapped_column(default=False, server_default=false())
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class LastfmAccount(Base):
@@ -146,12 +154,12 @@ class LastfmSimilarArtist(Base):
     become suggestions get canonical artist rows."""
 
     __tablename__ = "lastfm_similar_artists"
-    __table_args__ = (UniqueConstraint("artist_id", "name_key"),)
+    __table_args__ = (UniqueConstraint("seed_artist_id", "name_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
     )
-    artist_id: Mapped[uuid.UUID] = mapped_column(
+    seed_artist_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("artists.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str]
@@ -166,9 +174,9 @@ class LastfmSimilarArtist(Base):
 
 class JointCreditVerdict(Base):
     """Cached joint-credit classification per candidate name, global across
-    users: whether the suggestion filter judged the name a Last.fm auto-created
-    joint-credit page. Only clean verdicts are stored - a probe degraded by an
-    upstream failure writes nothing, so the next sync retries it."""
+    users: whether the suggestion filter judged the artist's name to be a
+    Last.fm auto-created joint-credit page (known Last.fm issue, eg.
+    'Turnstile & Blood Orange' as a single artist entity)."""
 
     __tablename__ = "joint_credit_verdicts"
 
@@ -179,6 +187,10 @@ class JointCreditVerdict(Base):
     name_key: Mapped[str] = mapped_column(unique=True)
     is_joint_credit: Mapped[bool]
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Event(Base):
@@ -210,6 +222,10 @@ class EventArtist(Base):
     )
     artist_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -275,16 +291,17 @@ class UserArtistExclusion(Base):
     Durable, owned by no sync, never pruned."""
 
     __tablename__ = "user_artist_exclusions"
-    __table_args__ = (UniqueConstraint("user_id", "artist_id"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     artist_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("artists.id", ondelete="CASCADE"), index=True
+        ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class SpotifyArtist(Base):
@@ -328,9 +345,7 @@ class ArtistTopTrack(Base):
 class Playlist(Base):
     """A BEFORE DELETE trigger (playlists_tombstone, created in the
     add_spotify_playlist_tombstones migration) records spotify_playlist_id in
-    spotify_playlist_tombstones whenever a row is deleted - including FK
-    cascades the ORM never sees - so the remote playlist is always unfollowed
-    eventually (docs/design/2026-07-10-playlist-deletion-plan.md)."""
+    spotify_playlist_tombstones whenever a row is deleted."""
 
     __tablename__ = "playlists"
     __table_args__ = (
@@ -358,11 +373,9 @@ class Playlist(Base):
 
 
 class SpotifyPlaylistTombstone(Base):
-    """A remote playlist id owed an unfollow on the bot account; rows are
-    deleted once the unfollow lands. "delete" rows come from the playlists
-    BEFORE DELETE trigger (or a lost create race); "audit" rows are ids the
-    bot-account audit found unclaimed, unfollowed only after a confirmation
-    age (docs/design/2026-07-10-playlist-deletion-plan.md)."""
+    """A remote playlist id owed a delete in Spotify; rows are deleted once
+    the Spotify delete lands. "delete" rows come from the playlists BEFORE
+    DELETE trigger; "audit" rows are ids an audit found unclaimed."""
 
     __tablename__ = "spotify_playlist_tombstones"
 
@@ -372,6 +385,9 @@ class SpotifyPlaylistTombstone(Base):
     spotify_playlist_id: Mapped[str] = mapped_column(unique=True)
     source: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class PlaylistTrack(Base):

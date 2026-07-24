@@ -15,7 +15,7 @@ from app.core.config import Settings, get_settings
 from app.core.db import get_session
 from app.core.models import User
 
-ALLOWED_ALGORITHMS = ("HS256", "ES256", "RS256")
+ASYMMETRIC_ALGORITHMS = ("ES256", "RS256")
 
 # last_seen_at records general user activity; hourly precision is plenty, and
 # the throttle keeps it to at most one extra UPDATE per user per hour.
@@ -38,25 +38,18 @@ def _unauthorized(detail: str) -> HTTPException:
 
 
 def verify_token(token: str, settings: Settings) -> Claims:
-    """Verify a Supabase-issued JWT and distill the claims the app uses.
-
-    Dispatches on the token's declared algorithm: HS256 verifies against the
-    shared JWT secret (rejected when none is configured), asymmetric
-    algorithms verify against the project's published JWKS.
-    """
+    """Verify a Supabase-issued JWT against the project's JWKS and return its claims."""
     issuer = settings.supabase_issuer or f"{settings.supabase_url}/auth/v1"
+    jwks_url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
     try:
-        alg = jwt.get_unverified_header(token).get("alg")
-        if alg not in ALLOWED_ALGORITHMS:
-            raise _unauthorized("Unsupported token algorithm")
-        if alg == "HS256":
-            if not settings.supabase_jwt_secret:
-                raise _unauthorized("Unsupported token algorithm")
-            key = settings.supabase_jwt_secret
-        else:
-            jwks_url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
-            key = _jwks_client(jwks_url).get_signing_key_from_jwt(token).key
-        payload = jwt.decode(token, key, algorithms=[alg], audience="authenticated", issuer=issuer)
+        key = _jwks_client(jwks_url).get_signing_key_from_jwt(token).key
+        payload = jwt.decode(
+            token,
+            key,
+            algorithms=ASYMMETRIC_ALGORITHMS,
+            audience="authenticated",
+            issuer=issuer,
+        )
     except jwt.PyJWTError:
         raise _unauthorized("Invalid or expired token") from None
     sub = payload.get("sub")

@@ -67,8 +67,10 @@ Small layered FastAPI app grouped into scoped packages; keep the separation when
 
 Entrypoints (top of `app/`):
 
-- `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
+- `main.py` - FastAPI app assembly: CORS, the per-upstream exception handlers, `/health`, and the `include_router` calls; endpoints live in `routers/`.
 - `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service; reconciles the `nightly-sync` schedule at startup (created when `NIGHTLY_SYNC_ENABLED` is true, deleted otherwise).
+
+`routers/` - the API endpoints, one `APIRouter` per domain: `account.py` (user profile/deletion, city search and home city), `lastfm.py` (account link/refresh/unlink), `artists.py` (interests, exclusions), `events.py`, `playlists.py`, `sync.py` (the Temporal-backed full-sync start/status; syncing happens only through the workflow, never inline in a request). Inject sessions with `SessionDep` and external clients with the `*ClientDep` aliases, all from `core/deps.py`.
 
 `core/` - foundation shared by everything:
 
@@ -77,13 +79,14 @@ Entrypoints (top of `app/`):
 - `models.py` - SQLAlchemy 2.0 ORM models (`DeclarativeBase`, typed `Mapped`/`mapped_column`). Alembic autogenerate diffs against `Base.metadata`.
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
 - `auth.py` - Supabase JWT verification and the `get_current_user` dependency: resolves tokens to `User` rows (JIT provisioning) and stamps `users.last_seen_at`, the activity signal for the nightly sync.
+- `deps.py` - the FastAPI dependency providers: `SessionDep` plus the external-client and Temporal-client deps (`LastfmClientDep`, `SpotifyClientDep`, ...), each yielding a client per request and 503ing when its settings are missing.
 - `accounts.py` - shared linked-Last.fm-account lookup used by both the API and the sync activities.
 - `temporal.py` - Temporal client connection helper shared by API and worker; local server by default, Temporal Cloud when `TEMPORAL_API_KEY` is set.
 - `observability.py` - `configure_observability()`, called once by both the API and the worker: installs the root log handler (uvicorn configures only its own loggers) and starts Sentry when `SENTRY_DSN` is set. Reporting is wired at WARNING, not Sentry's ERROR default, because that is the level this codebase logs real failures at; log records also forward to Sentry Logs alongside Render's own capture. Where each failure surfaces, and what to do about it, is `docs/operations.md`.
 
 `clients/` - external API clients:
 
-- `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`, `get_artist_top_tracks`), injected via the `get_lastfm_client` dependency in `main.py`.
+- `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`, `get_artist_top_tracks`), injected via the `get_lastfm_client` dependency in `core/deps.py`.
 - `bandsintown.py` - async Bandsintown API client for artists' upcoming events; calls the undocumented `V3.1/` path, the one variant that returns real venue names on event-page listings (see `docs/design/2026-07-18-concert-venues.md`).
 - `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/design/2026-07-06-playlist-plan.md`.
 - `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
@@ -108,7 +111,6 @@ Operator tooling, run manually from `backend/`; never imported by the service, a
 - `seed.py` - idempotent cities seed (`python -m cli.seed`), run once per new environment and re-run to refresh; `docs/operations.md` has the runbook.
 - `geonames.py` - downloads and parses the GeoNames dumps (cities with population >= 15k, admin1 region names) for the city seed.
 - `spotify_auth.py` - CLI for the bot-account authorization (`python -m cli.spotify_auth`); prints the `SPOTIFY_REFRESH_TOKEN` for `.env`. Spotify expires refresh tokens after 6 months, so this recurs; `docs/operations.md` has the runbook, including the production side the script itself doesn't mention.
-- `spotify_verify.py` - throwaway Phase 0 script verifying development-mode Spotify API behavior (`python -m cli.spotify_verify`).
 
 ### Frontend (`frontend/src/app/`)
 

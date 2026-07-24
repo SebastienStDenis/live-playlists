@@ -7,9 +7,7 @@ API_URL = "https://ws.audioscrobbler.com/2.0/"
 USER_NOT_FOUND_ERROR_CODE = 6
 PRIVATE_DATA_ERROR_CODE = 17
 
-# Bound every request so a slow or stalled Last.fm response can't hold an open
-# connection long enough to eat a whole sync activity's budget.
-REQUEST_TIMEOUT = 10.0
+REQUEST_TIMEOUT = httpx.Timeout(5.0, read=10.0)
 
 # Meta tags users apply to their own library rather than to describe the
 # artist; filtered out wherever tags are shown.

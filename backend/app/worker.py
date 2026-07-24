@@ -1,12 +1,8 @@
 """Temporal worker entrypoint (`python -m app.worker`).
 
 Runs the sync pipeline's workflows and activities, and reconciles the
-`nightly-sync` schedule on startup - created when `NIGHTLY_SYNC_ENABLED` is
-true, deleted otherwise - so no environment needs dashboard setup
-(docs/design/2026-07-09-background-sync-plan.md). Builds from
-the same image and settings as the API; the worker owns one long-lived
-instance of each API client, shared across activities for the life of the
-process.
+`nightly-sync` temporal schedule on startup - created when `NIGHTLY_SYNC_ENABLED`
+is true, deleted otherwise.
 """
 
 import asyncio
@@ -53,31 +49,24 @@ REQUIRED_SETTINGS = (
 )
 
 SCHEDULE_ID = "nightly-sync"
-# Overnight for the initial (Eastern) audience and off-peak for the third-party
-# APIs; playlists are fresh by morning.
 SCHEDULE_HOUR_UTC = 6
-# A missed night is a skipped refresh, not a debt to repay: without this, a
-# locally stopped stack would fire every missed dispatch on the next start.
 SCHEDULE_CATCHUP_WINDOW = timedelta(hours=1)
 
 
 async def _reconcile_nightly_schedule(client: Client, settings: Settings) -> None:
     if not settings.nightly_sync_enabled:
-        # Deleting (not just skipping creation) is what makes turning the flag
-        # off effective: the schedule persists in Temporal's database from
-        # earlier starts.
+        # Delete the schedule from temporal, don't just skip creation.
         try:
             await client.get_schedule_handle(SCHEDULE_ID).delete()
             logger.warning("Deleted schedule %r (nightly sync disabled)", SCHEDULE_ID)
         except RPCError as exc:
             if exc.status != RPCStatusCode.NOT_FOUND:
-                # A leftover schedule is not worth taking down task-queue
-                # polling; the next worker start retries the delete.
+                # Log and try again next time
                 logger.exception("Failed to delete schedule %r", SCHEDULE_ID)
         return
     # Create-if-missing: editing the spec below does not update an existing
-    # schedule; delete it (or `temporal schedule update`) and let the worker
-    # recreate it.
+    # schedule; delete it manually (or `temporal schedule update`) and let
+    # the worker recreate it.
     schedule = Schedule(
         action=ScheduleActionStartWorkflow(
             DispatchSyncsWorkflow.run,
@@ -100,13 +89,10 @@ async def _reconcile_nightly_schedule(client: Client, settings: Settings) -> Non
 
 
 async def _connect_with_retry(settings: Settings) -> Client:
-    # The compose worker starts alongside the Temporal server, which takes a
-    # while to come up; retry instead of ordering startup precisely. Checking
-    # the namespace matters as much as connecting: on a fresh database,
-    # auto-setup registers it well after the server starts answering gRPC.
     for attempt in range(1, CONNECT_ATTEMPTS + 1):
         try:
             client = await connect_temporal(settings)
+            # No-op call to our namespace - fails if temporal is up but our namespace is not ready
             await client.workflow_service.describe_namespace(
                 DescribeNamespaceRequest(namespace=settings.temporal_namespace)
             )
@@ -164,9 +150,8 @@ async def main() -> None:
     musicbrainz = MusicBrainzClient()
     try:
         activities = SyncActivities(lastfm, bandsintown, spotify, musicbrainz)
-        # Nothing external supervises this process (watchfiles restarts it on
-        # file changes, not on crashes), so a crashed poller must reconnect and
-        # resume on its own instead of leaving an "Up" container doing nothing.
+        # Nothing external supervises this process, so a crashed poller must reconnect
+        # and resume on its own instead of leaving an "Up" container doing nothing.
         while True:
             try:
                 await _run_worker(settings, activities)

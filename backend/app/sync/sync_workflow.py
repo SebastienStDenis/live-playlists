@@ -28,6 +28,7 @@ from temporalio.exceptions import (
     ActivityError,
     ApplicationError,
     ChildWorkflowError,
+    TimeoutError,
     WorkflowAlreadyStartedError,
 )
 
@@ -49,8 +50,6 @@ RETRY_POLICY = RetryPolicy(
     backoff_coefficient=2.0,
     maximum_interval=timedelta(seconds=30),
     maximum_attempts=3,
-    # An expired bot refresh token needs re-authorization, not a retry.
-    # Hidden Last.fm listening data needs a settings change, not a retry.
     non_retryable_error_types=["SpotifyAuthError", "LastfmPrivateDataError"],
 )
 
@@ -149,14 +148,19 @@ def pending_steps() -> list[SyncStepProgress]:
 
 
 def _failure_summary(exc: ActivityError) -> str:
-    # Activities phrase their own failures for the user (see
-    # app.sync.sync_activities._user_facing_errors), so an ApplicationError message
-    # is safe to show. Timeouts and cancellations carry no such message, so
-    # they fall back to a generic line rather than leaking Temporal internals.
+    # Avoid leaking Temporal internals to the user.
     cause = exc.cause
     if isinstance(cause, ApplicationError) and cause.message:
         return cause.message
     return "This step didn't finish. Please try again."
+
+
+def _timeout_warning(step_key: SyncStepKey, exc: ActivityError) -> str | None:
+    cause = exc.cause
+    if not isinstance(cause, TimeoutError):
+        return None
+    kind = cause.type.name if cause.type else "UNKNOWN"
+    return f"Sync step {step_key} timed out ({kind})"
 
 
 @workflow.defn
@@ -187,13 +191,13 @@ class SyncUserWorkflow:
                 step.status = "failed"
                 step.finished_at = workflow.now()
                 step.summary = _failure_summary(exc)
+                if (warning := _timeout_warning(spec.key, exc)) is not None:
+                    workflow.logger.warning(warning)
                 raise
             step.status = "completed"
             step.finished_at = workflow.now()
             step.summary = spec.summarize(result)
-        # Bookkeeping, not a UI step: the stamp is what lets the nightly
-        # dispatch skip users who synced recently, and it only lands when
-        # every step succeeded so failing users stay first in line.
+        # Bookkeeping, not a UI step
         await workflow.execute_activity(
             "record_sync_completed",
             user_id,
@@ -235,10 +239,8 @@ class DispatchSyncsWorkflow:
                 failed += 1
             else:
                 succeeded += 1
-        # Each cleanup step stands alone: neither may fail the night's syncs,
-        # and a broken audit (its endpoint is the design's one unverified
-        # Spotify assumption) must not gate the drainer that the deletion
-        # invariant rests on. Drain runs first for the same reason.
+        # Drain before audit so that we clean up even if the audit fails. Newly-audited
+        # rows will get drained on the next run.
         drain = TombstoneDrainResult(drained=0, pending=0)
         try:
             drain = await workflow.execute_activity(
