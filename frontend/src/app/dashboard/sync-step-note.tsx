@@ -1,17 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-import { SETTINGS_HASH } from "./settings-dialog";
-import {
-  StepMark,
-  stepMarkClasses,
-  syncDateFormat,
-  type SyncStatus,
-  type SyncStep,
-} from "./sync-steps";
-
-const emptySubscribe = () => () => {};
+import { SETTINGS_HASH } from "./settings-hash";
+import { syncDateFormat } from "./formats";
+import { StepMark, stepMarkClasses } from "./sync-steps";
+import type { SyncStatus, SyncStep, SyncStepKey } from "@/lib/api-types";
+import { useHydrated } from "@/lib/use-hydrated";
 
 // Status marker for a tab fed by a sync step: the step's action, a middle
 // dot and the run's finish time, marked with the latest run's outcome - a
@@ -27,14 +20,10 @@ export function SyncStepNote({
   label,
 }: {
   sync: SyncStatus | null;
-  stepKey: string;
+  stepKey: SyncStepKey;
   label: string;
 }) {
-  const hydrated = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+  const hydrated = useHydrated();
   if (!hydrated || sync === null) {
     return null;
   }

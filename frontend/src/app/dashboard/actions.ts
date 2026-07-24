@@ -4,12 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect, RedirectType, unstable_rethrow } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import type { ActionState } from "@/lib/action-state";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
-
-export type ActionState = {
-  error: string | null;
-};
 
 async function errorMessage(res: Response, fallback: string): Promise<string> {
   const body = await res.json().catch(() => null);
@@ -18,7 +15,7 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 
 async function callApi(
   path: string,
-  init: RequestInit,
+  init: Omit<RequestInit, "headers"> & { headers?: Record<string, string> },
   fallback: string,
   revalidate: string,
   revalidateType?: "page" | "layout",
@@ -62,15 +59,6 @@ export async function linkLastfm(
   );
 }
 
-export async function refreshLastfm(): Promise<ActionState> {
-  return callApi(
-    `/me/lastfm/refresh`,
-    { method: "POST" },
-    "Failed to refresh Last.fm account.",
-    `/dashboard`,
-  );
-}
-
 export async function setCity(geonameid: number): Promise<ActionState> {
   // Root-layout revalidation: the panel is shared by the settings dialog
   // and the welcome flow, and both pages' server payloads must refresh.
@@ -88,21 +76,15 @@ export async function setCity(geonameid: number): Promise<ActionState> {
 }
 
 export async function startSync(): Promise<ActionState> {
-  let res: Response;
-  try {
-    res = await apiFetch(`/me/sync`, { method: "POST" });
-  } catch (e) {
-    unstable_rethrow(e);
-    return { error: "Failed to start sync." };
-  }
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to start sync.") };
-  }
-
   // The welcome page's step marks read the run state server-side; refresh
   // them so the sync step's dot clears while the run is in flight.
-  revalidatePath(`/`, "layout");
-  return { error: null };
+  return callApi(
+    `/me/sync`,
+    { method: "POST" },
+    "Failed to start sync.",
+    `/`,
+    "layout",
+  );
 }
 
 export async function setIncludeKnownArtists(

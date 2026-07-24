@@ -1,35 +1,19 @@
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { HomeLink } from "../../../home-link";
+import { AuthCard } from "../../../auth-card";
 import { InlineNav } from "../../../inline-nav";
 
 export default function CheckEmailPage() {
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-8">
-      <HomeLink href="/" />
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-xl">
-            <h1>Check your email</h1>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            You have been sent a password reset link. Open it to set a new
-            password.
-          </p>
-        </CardContent>
-        <CardFooter>
-          <p className="text-sm text-muted-foreground">
-            Remembered it? <InlineNav href="/login">Log in</InlineNav>
-          </p>
-        </CardFooter>
-      </Card>
-    </main>
+    <AuthCard
+      title="Check your email"
+      footer={
+        <p className="text-sm text-muted-foreground">
+          Remembered it? <InlineNav href="/login">Log in</InlineNav>
+        </p>
+      }
+    >
+      <p className="text-sm text-muted-foreground">
+        You have been sent a password reset link. Open it to set a new password.
+      </p>
+    </AuthCard>
   );
 }

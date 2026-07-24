@@ -5,22 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Circle, X } from "lucide-react";
 
 import { Spinner } from "@/components/ui/spinner";
-
-export type SyncStep = {
-  key: string;
-  label: string;
-  status: "pending" | "running" | "completed" | "failed";
-  summary: string | null;
-  // When the step reached its terminal state; null for steps that never ran.
-  finished_at: string | null;
-};
-
-export type SyncStatus = {
-  status: "none" | "running" | "completed" | "failed";
-  started_at: string | null;
-  finished_at: string | null;
-  steps: SyncStep[];
-};
+import type { SyncStatus, SyncStep } from "@/lib/api-types";
 
 export const POLL_INTERVAL_MS = 1500;
 // How long a finished step keeps showing its final state before the display
@@ -36,13 +21,6 @@ export const stepMarkClasses: Record<SyncStep["status"], string> = {
   completed: "text-success",
   failed: "text-destructive",
 };
-
-export const syncDateFormat = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 export async function fetchStatus(): Promise<SyncStatus | null> {
   try {

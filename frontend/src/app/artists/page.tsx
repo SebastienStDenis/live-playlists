@@ -1,16 +1,8 @@
-import { apiFetch } from "@/lib/api";
-
-type Artist = {
-  id: string;
-  name: string;
-};
+import type { Artist } from "@/lib/api-types";
+import { fetchJson } from "@/lib/user-api";
 
 export default async function ArtistsPage() {
-  const res = await apiFetch("/artists", { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Failed to load artists: ${res.status}`);
-  }
-  const artists: Artist[] = await res.json();
+  const artists = await fetchJson<Artist[]>("/artists", "artists");
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">

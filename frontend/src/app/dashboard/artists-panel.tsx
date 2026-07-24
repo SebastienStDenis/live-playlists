@@ -16,23 +16,28 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
-  usePinnedPopoverWidth,
 } from "@/components/ui/popover";
-import { Toggle } from "@/components/ui/toggle";
+import type { City, UserArtist, UserEvent } from "@/lib/api-types";
 
 import { AnimatedHeight } from "./animated-height";
 import {
   ArtistDetails,
   KnownInterestBadges,
   ScoreBadge,
-  scoreOf,
 } from "./artist-details";
-import type { City } from "./city-panel";
-import { EmptyState, EmptyStateCell } from "./empty-state";
-import { eventTitle, type UserEvent } from "./events-panel";
+import {
+  CARD_GRID_CLASS,
+  EmptyState,
+  EmptyStateCell,
+  HiddenByFiltersCell,
+} from "./empty-state";
+import { eventTitle } from "./event-sort";
+import { concertDateFormat } from "./formats";
+import { RelationFilterBar } from "./relation-filter-bar";
 import { RunSyncText } from "./run-sync-message";
-import { SortSelect, type SortOption } from "./sort-select";
-import { playsOf, rankOf, type UserArtist } from "./taste-panel";
+import { type SortOption } from "./sort-select";
+import { compareByName, playsOf, rankOf, scoreOf } from "./user-artist";
+import { usePinnedPopoverWidth } from "./use-pinned-popover-width";
 
 // The concerts matched near one of the user's cities (home or pinned),
 // keyed by that city so the footer popover can group by it - the venue's
@@ -41,16 +46,6 @@ export type CityConcerts = {
   city: City;
   events: UserEvent[];
 };
-
-// Event times are stored as venue-local time labeled UTC, so formatting in
-// UTC displays the original local time.
-const concertDateFormat = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
 
 function ConcertList({ concerts }: { concerts: UserEvent[] }) {
   return (
@@ -92,14 +87,14 @@ function ConcertsFooter({
   sections,
   multiCity,
 }: {
-  sections: { city: City; concerts: UserEvent[] }[];
+  sections: CityConcerts[];
   multiCity: boolean;
 }) {
   const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
   // One concert can sit within range of two of the user's cities and
   // appear in both sections; the count stays honest by counting events.
   const count = new Set(
-    sections.flatMap(({ concerts }) => concerts.map(({ event }) => event.id)),
+    sections.flatMap(({ events }) => events.map(({ event }) => event.id)),
   ).size;
   return (
     <CardFooter className="p-0">
@@ -123,23 +118,19 @@ function ConcertsFooter({
             <PopoverTitle>Upcoming Concerts</PopoverTitle>
           </PopoverHeader>
           {multiCity ? (
-            sections.map(({ city, concerts }) => (
+            sections.map(({ city, events }) => (
               <div key={city.geonameid} className="flex flex-col gap-1.5">
                 <p className="text-xs font-medium">{city.name}</p>
-                <ConcertList concerts={concerts} />
+                <ConcertList concerts={events} />
               </div>
             ))
           ) : (
-            <ConcertList concerts={sections[0].concerts} />
+            <ConcertList concerts={sections[0].events} />
           )}
         </PopoverContent>
       </Popover>
     </CardFooter>
   );
-}
-
-function byName(a: UserArtist, b: UserArtist): number {
-  return a.artist.name.localeCompare(b.artist.name);
 }
 
 type SortKey = "match" | "name" | "concert";
@@ -169,20 +160,22 @@ function makeComparators(
         return aSuggested ? 1 : -1;
       }
       return aSuggested
-        ? scoreOf(b) - scoreOf(a) || byName(a, b)
-        : rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b);
+        ? scoreOf(b) - scoreOf(a) || compareByName(a, b)
+        : rankOf(a) - rankOf(b) ||
+            playsOf(b) - playsOf(a) ||
+            compareByName(a, b);
     },
-    name: byName,
+    name: compareByName,
     concert: (a, b) => {
       const aDate = soonestConcert.get(a.artist.id);
       const bDate = soonestConcert.get(b.artist.id);
       if (aDate && bDate) {
-        return aDate.localeCompare(bDate) || byName(a, b);
+        return aDate.localeCompare(bDate) || compareByName(a, b);
       }
       if (aDate || bDate) {
         return aDate ? -1 : 1;
       }
-      return byName(a, b);
+      return compareByName(a, b);
     },
   };
 }
@@ -275,44 +268,26 @@ export function ArtistsPanel({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex flex-wrap gap-2">
-          <Toggle
-            variant="outline"
-            size="sm"
-            pressed={showSuggested}
-            onPressedChange={setShowSuggested}
-          >
-            Suggested artists
-          </Toggle>
-          <Toggle
-            variant="outline"
-            size="sm"
-            pressed={showKnown}
-            onPressedChange={setShowKnown}
-          >
-            Artists you listen to
-          </Toggle>
-        </div>
-        {/* ml-auto rather than justify-between on the row: it also keeps the
-            picker right-aligned when it wraps to its own line. */}
-        <SortSelect
-          value={sortKey}
-          onValueChange={setSortKey}
-          options={sortOptions}
-          className="ml-auto"
-        />
-      </div>
+      <RelationFilterBar
+        showSuggested={showSuggested}
+        onShowSuggested={setShowSuggested}
+        showKnown={showKnown}
+        onShowKnown={setShowKnown}
+        sortKey={sortKey}
+        onSortKey={setSortKey}
+        sortOptions={sortOptions}
+        className="mb-3"
+      />
       <AnimatedHeight>
-        <ul className="grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
+        <ul className={CARD_GRID_CLASS}>
           {visibleArtists.map((userArtist) => {
             const suggested = suggestedIds.has(userArtist.artist.id);
             const sections = cityConcerts
               .map(({ city }, index) => ({
                 city,
-                concerts: cityIndexes[index].get(userArtist.artist.id) ?? [],
+                events: cityIndexes[index].get(userArtist.artist.id) ?? [],
               }))
-              .filter((section) => section.concerts.length > 0);
+              .filter((section) => section.events.length > 0);
             return (
               <li key={userArtist.artist.id} className="min-w-0">
                 <Card size="sm" className="h-full">
@@ -360,15 +335,8 @@ export function ArtistsPanel({
               </EmptyState>
             </li>
           )}
-          {/* Filtered-out artists keep a slot in the grid: a ghost cell
-              sized like the cards it stands in for. */}
           {hiddenCount > 0 && (
-            <li className="flex">
-              <EmptyState className="flex-1 content-center">
-                {hiddenCount} {hiddenCount === 1 ? "artist" : "artists"} hidden
-                by filters.
-              </EmptyState>
-            </li>
+            <HiddenByFiltersCell count={hiddenCount} noun="artist" />
           )}
         </ul>
       </AnimatedHeight>

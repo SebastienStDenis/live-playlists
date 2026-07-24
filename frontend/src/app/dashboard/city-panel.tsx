@@ -10,16 +10,8 @@ import { AnimatedHeight } from "./animated-height";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import type { City } from "@/lib/api-types";
 import { hasVirtualKeyboard } from "@/lib/utils";
-
-export type City = {
-  geonameid: number;
-  name: string;
-  admin1: string | null;
-  country_code: string;
-  latitude: number;
-  longitude: number;
-};
 
 export function CityPanel({ city }: { city: City | null }) {
   const [editing, setEditing] = useState(false);

@@ -2,15 +2,14 @@
 
 import { redirect, RedirectType } from "next/navigation";
 
+import type { ActionState } from "@/lib/action-state";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { createClient } from "@/lib/supabase/server";
 
-import type { AuthState } from "../actions";
-
 export async function requestPasswordReset(
-  _prev: AuthState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<AuthState> {
+): Promise<ActionState> {
   const email = formData.get("email");
   if (typeof email !== "string" || !email) {
     return { error: "Enter your email." };

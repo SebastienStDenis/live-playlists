@@ -1,4 +1,4 @@
-import type { init } from "@sentry/nextjs";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * The options every runtime shares. Next.js initializes Sentry three times -
@@ -10,7 +10,7 @@ import type { init } from "@sentry/nextjs";
  * copies of one value. Leaving it unset disables Sentry, which is what local
  * development wants.
  */
-export const sharedOptions: Parameters<typeof init>[0] = {
+export const sharedOptions: Parameters<typeof Sentry.init>[0] = {
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   // Left to its default the SDK tags Vercel events `vercel-production` /
   // `vercel-preview`, which does not match the backend's `production`. A Sentry
@@ -27,4 +27,10 @@ export const sharedOptions: Parameters<typeof init>[0] = {
   // is also what would link logs to traces.
   tracesSampleRate: 0,
   enableLogs: true,
+  // Nothing calls console.* in src/ today. This is the wiring that means the
+  // first one added starts flowing to Sentry Logs without further setup.
+  // Levels below info are dropped, matching the backend's threshold.
+  integrations: [
+    Sentry.consoleLoggingIntegration({ levels: ["log", "info", "warn", "error"] }),
+  ],
 };

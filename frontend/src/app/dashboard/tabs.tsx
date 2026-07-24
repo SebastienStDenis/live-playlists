@@ -92,10 +92,7 @@ export function Tabs({
             hidden={active !== tab.key}
           >
             {(tab.description || tab.note) && (
-              <div
-                key="description"
-                className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1"
-              >
+              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
                 {tab.description && (
                   <p className="text-xs text-muted-foreground italic">
                     {tab.description}
@@ -104,7 +101,7 @@ export function Tabs({
                 {tab.note && <div className="ml-auto">{tab.note}</div>}
               </div>
             )}
-            <div key="content">{tab.content}</div>
+            <div>{tab.content}</div>
           </TabsContent>
         ))}
       </TabsRoot>

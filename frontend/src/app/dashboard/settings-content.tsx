@@ -1,19 +1,24 @@
 import { ChangeEmailButton } from "./change-email-button";
 import { ChangeNameButton } from "./change-name-button";
 import { ChangePasswordButton } from "./change-password-button";
-import { CityPanel, type City } from "./city-panel";
+import { CityPanel } from "./city-panel";
 import { DeleteAccountButton } from "./delete-account-button";
 import { DiscoveryToggle } from "./discovery-toggle";
-import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
+import { LastfmPanel } from "./lastfm-panel";
 import { PinnedCitiesPanel } from "./pinned-cities-panel";
-import { type Playlist } from "./playlists-panel";
 import { Section } from "./section";
 import { SignOutButton } from "./sign-out-button";
 import { SyncCard } from "./sync-card";
-import { type SyncStatus } from "./sync-steps";
-import { TastePanel, type UserArtist } from "./taste-panel";
-import { type User } from "./user-api";
-import { syncStepCompleted } from "./user-api";
+import { TastePanel } from "./taste-panel";
+import type {
+  City,
+  LastfmAccount,
+  Playlist,
+  SyncStatus,
+  User,
+  UserArtist,
+} from "@/lib/api-types";
+import { syncStepCompleted } from "@/lib/user-api";
 
 export function SettingsContent({
   user,
