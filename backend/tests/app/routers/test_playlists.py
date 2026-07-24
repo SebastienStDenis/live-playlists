@@ -436,7 +436,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
 async def test_sync_requires_spotify_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
     session = make_session()
     monkeypatch.setattr(
-        "app.main.get_settings",
+        "app.core.deps.get_settings",
         lambda: Settings(spotify_client_id="", spotify_client_secret="", spotify_refresh_token=""),
     )
 

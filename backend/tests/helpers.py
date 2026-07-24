@@ -9,9 +9,7 @@ from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.spotify import SpotifyClient
 from app.core.auth import Claims, get_claims, get_current_user
 from app.core.db import get_session
-from app.core.models import User
-from app.main import (
-    app,
+from app.core.deps import (
     get_bandsintown_client,
     get_lastfm_client,
     get_musicbrainz_client,
@@ -20,6 +18,8 @@ from app.main import (
     get_supabase_admin,
     get_temporal_client,
 )
+from app.core.models import User
+from app.main import app
 
 
 def make_session() -> AsyncMock:
