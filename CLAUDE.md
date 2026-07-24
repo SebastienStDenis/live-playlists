@@ -111,7 +111,6 @@ Operator tooling, run manually from `backend/`; never imported by the service, a
 - `seed.py` - idempotent cities seed (`python -m cli.seed`), run once per new environment and re-run to refresh; `docs/operations.md` has the runbook.
 - `geonames.py` - downloads and parses the GeoNames dumps (cities with population >= 15k, admin1 region names) for the city seed.
 - `spotify_auth.py` - CLI for the bot-account authorization (`python -m cli.spotify_auth`); prints the `SPOTIFY_REFRESH_TOKEN` for `.env`. Spotify expires refresh tokens after 6 months, so this recurs; `docs/operations.md` has the runbook, including the production side the script itself doesn't mention.
-- `spotify_verify.py` - throwaway Phase 0 script verifying development-mode Spotify API behavior (`python -m cli.spotify_verify`).
 
 ### Frontend (`frontend/src/app/`)
 
