@@ -27,7 +27,6 @@ import {
   ScoreBadge,
   scoreOf,
 } from "./artist-details";
-import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 import type { City } from "./city-panel";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { eventTitle, type UserEvent } from "./events-panel";
@@ -151,30 +150,28 @@ const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "concert", label: "Next concert" },
 ];
 
-// Known is judged by known-kind interests rather than which list an artist
-// came from, matching the Concerts tab's Best match: an artist can be both
-// known and suggested, and listening history is the stronger signal.
-function isKnown(userArtist: UserArtist): boolean {
-  return userArtist.interests.some((interest) =>
-    KNOWN_ARTIST_KINDS.has(interest.kind),
-  );
-}
-
 // Next concert orders by each artist's soonest show across the user's
 // cities; artists with nothing coming up trail alphabetically. Best match
-// mirrors the Concerts tab: artists you already listen to lead - in the
-// Listening History panel's plays order (Last.fm's play-based top-artist
-// rank, raw playcount for the unranked) - and suggestions follow by score.
+// leads with the you-listen-to cards in the Listening History panel's
+// plays order (Last.fm's play-based top-artist rank, raw playcount for
+// the unranked), then ranks suggestion cards by score. Each card sorts by
+// the signal it displays: an artist with both listening history and a
+// suggestion renders as a suggestion, so only its score counts.
 function makeComparators(
+  suggestedIds: Set<string>,
   soonestConcert: Map<string, string>,
 ): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
   return {
-    match: (a, b) =>
-      Number(isKnown(b)) - Number(isKnown(a)) ||
-      rankOf(a) - rankOf(b) ||
-      playsOf(b) - playsOf(a) ||
-      scoreOf(b) - scoreOf(a) ||
-      byName(a, b),
+    match: (a, b) => {
+      const aSuggested = suggestedIds.has(a.artist.id);
+      const bSuggested = suggestedIds.has(b.artist.id);
+      if (aSuggested !== bSuggested) {
+        return aSuggested ? 1 : -1;
+      }
+      return aSuggested
+        ? scoreOf(b) - scoreOf(a) || byName(a, b)
+        : rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b);
+    },
     name: byName,
     concert: (a, b) => {
       const aDate = soonestConcert.get(a.artist.id);
@@ -272,7 +269,7 @@ export function ArtistsPanel({
   const visibleArtists = [
     ...(showSuggested ? suggestedArtists : []),
     ...(showKnown ? knownArtists : []),
-  ].sort(makeComparators(soonestConcert)[sortKey]);
+  ].sort(makeComparators(suggestedIds, soonestConcert)[sortKey]);
   const hiddenCount =
     suggestedArtists.length + knownArtists.length - visibleArtists.length;
 
