@@ -74,11 +74,12 @@ async def test_sync_creates_events_for_new_artist() -> None:
         result_with_rows([]),
         MagicMock(),
         result_with_scalars([]),
+        result_returning(2),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101"), event_data("102")]
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.artists_total == 1
     assert result.artists_synced == 1
@@ -88,6 +89,7 @@ async def test_sync_creates_events_for_new_artist() -> None:
     assert result.events_created == 2
     assert result.events_updated == 0
     assert result.events_removed == 0
+    assert result.events_total == 2
     bandsintown.get_artist_events.assert_awaited_once_with("Metallica")
 
     events = added_objects(session, Event)
@@ -106,13 +108,17 @@ async def test_sync_skips_recently_synced_artists() -> None:
     session.execute.side_effect = [
         result_with_scalars([artist]),
         result_with_scalars([identity]),
+        result_returning(5),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.artists_skipped == 1
     assert result.artists_synced == 0
+    # The total is post-sync state, so it counts events even when every
+    # artist's feed was fresh enough to skip.
+    assert result.events_total == 5
     bandsintown.get_artist_events.assert_not_awaited()
 
 
@@ -134,15 +140,17 @@ async def test_sync_updates_existing_and_removes_vanished_events() -> None:
         MagicMock(),
         result_with_scalars([vanished_id]),
         MagicMock(),
+        result_returning(1),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101")]
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.events_created == 0
     assert result.events_updated == 1
     assert result.events_removed == 1
+    assert result.events_total == 1
     assert event.venue_name == "Sphere"
     assert event.starts_at == datetime(2026, 10, 1, 20, 30, tzinfo=UTC)
     assert source.url == "https://www.bandsintown.com/e/101"
@@ -162,11 +170,12 @@ async def test_sync_dedupes_repeated_external_ids_in_one_feed() -> None:
         result_with_rows([]),
         MagicMock(),
         result_with_scalars([]),
+        result_returning(1),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101"), event_data("101")]
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.events_created == 1
     assert len(added_objects(session, Event)) == 1
@@ -186,11 +195,12 @@ async def test_sync_adopts_event_created_by_concurrent_sync() -> None:
         result_with_rows([("101", adopted_event_id)]),
         MagicMock(),
         result_with_scalars([]),
+        result_returning(1),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101")]
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.events_created == 0
     assert result.events_updated == 1
@@ -207,18 +217,20 @@ async def test_sync_treats_unknown_artist_as_no_events() -> None:
         result_with_scalars([]),
         MagicMock(),
         result_returning(identity),
+        result_returning(0),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.side_effect = BandsintownArtistNotFoundError("nope")
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.artists_unknown == 1
     assert result.artists_synced == 0
     assert result.events_removed == 0
     assert identity.last_synced_at is not None
-    # Not-found never triggers vanish-deletion, so no further queries run.
-    assert session.execute.await_count == 4
+    # Not-found never triggers vanish-deletion; only the final total count
+    # follows the identity upsert.
+    assert session.execute.await_count == 5
 
 
 async def test_sync_counts_api_errors_and_leaves_artist_retryable() -> None:
@@ -227,17 +239,19 @@ async def test_sync_counts_api_errors_and_leaves_artist_retryable() -> None:
     session.execute.side_effect = [
         result_with_scalars([artist]),
         result_with_scalars([]),
+        result_returning(0),
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.side_effect = BandsintownApiError(200, "{warn=Not found}")
 
-    result = await sync_user_events(session, bandsintown, USER_ID)
+    result = await sync_user_events(session, bandsintown, user())
 
     assert result.artists_failed == 1
     assert result.artists_synced == 0
     assert result.events_removed == 0
-    # No identity row is written, so the artist is retried on the next sync.
-    assert session.execute.await_count == 2
+    # No identity row is written, so the artist is retried on the next sync;
+    # only the final total count runs after the two lookups.
+    assert session.execute.await_count == 3
 
 
 def make_matched_event(starts_at: datetime) -> Event:

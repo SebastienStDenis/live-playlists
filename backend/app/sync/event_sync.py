@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,22 +18,24 @@ from app.core.models import (
     BandsintownEvent,
     Event,
     EventArtist,
+    User,
     UserArtistInterest,
 )
 from app.core.schemas import EventSyncResult
+from app.sync.matching import artist_qualifies
 
 EVENT_SYNC_TTL = timedelta(hours=24)
 FETCH_CONCURRENCY = 8
 
 
 async def sync_user_events(
-    session: AsyncSession, bandsintown: BandsintownClient, user_id: uuid.UUID
+    session: AsyncSession, bandsintown: BandsintownClient, user: User
 ) -> EventSyncResult:
     """Refresh upcoming events for every artist the user has an interest in."""
     result = await session.execute(
         select(Artist)
         .join(UserArtistInterest, UserArtistInterest.artist_id == Artist.id)
-        .where(UserArtistInterest.user_id == user_id)
+        .where(UserArtistInterest.user_id == user.id)
         .distinct()
     )
     artists = list(result.scalars())
@@ -87,6 +89,19 @@ async def sync_user_events(
             # Only delete after a successful sync
             removed += await _prune_events(session, artist.id, events, now)
 
+    # Post-sync state for the step summary: every upcoming concert the
+    # Concerts tab can surface for this user, searching any city.
+    result = await session.execute(
+        select(func.count(func.distinct(Event.id)))
+        .select_from(Event)
+        .join(EventArtist, EventArtist.event_id == Event.id)
+        .where(
+            artist_qualifies(user.id, EventArtist.artist_id, user.include_known_artists),
+            Event.starts_at > now,
+        )
+    )
+    total = result.scalar_one()
+
     return EventSyncResult(
         synced_at=now,
         artists_total=len(artists),
@@ -97,6 +112,7 @@ async def sync_user_events(
         events_created=created,
         events_updated=updated,
         events_removed=removed,
+        events_total=total,
     )
 
 

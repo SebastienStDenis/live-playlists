@@ -138,7 +138,7 @@ class SyncActivities:
     async def sync_events(self, user_id: str) -> EventSyncResult:
         async with _user_facing_errors(STEP_FAILED_EVENTS), session_factory() as session:
             user = await _require_user(session, user_id)
-            result = await sync_user_events(session, self._bandsintown, user.id)
+            result = await sync_user_events(session, self._bandsintown, user)
             await session.commit()
             return result
 
