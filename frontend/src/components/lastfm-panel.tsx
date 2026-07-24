@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { Link2, Pencil, X } from "lucide-react";
+import { ExternalLink, Link2, Pencil, X } from "lucide-react";
 
 import { linkLastfm } from "@/lib/actions";
 import { FormError } from "./form-error";
@@ -135,6 +135,10 @@ function AccountCard({
                 className="underline hover:text-muted-foreground"
               >
                 {account.username}
+                <ExternalLink
+                  className="ml-1 inline size-3 -translate-y-px"
+                  aria-hidden
+                />
               </a>
             ) : (
               account.username
