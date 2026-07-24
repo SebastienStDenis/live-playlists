@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -15,6 +16,7 @@ import {
   ScoreBadge,
 } from "./artist-details";
 import { usePinnedPopoverWidth } from "./use-pinned-popover-width";
+import { cn } from "@/lib/utils";
 
 function artistChipLabel(
   artist: Artist,
@@ -56,9 +58,11 @@ export function ArtistChip({
   );
   // pl-1.5 sets the dot concentric with the pill's rounded end, matching the
   // score pill's px-1.5.
-  const badgeClass = `max-w-full font-normal text-muted-foreground ${
-    suggested ? "pl-1.5" : ""
-  }`;
+  const badgeClass = cn(
+    "max-w-full",
+    CHIP_CLASS,
+    suggested && "pl-1.5",
+  );
   const variant = suggested ? "accent" : "outline";
 
   if (!details) {
@@ -74,11 +78,13 @@ export function ArtistChip({
         <Badge
           asChild
           variant={variant}
-          className={`${badgeClass} cursor-pointer ${
+          className={cn(
+            badgeClass,
+            "cursor-pointer",
             suggested
               ? "hover:bg-primary/8 dark:hover:bg-primary/12"
-              : "hover:bg-muted"
-          }`}
+              : "hover:bg-muted",
+          )}
         >
           <button ref={triggerRef} type="button" title={`About ${artist.name}`}>
             {label}

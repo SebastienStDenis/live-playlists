@@ -59,6 +59,17 @@ export function syncStepCompleted(
   );
 }
 
+// Known artists are always requested; hiding them is a view-side filter in
+// the events panel, independent of the user's global setting.
+export function userEventsPath(geonameid?: number): string {
+  const params = new URLSearchParams();
+  if (geonameid !== undefined) {
+    params.set("geonameid", String(geonameid));
+  }
+  params.set("include_known_artists", "true");
+  return `/me/events?${params}`;
+}
+
 export async function fetchOptional<T>(
   path: string,
   what: string,

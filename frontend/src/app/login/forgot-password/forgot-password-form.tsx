@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 
-import { EmailField } from "../../email-field";
-import { SubmitRow } from "../../form-submit-row";
+import { EmailField } from "@/components/email-field";
+import { SubmitRow } from "@/components/form-submit-row";
 import { EMAIL_SHAPE } from "@/lib/validation";
 import { requestPasswordReset } from "./actions";
 

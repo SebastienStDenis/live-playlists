@@ -4,13 +4,15 @@ import { useDeferredValue, useState, useTransition } from "react";
 import { EyeOff, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CHIP_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { UserArtist } from "@/lib/api-types";
-import { setArtistHidden } from "./actions";
+import { cn } from "@/lib/utils";
+import { setArtistHidden } from "@/lib/actions";
 import { interestLabel } from "./artist-details";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
-import { numberFormat } from "./formats";
+import { numberFormat } from "@/lib/formats";
 import { SortSelect, type SortOption } from "./sort-select";
 import { compareByName, lovedOf, playsOf, rankOf } from "./user-artist";
 
@@ -60,9 +62,10 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
     <li className="group flex items-start gap-2 text-sm [content-visibility:auto] [contain-intrinsic-block-size:auto_1.75rem]">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         <span
-          className={`min-w-0 ${
-            excluded ? "text-muted-foreground line-through" : ""
-          }`}
+          className={cn(
+            "min-w-0",
+            excluded && "text-muted-foreground line-through",
+          )}
         >
           {artist.name}
         </span>
@@ -72,9 +75,10 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
             <Badge
               key={`${interest.kind}-${interest.source}`}
               variant="outline"
-              className={`font-normal text-muted-foreground ${
-                excluded ? "opacity-60" : ""
-              }`}
+              className={cn(
+                CHIP_CLASS,
+                excluded && "opacity-60",
+              )}
             >
               {interestLabel(interest)}
             </Badge>
@@ -90,12 +94,13 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
         aria-label={excluded ? `Unhide ${artist.name}` : `Hide ${artist.name}`}
         // -mt-1 centers the size-7 button on the row's 20px first text
         // line, so it tracks the name rather than a wrapped row's middle.
-        className={`-mt-1 text-muted-foreground transition-opacity focus-visible:opacity-100 ${
+        className={cn(
+          "-mt-1 text-muted-foreground transition-opacity focus-visible:opacity-100",
           // Hidden-until-hover only where hovering exists; touch devices
           // (no group-hover: Tailwind gates it behind hover: hover) always
           // show the button.
-          excluded ? "" : "pointer-fine:opacity-0 group-hover:opacity-100"
-        }`}
+          !excluded && "pointer-fine:opacity-0 group-hover:opacity-100",
+        )}
       >
         <HideIcon className="size-3.5" aria-hidden />
       </Button>

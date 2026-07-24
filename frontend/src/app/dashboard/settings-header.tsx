@@ -5,6 +5,7 @@ import { Triangle, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DialogClose, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 // The dialog's fixed header: the title and close stay put while the body
 // scrolls. Rendered inside DialogContent, so it remounts each time the dialog
@@ -71,9 +72,10 @@ export function SettingsHeader({
         </DialogClose>
       </div>
       <div
-        className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-250 ease-out motion-reduce:transition-none ${
-          changed ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-        }`}
+        className={cn(
+          "grid overflow-hidden transition-[grid-template-rows,opacity] duration-250 ease-out motion-reduce:transition-none",
+          changed ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
       >
         <div className="min-h-0 overflow-hidden">
           <p className="flex items-start gap-1.5 pt-2 text-xs text-foreground">

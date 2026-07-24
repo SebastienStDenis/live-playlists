@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 
-import { AuthCard } from "../auth-card";
-import { InlineNav } from "../inline-nav";
-import { QueryNotice } from "../query-notice";
+import { AuthCard } from "@/components/auth-card";
+import { InlineNav } from "@/components/inline-nav";
+import { QueryNotice } from "@/components/query-notice";
 import { LoginForm } from "./login-form";
 
 // /auth/confirm redirects here with an `?error=` value when an emailed link's

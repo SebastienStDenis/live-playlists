@@ -11,8 +11,8 @@ import {
 import { IntroText } from "../intro-text";
 import { SettingsHeader } from "./settings-header";
 import { SETTINGS_HASH } from "./settings-hash";
-import { SyncActivityProvider } from "./sync-activity";
-import { fetchStatus } from "./sync-steps";
+import { SyncActivityProvider } from "@/components/sync-activity";
+import { fetchStatus } from "@/components/sync-steps";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // Broadcast the dialog's open state to sibling dashboard surfaces that live
@@ -111,23 +111,46 @@ export function SettingsDialog({
     }
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    let inFlight = false;
     let sawRunning = false;
+    let done = false;
     async function poll() {
+      if (inFlight) {
+        return;
+      }
+      inFlight = true;
       const status = await fetchStatus();
+      inFlight = false;
       if (cancelled) {
         return;
       }
       if (status?.status === "running") {
         sawRunning = true;
-        timer = setTimeout(poll, 3000);
-      } else if (sawRunning) {
-        router.refresh();
+        // A hidden tab has nothing to keep fresh; the visibility listener
+        // picks the watch back up when the tab returns.
+        if (!document.hidden) {
+          timer = setTimeout(poll, 3000);
+        }
+      } else {
+        done = true;
+        if (sawRunning) {
+          router.refresh();
+        }
       }
     }
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearTimeout(timer);
+      } else if (!done) {
+        poll();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [open, router]);
 

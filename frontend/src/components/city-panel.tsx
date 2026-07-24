@@ -5,11 +5,11 @@ import { useState, useTransition } from "react";
 import { Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { setCity } from "./actions";
+import { setCity } from "@/lib/actions";
 import { AnimatedHeight } from "./animated-height";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { SpinnerSlot } from "./spinner-slot";
 import type { City } from "@/lib/api-types";
 import { hasVirtualKeyboard } from "@/lib/utils";
 
@@ -77,9 +77,7 @@ function CityCard({
     <div className="flex animate-fade-in items-center justify-between gap-4">
       <p className="min-w-0 font-medium">{cityLabel(city)}</p>
       {saving ? (
-        <span className="flex size-7 items-center justify-center text-muted-foreground">
-          <Spinner />
-        </span>
+        <SpinnerSlot />
       ) : (
         <Button
           type="button"

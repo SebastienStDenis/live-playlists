@@ -1,14 +1,14 @@
 import { ChangeEmailButton } from "./change-email-button";
 import { ChangeNameButton } from "./change-name-button";
 import { ChangePasswordButton } from "./change-password-button";
-import { CityPanel } from "./city-panel";
+import { CityPanel } from "@/components/city-panel";
 import { DeleteAccountButton } from "./delete-account-button";
 import { DiscoveryToggle } from "./discovery-toggle";
-import { LastfmPanel } from "./lastfm-panel";
+import { LastfmPanel } from "@/components/lastfm-panel";
 import { PinnedCitiesPanel } from "./pinned-cities-panel";
-import { Section } from "./section";
+import { Section } from "@/components/section";
 import { SignOutButton } from "./sign-out-button";
-import { SyncCard } from "./sync-card";
+import { SyncCard } from "@/components/sync-card";
 import { TastePanel } from "./taste-panel";
 import type {
   City,

@@ -37,9 +37,8 @@ export function SoundwaveDots() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reduceMotion = motionQuery.matches;
 
     let width = 0;
     let height = 0;
@@ -187,15 +186,46 @@ export function SoundwaveDots() {
       drawDots();
     };
 
+    // The click-pulse listeners live and die with the loop: without it a
+    // click's pulse would never render anyway.
+    let animating = false;
+    const startAnimation = () => {
+      if (animating) return;
+      animating = true;
+      frame = requestAnimationFrame(loop);
+      window.addEventListener("click", handleClick);
+      window.addEventListener("mousedown", handleMouseDown);
+    };
+    const stopAnimation = () => {
+      if (!animating) return;
+      animating = false;
+      cancelAnimationFrame(frame);
+      window.removeEventListener("click", handleClick);
+      window.removeEventListener("mousedown", handleMouseDown);
+    };
+
+    // Reduced motion can flip mid-visit (OS setting, battery saver): drop any
+    // live pulses so the still frame is the resting grid, or pick the loop
+    // back up where a fresh mount would start it.
+    const onMotionChange = () => {
+      reduceMotion = motionQuery.matches;
+      if (reduceMotion) {
+        stopAnimation();
+        pulses.length = 0;
+        paintStill();
+      } else {
+        startAnimation();
+      }
+    };
+
     readColor();
     resize();
 
     if (!reduceMotion) {
-      frame = requestAnimationFrame(loop);
-      window.addEventListener("click", handleClick);
-      window.addEventListener("mousedown", handleMouseDown);
+      startAnimation();
     }
 
+    motionQuery.addEventListener("change", onMotionChange);
     window.addEventListener("resize", resize);
     const themeObserver = new MutationObserver(() => {
       readColor();
@@ -210,6 +240,7 @@ export function SoundwaveDots() {
       cancelAnimationFrame(frame);
       window.removeEventListener("click", handleClick);
       window.removeEventListener("mousedown", handleMouseDown);
+      motionQuery.removeEventListener("change", onMotionChange);
       window.removeEventListener("resize", resize);
       themeObserver.disconnect();
     };

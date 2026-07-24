@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover";
 import type { City, UserArtist, UserEvent } from "@/lib/api-types";
 
-import { AnimatedHeight } from "./animated-height";
+import { AnimatedHeight } from "@/components/animated-height";
 import {
   ArtistDetails,
   KnownInterestBadges,
@@ -32,7 +32,7 @@ import {
   HiddenByFiltersCell,
 } from "./empty-state";
 import { eventTitle } from "./event-sort";
-import { concertDateFormat } from "./formats";
+import { concertDateFormat } from "@/lib/formats";
 import { RelationFilterBar } from "./relation-filter-bar";
 import { RunSyncText } from "./run-sync-message";
 import { type SortOption } from "./sort-select";

@@ -1,10 +1,12 @@
 "use client";
 
 import { SETTINGS_HASH } from "./settings-hash";
-import { syncDateFormat } from "./formats";
-import { StepMark, stepMarkClasses } from "./sync-steps";
+import { syncDateFormat } from "@/lib/formats";
+import { GHOST_PILL_CLASS } from "@/components/ghost-pill";
+import { StepMark, stepMarkClasses } from "@/components/sync-steps";
 import type { SyncStatus, SyncStep, SyncStepKey } from "@/lib/api-types";
 import { useHydrated } from "@/lib/use-hydrated";
+import { cn } from "@/lib/utils";
 
 // Status marker for a tab fed by a sync step: the step's action, a middle
 // dot and the run's finish time, marked with the latest run's outcome - a
@@ -50,7 +52,10 @@ export function SyncStepNote({
     <a
       href={SETTINGS_HASH}
       title={failed ? "Last sync failed" : undefined}
-      className="-mx-1.5 -my-0.5 flex animate-fade-in items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-normal text-muted-foreground hover:bg-muted dark:hover:bg-muted/50"
+      className={cn(
+        GHOST_PILL_CLASS,
+        "animate-fade-in gap-1.5 text-xs font-normal text-muted-foreground hover:text-foreground",
+      )}
     >
       <span className={stepMarkClasses[status]}>
         <StepMark status={status} />

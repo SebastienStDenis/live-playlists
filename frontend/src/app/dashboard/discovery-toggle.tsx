@@ -4,7 +4,7 @@ import { useTransition } from "react";
 
 import { toast } from "sonner";
 
-import { setIncludeKnownArtists } from "./actions";
+import { setIncludeKnownArtists } from "@/lib/actions";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 

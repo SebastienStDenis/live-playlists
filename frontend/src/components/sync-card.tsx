@@ -6,9 +6,9 @@ import { useEffect, useState, useTransition } from "react";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-import { Collapse } from "../collapse";
-import { startSync } from "./actions";
-import { syncDateFormat } from "./formats";
+import { Collapse } from "./collapse";
+import { startSync } from "@/lib/actions";
+import { syncDateFormat } from "@/lib/formats";
 import { useReportSyncActivity } from "./sync-activity";
 import {
   CurrentStep,
@@ -25,7 +25,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
+import { GHOST_PILL_CLASS } from "./ghost-pill";
 import type { SyncStatus } from "@/lib/api-types";
+import { cn } from "@/lib/utils";
 
 // How long a run may be in flight before the card reassures the user that
 // closing the page doesn't stop it.
@@ -33,6 +35,26 @@ const LONG_RUN_NOTICE_MS = 90_000;
 // Consecutive failed status polls before the card admits progress is
 // unreachable instead of claiming the sync is still running.
 const DEGRADED_POLL_FAILURES = 10;
+
+// The poll's variant of fetchStatus (sync-steps.tsx): it surfaces the
+// response's raw JSON text so ticks can recognize an unchanged payload by
+// text alone, without deep-comparing parsed objects.
+async function fetchRawStatus(): Promise<{
+  raw: string;
+  status: SyncStatus;
+} | null> {
+  try {
+    const res = await fetch(`/api/me/sync`);
+    if (!res.ok) {
+      return null;
+    }
+    const raw = await res.text();
+    const status: SyncStatus | null = JSON.parse(raw);
+    return status === null ? null : { raw, status };
+  } catch {
+    return null;
+  }
+}
 
 export function SyncCard({
   lastfmLinked,
@@ -91,6 +113,9 @@ export function SyncCard({
     let cancelled = false;
     let inFlight = false;
     let failures = 0;
+    // Raw text of the last committed payload; scoped to this polling session
+    // so the first tick of a run always commits over the optimistic seed.
+    let lastRaw: string | null = null;
     const pollingSince = Date.now();
     async function tick() {
       // The status call can be slow under load; never let ticks stack up.
@@ -98,25 +123,37 @@ export function SyncCard({
         return;
       }
       inFlight = true;
-      const next = await fetchStatus();
+      const fetched = await fetchRawStatus();
       inFlight = false;
       if (cancelled) {
         return;
       }
-      if (next === null) {
+      if (fetched === null) {
         // Progress is unreachable; only say so once it's clearly not a blip,
         // and never claim the sync is running when nothing confirms it.
         failures += 1;
         if (failures >= DEGRADED_POLL_FAILURES) {
-          setNotice({ active: "degraded", last: "degraded" });
+          setNotice((prev) =>
+            prev.active === "degraded" && prev.last === "degraded"
+              ? prev
+              : { active: "degraded", last: "degraded" },
+          );
         }
         return;
       }
       failures = 0;
-      setStatus(next);
+      const next = fetched.status;
+      // An unchanged payload commits nothing: parsing yields a fresh object
+      // every tick, which would re-render the card for no change.
+      if (fetched.raw !== lastRaw) {
+        lastRaw = fetched.raw;
+        setStatus(next);
+      }
       if (next.status !== "running") {
         setPolling(false);
-        setNotice((prev) => ({ ...prev, active: null }));
+        setNotice((prev) =>
+          prev.active === null ? prev : { ...prev, active: null },
+        );
         // Let the last step's final state show before collapsing to the
         // last-synced line.
         setSettling(true);
@@ -129,13 +166,31 @@ export function SyncCard({
         : pollingSince;
       const active =
         Date.now() - runningSince >= LONG_RUN_NOTICE_MS ? "long-run" : null;
-      setNotice((prev) => ({ active, last: active ?? prev.last }));
+      setNotice((prev) =>
+        prev.active === active && prev.last === (active ?? prev.last)
+          ? prev
+          : { active, last: active ?? prev.last },
+      );
     }
     tick();
-    const timer = setInterval(tick, POLL_INTERVAL_MS);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    if (!document.hidden) {
+      timer = setInterval(tick, POLL_INTERVAL_MS);
+    }
+    // A hidden tab shows no progress, so the interval pauses with it; coming
+    // back fetches immediately to catch up before the cadence resumes.
+    const onVisibilityChange = () => {
+      clearInterval(timer);
+      if (!document.hidden) {
+        tick();
+        timer = setInterval(tick, POLL_INTERVAL_MS);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [polling]);
 
@@ -273,11 +328,13 @@ export function SyncCard({
             <div className="min-w-0 flex-1">
               {status && finalOutcome !== "none" && (
                 <CollapsibleTrigger
-                  className={`group -mx-1.5 -my-0.5 flex animate-slide-in-up cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-sm hover:bg-muted dark:hover:bg-muted/50 ${
+                  className={cn(
+                    GHOST_PILL_CLASS,
+                    "group animate-slide-in-up cursor-pointer gap-1.5 text-left text-sm",
                     finalOutcome === "failed"
                       ? "text-foreground"
-                      : "text-muted-foreground"
-                  }`}
+                      : "text-muted-foreground",
+                  )}
                 >
                   <span
                     className={
@@ -322,9 +379,10 @@ export function SyncCard({
       {showSteps && (
         <Collapse show={notice.active !== null}>
           <p
-            className={`pt-1 text-xs text-muted-foreground transition-opacity duration-250 motion-reduce:transition-none ${
-              notice.active ? "opacity-100" : "opacity-0"
-            }`}
+            className={cn(
+              "pt-1 text-xs text-muted-foreground transition-opacity duration-250 motion-reduce:transition-none",
+              notice.active ? "opacity-100" : "opacity-0",
+            )}
           >
             {notice.last === "degraded"
               ? "Can't check sync progress right now. Retrying."

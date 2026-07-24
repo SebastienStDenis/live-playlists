@@ -1,5 +1,5 @@
-import { AuthCard } from "../../auth-card";
-import { InlineNav } from "../../inline-nav";
+import { AuthCard } from "@/components/auth-card";
+import { InlineNav } from "@/components/inline-nav";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
 export default function ForgotPasswordPage() {

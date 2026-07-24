@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { Haze } from "./haze";
+import { Haze } from "@/components/haze";
 import { IntroText } from "./intro-text";
-import { QueryNotice } from "./query-notice";
+import { QueryNotice } from "@/components/query-notice";
 
 // Deleting an account signs the user out and lands them here, which is exactly
 // where signing out lands them too; the toast is what tells the two apart.

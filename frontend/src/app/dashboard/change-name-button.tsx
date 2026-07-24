@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { changeName } from "./actions";
+import { changeName } from "@/lib/actions";
 import { SettingsEditDialog } from "./settings-edit-dialog";
 import { useDialogAction } from "./use-dialog-action";
-import { SubmitRow } from "../form-submit-row";
+import { SubmitRow } from "@/components/form-submit-row";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 

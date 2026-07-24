@@ -1,7 +1,7 @@
-import { CityPanel } from "../dashboard/city-panel";
-import { LastfmPanel } from "../dashboard/lastfm-panel";
-import { Section } from "../dashboard/section";
-import { SyncCard } from "../dashboard/sync-card";
+import { CityPanel } from "@/components/city-panel";
+import { LastfmPanel } from "@/components/lastfm-panel";
+import { Section } from "@/components/section";
+import { SyncCard } from "@/components/sync-card";
 import { IntroText } from "../intro-text";
 import { DailySyncSection } from "./daily-sync-section";
 import { WelcomeFlow } from "./welcome-flow";
@@ -9,12 +9,17 @@ import type { City, LastfmAccount } from "@/lib/api-types";
 import { fetchOptional, loadMe } from "@/lib/user-api";
 
 export default async function WelcomePage() {
-  const user = await loadMe();
-
-  const [lastfm, city] = await Promise.all([
+  const userPromise = loadMe();
+  const dataPromise = Promise.all([
     fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
     fetchOptional<City>("/me/city", "city"),
   ]);
+  // The user await comes first so a gone user (notFound/redirect) beats any
+  // fetch failure; the noop catch keeps the fan-out's rejection from going
+  // unhandled when loadMe throws - awaiting it below still surfaces it.
+  dataPromise.catch(() => {});
+  const user = await userPromise;
+  const [lastfm, city] = await dataPromise;
 
   // One pulsing dot marks the next step; completed steps get a check. The
   // sync step keeps its dot until the first sync lands - through a run in

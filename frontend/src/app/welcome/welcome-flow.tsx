@@ -8,7 +8,7 @@ import { ArrowRight } from "lucide-react";
 import {
   SyncActivityProvider,
   SyncSettledProvider,
-} from "../dashboard/sync-activity";
+} from "@/components/sync-activity";
 import { cueSavePlaylistTip } from "../dashboard/save-playlist-tip";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
