@@ -2,10 +2,6 @@
 
 *Written 2026-07-15 by Claude (Opus 4.8), updated 2026-07-16.*
 
-How you find out something broke, and what to do about it. Introduced by the
-Sentry wiring in `backend/app/core/observability.py`; keep this doc current as the
-alerting changes.
-
 The one-shot infrastructure setup lives in
 `docs/design/2026-07-08-phase-1-deploy-runbook.md` (written against the older
 `live-playlists-*` service names). This doc is the ongoing side.
