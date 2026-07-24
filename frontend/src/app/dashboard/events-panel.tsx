@@ -25,7 +25,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
-import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 import {
   ArtistDetails,
   KnownInterestBadges,
@@ -111,22 +110,18 @@ function byName(a: UserEvent, b: UserEvent): number {
   return eventName(a).localeCompare(eventName(b));
 }
 
-// Best match puts concerts featuring an artist you already listen to first,
-// then ranks by the summed suggestion score of every artist on the bill.
-// Known is judged by known-kind interests rather than the relation map: an
-// artist can be both known and suggested, and the map keeps only one side.
-// The sum counts only artists currently surfaced as suggestions: a hidden
-// artist's lingering suggestion interest shouldn't lift its concerts.
+// Best match leads with concerts featuring an artist rendered as
+// you-listen-to, then ranks by the summed score of every artist rendered
+// as a suggestion. Each artist counts by the signal its chip displays (the
+// relation map): an artist with both listening history and a suggestion
+// reads as a suggestion, so it adds its score rather than lifting the
+// concert into the you-listen-to block.
 function makeComparators(
   relations: Record<string, ArtistRelation>,
   artistsById: Record<string, UserArtist>,
 ): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
   const hasKnown = (userEvent: UserEvent) =>
-    userEvent.artists.some((artist) =>
-      artistsById[artist.id]?.interests.some((interest) =>
-        KNOWN_ARTIST_KINDS.has(interest.kind),
-      ),
-    );
+    userEvent.artists.some((artist) => relations[artist.id] === "known");
   const scoreSum = (userEvent: UserEvent) =>
     userEvent.artists.reduce(
       (total, artist) =>
@@ -238,11 +233,7 @@ function ArtistChip({
         {/* gap-1 and the tags' pt-2 mirror the Artists-tab card body, so the
             popover reads as the same card in miniature. */}
         <div className="flex flex-col gap-1">
-          <ArtistDetails
-            userArtist={details}
-            showKnownInterests={suggested}
-            tagsClassName="pt-2"
-          />
+          <ArtistDetails userArtist={details} tagsClassName="pt-2" />
         </div>
       </PopoverContent>
     </Popover>
