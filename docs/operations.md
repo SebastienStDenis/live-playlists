@@ -73,7 +73,7 @@ and 1 day on Pro, which is why Sentry is the better place to look.
 
 ## Gotchas
 
-Four things that look like broken wiring and are not.
+Five things that look like broken wiring and are not.
 
 - **"Dropped N joint-credit suggestion candidates" warnings are the filter
   working, not a failure.** Suggestion syncs drop Last.fm's auto-created
@@ -93,6 +93,18 @@ Four things that look like broken wiring and are not.
   a joint-credit page a user actually scrobbles is often the sole carrier of
   that taste signal, and as a suggestion seed its similar-artist edges rank
   the real constituent artists at the top.
+
+- **Spotify artist-resolution warnings are the resolver abstaining, not a
+  failure.** Playlist syncs warn when an artist only resolves fuzzily ("No
+  exact Spotify match for ...") and when Spotify search returns nothing
+  ("Spotify search found no artist for ..."). Both mean a matched concert
+  whose artist contributes no tracks (`backend/app/sync/playlist_sync.py`,
+  `_resolve_artist`). A fuzzy row is kept and sticky, so that warning fires
+  once per artist ever; a no-result artist gets no row, so its search retries
+  and re-warns on every sync of every user it matches for. Reviewing the
+  logged name is the action: a wrong fuzzy claim needs its `spotify_artists`
+  row replaced by hand (purge the artist's `artist_top_tracks` with it - see
+  docs/design/2026-07-06-playlist-plan.md).
 
 - **`onRequestError` never fires under `next dev`.** Frontend server errors only
   report from a production build. Testing with `npm run dev` will show nothing

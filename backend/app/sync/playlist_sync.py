@@ -207,9 +207,7 @@ async def sync_user_playlists(
 
     resolved = await _resolve_spotify_artists(session, spotify, musicbrainz, matched_ids)
     refreshed = await _refresh_top_tracks(session, spotify, lastfm, resolved)
-    # Bank the resolution and top-track work: it is global cache data, valid
-    # on its own, and a cold run can represent many minutes of throttled API
-    # calls that a later failure must not roll back.
+    # Bank the resolution and top-track work: it is global cache data, valid on its own
     await session.commit()
 
     for playlist, city, matches in to_sync:
@@ -339,10 +337,17 @@ async def _resolve_artist(
     if resolved is None:
         results = await spotify.search_artists(lookup_name)
         if not results:
+            logger.warning("Spotify search found no artist for %s", lookup_name)
             return None
         exact = next(
             (item for item in results if name_key(item.name) == name_key(lookup_name)), None
         )
+        if exact is None:
+            logger.warning(
+                "No exact Spotify match for artist %s; fuzzy match %s will not contribute tracks",
+                lookup_name,
+                results[0].name,
+            )
         resolved = (exact, MATCH_EXACT) if exact else (results[0], MATCH_FUZZY)
 
     data, confidence = resolved
@@ -488,8 +493,7 @@ def desired_tracks(
     matches: list[ArtistMatch],
     top_tracks: dict[uuid.UUID, list[ArtistTopTrack]],
 ) -> list[DesiredTrack]:
-    """Soonest concert first, then track rank; URIs deduped (first artist wins);
-    capped so the tracklist always fits one 100-URI replace request."""
+    """Soonest concert first, URIs deduped (first artist wins), capped to PLAYLIST_MAX_TRACKS."""
     desired: list[DesiredTrack] = []
     seen: set[str] = set()
     for match in matches:
@@ -542,9 +546,7 @@ async def _sync_playlist(
             .returning(Playlist.id)
         )
         claimed = result.scalar_one_or_none() is not None
-        # Commit the remote id immediately: losing it to a later failure would
-        # make the next sync create a second playlist, orphaning this one on
-        # the bot account.
+        # Commit the remote id immediately so we don't lose it.
         await session.commit()
         if claimed:
             spotify_playlist_id = data.id
@@ -576,13 +578,7 @@ async def _sync_playlist(
     )
     current_rows = list(result.scalars())
 
-    # One full replace per changed tracklist: atomic, and surviving tracks
-    # keep their added_at (verified, cli.spotify_verify), so "Date added"
-    # still reads as "newly announced concerts first". An unchanged tracklist
-    # skips the write: the stored rows mirror the last committed replace, so
-    # equality means the remote matches too, short of out-of-band divergence
-    # (bot-account edits, a replace whose commit rolled back) that the next
-    # real tracklist change overwrites.
+    # One full replace per changed tracklist: atomic, and surviving tracks keep their added_at
     current_track_ids = [row.spotify_track_id for row in current_rows]
     desired_track_ids = [track.spotify_track_id for track in desired]
     if current_track_ids != desired_track_ids:
@@ -591,8 +587,6 @@ async def _sync_playlist(
         )
         playlist.snapshot_id = snapshot or playlist.snapshot_id
 
-    current_ids = set(current_track_ids)
-    desired_ids = set(desired_track_ids)
     current_state = [(row.spotify_track_id, row.artist_id, row.event_id) for row in current_rows]
     desired_state = [(track.spotify_track_id, track.artist_id, track.event_id) for track in desired]
     if current_state != desired_state:
@@ -609,6 +603,8 @@ async def _sync_playlist(
             )
     playlist.last_synced_at = now
 
+    current_ids = set(current_track_ids)
+    desired_ids = set(desired_track_ids)
     return PlaylistSyncItem(
         playlist_id=playlist.id,
         name=playlist.name,
