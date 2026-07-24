@@ -24,11 +24,7 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
 
 
 async def _probe_listening_data(lastfm: LastfmClient, username: str) -> None:
-    """Raise LastfmPrivateDataError if the account hides its listening data.
-
-    user.getinfo succeeds even for private accounts; the sync's user-scoped
-    reads are what fail, so exercise both before accepting the account.
-    """
+    """Raise LastfmPrivateDataError if the account hides its listening data."""
     await lastfm.get_top_artists(username, limit=1)
     await lastfm.get_loved_tracks(username, limit=1)
 
@@ -51,6 +47,7 @@ async def link_lastfm_account(
 ) -> LastfmAccount:
     """Link the user to a Last.fm account by username, replacing any existing link."""
     info = await lastfm.get_user_info(payload.username)
+    # Verify user's listening data is readable
     await _probe_listening_data(lastfm, info.username)
 
     result = await session.execute(
@@ -88,6 +85,7 @@ async def refresh_lastfm_account(
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
     info = await lastfm.get_user_info(account.username)
+    # Verify user's listening data is readable
     await _probe_listening_data(lastfm, account.username)
     _apply_user_info(account, info, datetime.now(UTC))
     await session.commit()

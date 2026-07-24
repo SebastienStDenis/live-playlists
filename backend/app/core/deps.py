@@ -7,9 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from temporalio.client import Client as TemporalClient
 from temporalio.service import RPCError
 
-from app.clients.bandsintown import BandsintownClient
 from app.clients.lastfm import LastfmClient
-from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.spotify import SpotifyClient
 from app.clients.supabase_admin import SupabaseAdminClient
 from app.core.config import get_settings
@@ -39,24 +37,6 @@ async def get_lastfm_client() -> AsyncIterator[LastfmClient]:
 LastfmClientDep = Annotated[LastfmClient, Depends(get_lastfm_client)]
 
 
-async def get_bandsintown_client() -> AsyncIterator[BandsintownClient]:
-    app_id = get_settings().bandsintown_api_key
-    if not app_id:
-        logger.error("BANDSINTOWN_API_KEY is not configured")
-        raise HTTPException(
-            status_code=503,
-            detail="This service is temporarily unavailable. Please try again later.",
-        )
-    client = BandsintownClient(app_id)
-    try:
-        yield client
-    finally:
-        await client.aclose()
-
-
-BandsintownClientDep = Annotated[BandsintownClient, Depends(get_bandsintown_client)]
-
-
 SPOTIFY_SETTINGS = ("spotify_client_id", "spotify_client_secret", "spotify_refresh_token")
 
 
@@ -80,32 +60,6 @@ async def get_optional_spotify_client() -> AsyncIterator[SpotifyClient | None]:
 
 
 OptionalSpotifyClientDep = Annotated[SpotifyClient | None, Depends(get_optional_spotify_client)]
-
-
-async def get_spotify_client(spotify: OptionalSpotifyClientDep) -> SpotifyClient:
-    if spotify is None:
-        settings = get_settings()
-        missing = [key.upper() for key in SPOTIFY_SETTINGS if not getattr(settings, key)]
-        logger.error("Spotify is not configured: %s", ", ".join(missing))
-        raise HTTPException(
-            status_code=503,
-            detail="This service is temporarily unavailable. Please try again later.",
-        )
-    return spotify
-
-
-SpotifyClientDep = Annotated[SpotifyClient, Depends(get_spotify_client)]
-
-
-async def get_musicbrainz_client() -> AsyncIterator[MusicBrainzClient]:
-    client = MusicBrainzClient()
-    try:
-        yield client
-    finally:
-        await client.aclose()
-
-
-MusicBrainzClientDep = Annotated[MusicBrainzClient, Depends(get_musicbrainz_client)]
 
 
 async def get_supabase_admin() -> AsyncIterator[SupabaseAdminClient | None]:

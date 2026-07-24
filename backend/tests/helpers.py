@@ -3,18 +3,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 from httpx import ASGITransport, AsyncClient, Response
 
-from app.clients.bandsintown import BandsintownClient
 from app.clients.lastfm import LastfmClient
-from app.clients.musicbrainz import MusicBrainzClient
 from app.clients.spotify import SpotifyClient
 from app.core.auth import Claims, get_claims, get_current_user
 from app.core.db import get_session
 from app.core.deps import (
-    get_bandsintown_client,
     get_lastfm_client,
-    get_musicbrainz_client,
     get_optional_spotify_client,
-    get_spotify_client,
     get_supabase_admin,
     get_temporal_client,
 )
@@ -64,9 +59,7 @@ async def request(
     url: str,
     session: AsyncMock,
     lastfm: LastfmClient | None = None,
-    bandsintown: BandsintownClient | None = None,
     spotify: SpotifyClient | None = None,
-    musicbrainz: MusicBrainzClient | None = None,
     temporal: object | None = None,
     user: User | None = None,
     claims: Claims | None = None,
@@ -85,12 +78,6 @@ async def request(
         app.dependency_overrides[get_supabase_admin] = lambda: supabase_admin
     if lastfm is not None:
         app.dependency_overrides[get_lastfm_client] = lambda: lastfm
-    if bandsintown is not None:
-        app.dependency_overrides[get_bandsintown_client] = lambda: bandsintown
-    if spotify is not None:
-        app.dependency_overrides[get_spotify_client] = lambda: spotify
-    if musicbrainz is not None:
-        app.dependency_overrides[get_musicbrainz_client] = lambda: musicbrainz
     if temporal is not None:
         app.dependency_overrides[get_temporal_client] = lambda: temporal
     try:

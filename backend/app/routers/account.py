@@ -40,14 +40,8 @@ async def delete_me(
     admin: SupabaseAdminDep,
     spotify: OptionalSpotifyClientDep,
 ) -> None:
-    """Delete the account: the Supabase auth user first (so a re-login can't
-    re-provision it mid-delete), then the app row and everything cascading. The
-    admin client - and thus SUPABASE_SECRET_KEY - is only required when the
-    account is actually linked to a Supabase auth user.
-
-    The cascade removes the user's playlists; the playlists trigger tombstones
-    their Spotify ids, unfollowed best-effort below (the nightly drainer
-    retries anything that fails here)."""
+    """Delete the account: the Supabase auth user first, then the app row and
+    everything cascading (including deleted playlist tombstone)."""
     if user.supabase_user_id is not None:
         if admin is None:
             logger.error("SUPABASE_SECRET_KEY is not configured")
@@ -64,8 +58,7 @@ async def delete_me(
     remote_ids = [remote_id for remote_id in result.scalars() if remote_id is not None]
     await session.delete(user)
     await session.commit()
-    # Past the commit the account is gone and 204 is the only truthful answer;
-    # this cleanup is best-effort and the nightly drainer retries the rest.
+    # Best-effort playlist cleanup; nightly drainer is the backup so don't throw on failure.
     if spotify is not None:
         try:
             settled = False
@@ -95,8 +88,6 @@ async def search_cities(
         func.word_similarity(q, City.name),
         func.word_similarity(q, City.ascii_name),
     )
-    # The %> operator (unlike a word_similarity() comparison) is served by the
-    # trigram GIN indexes; its threshold is the transaction-local GUC.
     await session.execute(
         select(
             func.set_config("pg_trgm.word_similarity_threshold", str(CITY_FUZZY_THRESHOLD), True)

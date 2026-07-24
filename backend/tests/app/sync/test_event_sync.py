@@ -9,6 +9,7 @@ from app.clients.bandsintown import (
     BandsintownEventData,
 )
 from app.core.models import Artist, BandsintownArtist, BandsintownEvent, City, Event, User
+from app.sync.event_sync import sync_user_events
 from tests.helpers import (
     added_objects,
     make_session,
@@ -19,7 +20,6 @@ from tests.helpers import (
 )
 
 USER_ID = uuid.uuid7()
-SYNC_URL = "/me/events/sync"
 EVENTS_URL = "/me/events"
 
 
@@ -78,18 +78,16 @@ async def test_sync_creates_events_for_new_artist() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101"), event_data("102")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["artists_total"] == 1
-    assert body["artists_synced"] == 1
-    assert body["artists_skipped"] == 0
-    assert body["artists_unknown"] == 0
-    assert body["artists_failed"] == 0
-    assert body["events_created"] == 2
-    assert body["events_updated"] == 0
-    assert body["events_removed"] == 0
+    assert result.artists_total == 1
+    assert result.artists_synced == 1
+    assert result.artists_skipped == 0
+    assert result.artists_unknown == 0
+    assert result.artists_failed == 0
+    assert result.events_created == 2
+    assert result.events_updated == 0
+    assert result.events_removed == 0
     bandsintown.get_artist_events.assert_awaited_once_with("Metallica")
 
     events = added_objects(session, Event)
@@ -97,7 +95,6 @@ async def test_sync_creates_events_for_new_artist() -> None:
     assert events[0].venue_name == "Sphere"
     assert identity.external_id == "128"
     assert identity.last_synced_at is not None
-    session.commit.assert_awaited_once()
 
 
 async def test_sync_skips_recently_synced_artists() -> None:
@@ -112,12 +109,10 @@ async def test_sync_skips_recently_synced_artists() -> None:
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["artists_skipped"] == 1
-    assert body["artists_synced"] == 0
+    assert result.artists_skipped == 1
+    assert result.artists_synced == 0
     bandsintown.get_artist_events.assert_not_awaited()
 
 
@@ -143,13 +138,11 @@ async def test_sync_updates_existing_and_removes_vanished_events() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["events_created"] == 0
-    assert body["events_updated"] == 1
-    assert body["events_removed"] == 1
+    assert result.events_created == 0
+    assert result.events_updated == 1
+    assert result.events_removed == 1
     assert event.venue_name == "Sphere"
     assert event.starts_at == datetime(2026, 10, 1, 20, 30, tzinfo=UTC)
     assert source.url == "https://www.bandsintown.com/e/101"
@@ -173,10 +166,9 @@ async def test_sync_dedupes_repeated_external_ids_in_one_feed() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101"), event_data("101")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    assert response.json()["events_created"] == 1
+    assert result.events_created == 1
     assert len(added_objects(session, Event)) == 1
 
 
@@ -198,12 +190,10 @@ async def test_sync_adopts_event_created_by_concurrent_sync() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["events_created"] == 0
-    assert body["events_updated"] == 1
+    assert result.events_created == 0
+    assert result.events_updated == 1
     duplicate = added_objects(session, Event)[0]
     session.delete.assert_awaited_once_with(duplicate)
 
@@ -221,13 +211,11 @@ async def test_sync_treats_unknown_artist_as_no_events() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.side_effect = BandsintownArtistNotFoundError("nope")
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["artists_unknown"] == 1
-    assert body["artists_synced"] == 0
-    assert body["events_removed"] == 0
+    assert result.artists_unknown == 1
+    assert result.artists_synced == 0
+    assert result.events_removed == 0
     assert identity.last_synced_at is not None
     # Not-found never triggers vanish-deletion, so no further queries run.
     assert session.execute.await_count == 4
@@ -243,26 +231,13 @@ async def test_sync_counts_api_errors_and_leaves_artist_retryable() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.side_effect = BandsintownApiError(200, "{warn=Not found}")
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
+    result = await sync_user_events(session, bandsintown, USER_ID)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["artists_failed"] == 1
-    assert body["artists_synced"] == 0
-    assert body["events_removed"] == 0
+    assert result.artists_failed == 1
+    assert result.artists_synced == 0
+    assert result.events_removed == 0
     # No identity row is written, so the artist is retried on the next sync.
     assert session.execute.await_count == 2
-    session.commit.assert_awaited_once()
-
-
-async def test_sync_requires_authentication() -> None:
-    session = make_session()
-
-    response = await request(
-        "POST", SYNC_URL, session, bandsintown=AsyncMock(spec=BandsintownClient)
-    )
-
-    assert response.status_code == 401
 
 
 def make_matched_event(starts_at: datetime) -> Event:

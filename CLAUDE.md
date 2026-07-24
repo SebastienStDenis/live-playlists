@@ -70,7 +70,7 @@ Entrypoints (top of `app/`):
 - `main.py` - FastAPI app assembly: CORS, the per-upstream exception handlers, `/health`, and the `include_router` calls; endpoints live in `routers/`.
 - `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service; reconciles the `nightly-sync` schedule at startup (created when `NIGHTLY_SYNC_ENABLED` is true, deleted otherwise).
 
-`routers/` - the API endpoints, one `APIRouter` per domain: `account.py` (user profile/deletion, city search and home city), `lastfm.py` (account link/refresh/unlink), `artists.py` (interests, exclusions, suggestions, the artist-sync endpoint), `events.py`, `playlists.py`, `sync.py` (the Temporal-backed full-sync start/status). Inject sessions with `SessionDep` and external clients with the `*ClientDep` aliases, all from `core/deps.py`.
+`routers/` - the API endpoints, one `APIRouter` per domain: `account.py` (user profile/deletion, city search and home city), `lastfm.py` (account link/refresh/unlink), `artists.py` (interests, exclusions), `events.py`, `playlists.py`, `sync.py` (the Temporal-backed full-sync start/status; syncing happens only through the workflow, never inline in a request). Inject sessions with `SessionDep` and external clients with the `*ClientDep` aliases, all from `core/deps.py`.
 
 `core/` - foundation shared by everything:
 

@@ -5,25 +5,12 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from app.core.auth import CurrentUserDep
-from app.core.deps import BandsintownClientDep, SessionDep
+from app.core.deps import SessionDep
 from app.core.models import Artist, BandsintownEvent, City, Event, EventArtist
-from app.core.schemas import ArtistRead, EventRead, EventSyncResult, UserEventRead
-from app.sync.event_sync import sync_user_events
+from app.core.schemas import ArtistRead, EventRead, UserEventRead
 from app.sync.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km
 
 router = APIRouter()
-
-
-@router.post("/me/events/sync", response_model=EventSyncResult)
-async def sync_events_for_user(
-    user: CurrentUserDep,
-    session: SessionDep,
-    bandsintown: BandsintownClientDep,
-) -> EventSyncResult:
-    """Refresh upcoming events for the user's interest artists (freshness-gated per artist)."""
-    result = await sync_user_events(session, bandsintown, user.id)
-    await session.commit()
-    return result
 
 
 @router.get("/me/events", response_model=list[UserEventRead])

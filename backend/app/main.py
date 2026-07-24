@@ -5,10 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.clients.bandsintown import BandsintownApiError
 from app.clients.lastfm import LastfmApiError, LastfmPrivateDataError, LastfmUserNotFoundError
-from app.clients.musicbrainz import MusicBrainzApiError
-from app.clients.spotify import SpotifyApiError, SpotifyAuthError
 from app.clients.supabase_admin import SupabaseAdminError
 from app.core.config import get_settings
 from app.core.deps import SessionDep
@@ -39,56 +36,12 @@ async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> 
     return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
-# These upstreams can fail with raw driver/HTTP text; the user sees a safe,
-# actionable line while the real message stays in the logs.
 @app.exception_handler(LastfmApiError)
 async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONResponse:
     logger.warning("Last.fm API error", exc_info=exc)
     return JSONResponse(
         status_code=502,
         content={"detail": "Last.fm isn't responding right now. Please try again in a moment."},
-    )
-
-
-@app.exception_handler(BandsintownApiError)
-async def bandsintown_api_error(request: Request, exc: BandsintownApiError) -> JSONResponse:
-    logger.warning("Bandsintown API error", exc_info=exc)
-    return JSONResponse(
-        status_code=502,
-        content={
-            "detail": "We couldn't reach Bandsintown right now. Please try again in a moment."
-        },
-    )
-
-
-@app.exception_handler(SpotifyAuthError)
-async def spotify_auth_error(request: Request, exc: SpotifyAuthError) -> JSONResponse:
-    logger.warning("Spotify authorization error", exc_info=exc)
-    return JSONResponse(
-        status_code=503,
-        content={"detail": "Spotify is temporarily unavailable. Please try again later."},
-    )
-
-
-@app.exception_handler(SpotifyApiError)
-async def spotify_api_error(request: Request, exc: SpotifyApiError) -> JSONResponse:
-    logger.warning("Spotify API error", exc_info=exc)
-    return JSONResponse(
-        status_code=502,
-        content={"detail": "We couldn't reach Spotify right now. Please try again in a moment."},
-    )
-
-
-@app.exception_handler(MusicBrainzApiError)
-async def musicbrainz_api_error(request: Request, exc: MusicBrainzApiError) -> JSONResponse:
-    logger.warning("MusicBrainz API error", exc_info=exc)
-    return JSONResponse(
-        status_code=502,
-        content={
-            "detail": (
-                "A music data service isn't responding right now. Please try again in a moment."
-            )
-        },
     )
 
 

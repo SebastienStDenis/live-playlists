@@ -7,13 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import CurrentUserDep
-from app.core.deps import (
-    LastfmClientDep,
-    MusicBrainzClientDep,
-    OptionalSpotifyClientDep,
-    SessionDep,
-    SpotifyClientDep,
-)
+from app.core.deps import OptionalSpotifyClientDep, SessionDep
 from app.core.models import (
     Artist,
     ArtistTopTrack,
@@ -29,7 +23,6 @@ from app.core.schemas import (
     EventRead,
     PlaylistCreate,
     PlaylistRead,
-    PlaylistSyncResult,
     PlaylistTrackRead,
 )
 from app.sync.playlist_sync import (
@@ -37,7 +30,6 @@ from app.sync.playlist_sync import (
     PINNED_PLAYLIST_CAP,
     playlist_title,
     settle_tombstone,
-    sync_user_playlists,
 )
 
 logger = logging.getLogger(__name__)
@@ -154,21 +146,6 @@ async def create_pinned_playlist(
     )
 
 
-@router.post("/me/playlists/sync", response_model=PlaylistSyncResult)
-async def sync_playlists_for_user(
-    user: CurrentUserDep,
-    session: SessionDep,
-    spotify: SpotifyClientDep,
-    lastfm: LastfmClientDep,
-    musicbrainz: MusicBrainzClientDep,
-) -> PlaylistSyncResult:
-    """Reconcile all of the user's playlists on Spotify against their current
-    matched concerts, refreshing artist resolutions and top-track caches as needed."""
-    result = await sync_user_playlists(session, spotify, lastfm, musicbrainz, user)
-    await session.commit()
-    return result
-
-
 @router.delete("/me/playlists/{playlist_id}", status_code=204)
 async def delete_playlist(
     user: CurrentUserDep,
@@ -177,15 +154,11 @@ async def delete_playlist(
     spotify: OptionalSpotifyClientDep,
 ) -> None:
     """Drop the playlist locally (the playlists trigger tombstones its Spotify
-    id in the same transaction), then unfollow on Spotify best-effort: the
-    deletion is done either way, and the nightly drainer retries any unfollow
-    that fails here."""
+    id in the same transaction), then delete from Spotify best-effort."""
     playlist = await _require_playlist(session, user.id, playlist_id)
     remote_id = playlist.spotify_playlist_id
     await session.delete(playlist)
     await session.commit()
-    # Past the commit the playlist is gone and 204 is the only truthful
-    # answer; this cleanup is best-effort and the nightly drainer retries.
     if remote_id is not None and spotify is not None:
         try:
             if await settle_tombstone(session, spotify, remote_id):

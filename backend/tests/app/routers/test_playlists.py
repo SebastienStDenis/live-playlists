@@ -1,22 +1,16 @@
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
-import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.clients.lastfm import LastfmClient
-from app.clients.musicbrainz import MusicBrainzClient
-from app.clients.spotify import SpotifyApiError, SpotifyClient, SpotifyPlaylistData
-from app.core.config import Settings
+from app.clients.spotify import SpotifyApiError, SpotifyClient
 from app.core.models import (
     Artist,
-    ArtistTopTrack,
     City,
     Event,
     Playlist,
     PlaylistTrack,
-    SpotifyArtist,
     User,
 )
 from app.sync.playlist_sync import PINNED_PLAYLIST_CAP
@@ -24,7 +18,6 @@ from tests.helpers import (
     added_objects,
     make_session,
     request,
-    result_returning,
     result_with_rows,
     result_with_scalars,
 )
@@ -32,7 +25,6 @@ from tests.helpers import (
 USER_ID = uuid.uuid7()
 PLAYLIST_ID = uuid.uuid7()
 PLAYLISTS_URL = "/me/playlists"
-SYNC_URL = f"{PLAYLISTS_URL}/sync"
 
 
 def make_user() -> User:
@@ -362,88 +354,3 @@ async def test_delete_playlist_of_another_user() -> None:
     assert response.json()["detail"] == "Playlist not found"
     spotify.unfollow_playlist.assert_not_awaited()
     session.delete.assert_not_awaited()
-
-
-async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
-    city = make_city()
-    artist_id = uuid.uuid7()
-    event_id = uuid.uuid7()
-    resolved = SpotifyArtist(
-        id=uuid.uuid7(),
-        artist_id=artist_id,
-        spotify_id="sp1",
-        name="Autechre",
-        match_confidence="exact",
-        top_tracks_synced_at=datetime.now(UTC),
-    )
-    cached = ArtistTopTrack(artist_id=artist_id, rank=1, title="Gantz Graf", spotify_track_id="t1")
-    default = make_playlist(
-        city_id=None, name="Alice's concerts in Montréal", spotify_playlist_id=None
-    )
-    session = make_session()
-    session.get.side_effect = [city, city]
-    session.execute.side_effect = [
-        result_with_scalars([]),
-        MagicMock(),
-        result_returning(default),
-        result_with_rows([(artist_id, event_id, datetime(2026, 8, 1, 20, 0, tzinfo=UTC))]),
-        result_with_scalars([resolved]),
-        result_with_scalars([cached]),
-        result_returning(default.id),  # the claim on the freshly created remote id
-        result_with_scalars([]),
-        MagicMock(),
-    ]
-    spotify = AsyncMock(spec=SpotifyClient)
-    spotify.create_playlist.return_value = SpotifyPlaylistData(
-        id="pl1", url="http://x", snapshot_id="s1"
-    )
-    spotify.replace_playlist_items.return_value = "s2"
-
-    response = await request(
-        "POST",
-        SYNC_URL,
-        session,
-        lastfm=AsyncMock(spec=LastfmClient),
-        spotify=spotify,
-        musicbrainz=AsyncMock(spec=MusicBrainzClient),
-        user=make_user(),
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["artists_matched"] == 1
-    assert body["artists_resolved"] == 1
-    assert body["artists_unresolved"] == 0
-    assert body["top_tracks_refreshed"] == 0
-    assert len(body["playlists"]) == 1
-    item = body["playlists"][0]
-    assert item["status"] == "synced"
-    assert item["created_remotely"] is True
-    assert item["tracks_added"] == 1
-    assert item["tracks_total"] == 1
-    spotify.create_playlist.assert_awaited_once()
-    spotify.replace_playlist_items.assert_awaited_once_with("pl1", ["spotify:track:t1"])
-    assert default.snapshot_id == "s2"
-    tracks = added_objects(session, PlaylistTrack)
-    assert [(t.spotify_track_id, t.artist_id, t.event_id) for t in tracks] == [
-        ("t1", artist_id, event_id)
-    ]
-    # One commit banks the resolution/top-track caches, one persists the
-    # remote id right after creation, one closes the sync.
-    assert session.commit.await_count == 3
-
-
-async def test_sync_requires_spotify_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
-    session = make_session()
-    monkeypatch.setattr(
-        "app.core.deps.get_settings",
-        lambda: Settings(spotify_client_id="", spotify_client_secret="", spotify_refresh_token=""),
-    )
-
-    response = await request("POST", SYNC_URL, session, user=make_user())
-
-    assert response.status_code == 503
-    # The missing key names go to the logs, never to the user.
-    detail = response.json()["detail"]
-    assert detail == "This service is temporarily unavailable. Please try again later."
-    assert "SPOTIFY" not in detail

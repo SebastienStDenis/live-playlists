@@ -417,6 +417,10 @@ Each phase lands as its own PR and leaves the app fully working.
   and `temporalio/ui` images, and the exact auto-setup retention env var name.
 - **Individual sync endpoints**: kept for debugging in this plan; revisit removing
   them once the orchestrated path has been the only UI path for a while.
+  *Resolved 2026-07-24: removed. The orchestrated path had been the only UI path
+  since this plan landed; the four endpoints, their client dependencies, and the
+  exception handlers only they could reach were dropped. The sync entrypoints
+  remain callable directly (the Temporal activities are now their only caller).*
 - **Seed-user ergonomics**: the seeded "Ada Lovelace" user has no linked Last.fm
   account, so `POST /sync` 404s until one is linked - fine, but worth a friendly
   UI state ("link a Last.fm account to sync").
