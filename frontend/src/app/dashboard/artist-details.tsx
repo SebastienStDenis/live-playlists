@@ -1,3 +1,4 @@
+import { CHIP_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import type { Interest, UserArtist } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,7 @@ export function KnownInterestBadges({
         <Badge
           key={`${interest.kind}-${interest.source}`}
           variant="outline"
-          className="font-normal text-muted-foreground"
+          className={CHIP_CLASS}
         >
           {interestLabel(interest)}
         </Badge>
@@ -109,7 +110,7 @@ export function ArtistDetails({
             <Badge
               key={tag}
               variant="outline"
-              className="max-w-full font-normal text-muted-foreground"
+              className={cn("max-w-full", CHIP_CLASS)}
             >
               {/* A badge never wraps internally, so a tag longer than the
                   card ellipsizes instead of clipping mid-letter. */}

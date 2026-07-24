@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -58,7 +59,8 @@ export function ArtistChip({
   // pl-1.5 sets the dot concentric with the pill's rounded end, matching the
   // score pill's px-1.5.
   const badgeClass = cn(
-    "max-w-full font-normal text-muted-foreground",
+    "max-w-full",
+    CHIP_CLASS,
     suggested && "pl-1.5",
   );
   const variant = suggested ? "accent" : "outline";

@@ -4,6 +4,7 @@ import { useDeferredValue, useState, useTransition } from "react";
 import { EyeOff, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CHIP_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { UserArtist } from "@/lib/api-types";
@@ -75,7 +76,7 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
               key={`${interest.kind}-${interest.source}`}
               variant="outline"
               className={cn(
-                "font-normal text-muted-foreground",
+                CHIP_CLASS,
                 excluded && "opacity-60",
               )}
             >
