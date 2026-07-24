@@ -63,6 +63,12 @@ and 1 day on Pro, which is why Sentry is the better place to look.
   collapsing into one issue per step. This is also why there is deliberately no
   Temporal interceptor: it would double-report every sync failure, once as the
   real exception and once as the user-facing message.
+- **Step timeouts are reported by the workflow, not the activity.** A timed-out
+  attempt never reaches `_user_facing_errors` (the worker is simply cut off), so
+  `SyncUserWorkflow` logs a warning naming the step and timeout type
+  (`START_TO_CLOSE` vs `SCHEDULE_TO_CLOSE`) when a step fails by timeout. That
+  warning is the only Sentry-visible record of the failure; the attempt-by-attempt
+  story stays in Temporal Cloud.
 - **The api and worker share one DSN**, told apart by the `component` tag
   (`api` / `worker`). One project, two processes.
 - **Tracing is off** (`traces_sample_rate=0`) on both sides. It bills per span

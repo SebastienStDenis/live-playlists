@@ -28,6 +28,7 @@ from temporalio.exceptions import (
     ActivityError,
     ApplicationError,
     ChildWorkflowError,
+    TimeoutError,
     WorkflowAlreadyStartedError,
 )
 
@@ -154,6 +155,14 @@ def _failure_summary(exc: ActivityError) -> str:
     return "This step didn't finish. Please try again."
 
 
+def _timeout_warning(step_key: SyncStepKey, exc: ActivityError) -> str | None:
+    cause = exc.cause
+    if not isinstance(cause, TimeoutError):
+        return None
+    kind = cause.type.name if cause.type else "UNKNOWN"
+    return f"Sync step {step_key} timed out ({kind})"
+
+
 @workflow.defn
 class SyncUserWorkflow:
     def __init__(self) -> None:
@@ -182,6 +191,8 @@ class SyncUserWorkflow:
                 step.status = "failed"
                 step.finished_at = workflow.now()
                 step.summary = _failure_summary(exc)
+                if (warning := _timeout_warning(spec.key, exc)) is not None:
+                    workflow.logger.warning(warning)
                 raise
             step.status = "completed"
             step.finished_at = workflow.now()
